@@ -8,6 +8,9 @@ extends CanvasLayer
 @onready var builder_button: Button = %BuilderButton
 @onready var build_button: Button = %BuildButton
 @onready var upgrades_box: VBoxContainer = %Upgrades
+@onready var offline_label: Label = %OfflineLabel
+
+const OFFLINE_MESSAGE_TIME := 10.0
 
 ## Upgrade id -> its button.
 var _upgrade_buttons := {}
@@ -26,6 +29,21 @@ func _ready() -> void:
 	build_button.pressed.connect(GameState.start_build)
 	_make_upgrade_buttons()
 	_refresh()
+	_show_offline_report()
+
+
+## Tells the player what they earned while the game was closed, then fades out.
+func _show_offline_report() -> void:
+	var report: Dictionary = GameState.offline_report
+	if report.is_empty():
+		return
+	var minutes: int = report.seconds / 60
+	offline_label.text = "While you were away (%dh %dm): +%d wood, +%d stone" % [
+		minutes / 60, minutes % 60, report.wood, report.stone]
+	offline_label.show()
+	var tween := create_tween()
+	tween.tween_interval(OFFLINE_MESSAGE_TIME)
+	tween.tween_property(offline_label, "modulate:a", 0.0, 1.0)
 
 
 ## One button per upgrade in GameState.UPGRADES, so adding an upgrade there

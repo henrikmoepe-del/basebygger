@@ -53,7 +53,7 @@ func _process(delta: float) -> void:
 				queue_redraw()
 		State.TO_HOME:
 			if _walk_to(home_x, delta):
-				GameState.add_resource(resource_type, _carrying)
+				GameState.add_peasant_income(resource_type, _carrying)
 				_carrying = 0
 				_state = State.IDLE
 				_timer = 0.0

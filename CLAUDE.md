@@ -39,10 +39,13 @@
 - If you believe a tool/program/pluggen would be of good use, for example to create pixel 2d art, to create sound, etc, then say so 
 
 ## Current status
-- Stage: Milestone 1 (2D incremental builder), early prototype with placeholder art
-- Done: project setup, click-to-gather (wood, stone), build castle pieces in order,
-  hireable peasants that walk and gather automatically
+- Stage: Milestone 1 (2D incremental builder) feature-complete as a prototype, placeholder art, not yet balanced
+- Done: project setup, click-to-gather (wood, stone), castle pieces built over time by builders,
+  hireable peasants and builders, plantable trees that run out and regrow, three upgrades,
+  save/load with offline progress
 - Design note: castle pieces are defences. Each has a `defence` value in
   `scripts/castle_data.gd`; the later 3D wave defence reads the built castle from `GameState`.
-- Next step: trees that peasants plant, which grow over time and are chopped for wood
-- After that: builders and upgrades, save/load, then Milestone 2 (3D wave defence)
+- Testing: run Godot with `--headless` and `-- --save=user://test_save.json` so tests
+  open no window and never touch the real save (`user://save.json`).
+- Next step: balance pass on costs and rates (game-design plugin), and a reset button
+- After that: real pixel art, then Milestone 2 (3D wave defence)

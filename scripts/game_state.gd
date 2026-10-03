@@ -20,6 +20,13 @@ const TREE_COST_GROWTH := 1.6
 const START_BUILDERS := 1
 const BUILDER_BASE_COST := 20
 const BUILDER_COST_GROWTH := 1.7
+const SAVE_VERSION := 1
+const AUTOSAVE_INTERVAL := 10.0
+const MAX_OFFLINE_SECONDS := 8 * 3600
+## Offline progress is only granted (and reported) after this long away.
+const MIN_OFFLINE_SECONDS := 60
+## Peasant income is averaged over this many seconds.
+const INCOME_WINDOW := 30.0
 
 ## Upgrades can be bought again and again; each level costs "growth" times more.
 const UPGRADES := {
@@ -40,15 +47,58 @@ var trees := START_TREES
 var builders := START_BUILDERS
 var upgrades := {"peasant_speed": 0, "carry": 0, "builder_speed": 0}
 
+## Measured resources per second brought in by peasants. Used for offline progress.
+var income_rate := {"wood": 0.0, "stone": 0.0}
+## Filled in by load_game() when time away earned something:
+## {"seconds": int, "wood": int, "stone": int}. Empty otherwise.
+var offline_report := {}
+var save_path := "user://save.json"
+
+var _window_income := {"wood": 0, "stone": 0}
+var _window_time := 0.0
+var _autosave_time := 0.0
+
+
+func _ready() -> void:
+	# Tests pass "-- --save=<path>" so they never touch the real save file.
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--save="):
+			save_path = arg.trim_prefix("--save=")
+	load_game()
+
 
 func _process(delta: float) -> void:
 	if building:
 		_advance_build(build_rate() * delta)
 
+	_window_time += delta
+	if _window_time >= INCOME_WINDOW:
+		for type: String in _window_income:
+			income_rate[type] = _window_income[type] / _window_time
+			_window_income[type] = 0
+		_window_time = 0.0
+
+	_autosave_time += delta
+	if _autosave_time >= AUTOSAVE_INTERVAL:
+		_autosave_time = 0.0
+		save_game()
+
+
+func _notification(what: int) -> void:
+	# Save when the player closes the window.
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		save_game()
+
 
 func add_resource(type: String, amount: int) -> void:
 	resources[type] += amount
 	resources_changed.emit()
+
+
+## Like add_resource, but also counted towards the measured peasant income.
+func add_peasant_income(type: String, amount: int) -> void:
+	_window_income[type] += amount
+	add_resource(type, amount)
 
 
 func can_afford(cost: Dictionary) -> bool:
@@ -185,3 +235,79 @@ func peasant_speed_mult() -> float:
 ## How many resources a peasant carries per trip.
 func carry_amount() -> int:
 	return 1 + upgrades.carry
+
+
+# --- Save and load ---
+
+func save_game() -> void:
+	var data := {
+		"version": SAVE_VERSION,
+		"saved_at": Time.get_unix_time_from_system(),
+		"resources": resources,
+		"built_count": built_count,
+		"building": building,
+		"build_progress": build_progress,
+		"peasants": peasants,
+		"trees": trees,
+		"builders": builders,
+		"upgrades": upgrades,
+		"income_rate": income_rate,
+	}
+	var file := FileAccess.open(save_path, FileAccess.WRITE)
+	if file == null:
+		push_warning("Could not save to %s" % save_path)
+		return
+	file.store_string(JSON.stringify(data, "	"))
+
+
+## Loads the save file if there is one, then grants offline progress.
+func load_game() -> void:
+	if not FileAccess.file_exists(save_path):
+		return
+	var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(save_path))
+	if not data is Dictionary:
+		push_warning("Save file %s is damaged; starting fresh" % save_path)
+		return
+
+	# JSON has no integers, so numbers come back as floats and are converted.
+	# Missing or out-of-range values fall back to something safe.
+	_load_numbers(resources, data.get("resources"), true)
+	_load_numbers(upgrades, data.get("upgrades"), true)
+	_load_numbers(income_rate, data.get("income_rate"), false)
+	built_count = clampi(int(data.get("built_count", 0)), 0, CastleData.PIECES.size())
+	peasants = maxi(int(data.get("peasants", 0)), 0)
+	trees = clampi(int(data.get("trees", START_TREES)), START_TREES, MAX_TREES)
+	builders = maxi(int(data.get("builders", START_BUILDERS)), START_BUILDERS)
+	building = bool(data.get("building", false)) and not next_piece().is_empty()
+	build_progress = maxf(float(data.get("build_progress", 0.0)), 0.0) if building else 0.0
+
+	var now := Time.get_unix_time_from_system()
+	_grant_offline_progress(now - float(data.get("saved_at", now)))
+
+
+## Copies saved numbers into target, only for keys target already has.
+func _load_numbers(target: Dictionary, saved: Variant, as_int: bool) -> void:
+	if not saved is Dictionary:
+		return
+	for key: String in target:
+		var value := maxf(float(saved.get(key, target[key])), 0.0)
+		target[key] = int(value) if as_int else value
+
+
+func _grant_offline_progress(seconds_away: float) -> void:
+	offline_report = {}
+	var seconds := minf(seconds_away, MAX_OFFLINE_SECONDS)
+	if seconds < MIN_OFFLINE_SECONDS:
+		return
+	var report := {"seconds": int(seconds)}
+	var earned_any := false
+	for type: String in income_rate:
+		var gained := int(income_rate[type] * seconds)
+		resources[type] += gained
+		report[type] = gained
+		earned_any = earned_any or gained > 0
+	if building:
+		# Builders kept working, but only on the piece that was already paid for.
+		_advance_build(build_rate() * seconds)
+	if earned_any:
+		offline_report = report
