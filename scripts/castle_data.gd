@@ -5,8 +5,9 @@ extends RefCounted
 ##
 ## "cost" and "work" are for level 1; each further level multiplies them by
 ## COST_GROWTH and WORK_GROWTH. "work" is seconds of hammering for one builder.
-## "site_x" is where builders stand to work on the part, relative to the
-## castle's ground-centre point.
+## "site_x" is where builders stand to work on the part, and "scaffold" lists
+## the left and right edge of each section that gets scaffolding while it is
+## built. Both are relative to the castle's ground-centre point.
 
 const COST_GROWTH := 1.55
 const WORK_GROWTH := 1.45
@@ -23,10 +24,22 @@ const IRON := Color(0.22, 0.23, 0.27)
 const BANNER := Color(0.78, 0.22, 0.22)
 
 const PARTS := {
-	"walls": {"name": "Walls", "defence": 10, "cost": {"stone": 12, "wood": 4}, "work": 8.0, "site_x": -60.0},
-	"towers": {"name": "Towers", "defence": 15, "cost": {"stone": 20, "wood": 8}, "work": 12.0, "site_x": -110.0},
-	"gate": {"name": "Gate", "defence": 5, "cost": {"wood": 18, "stone": 4}, "work": 8.0, "site_x": 0.0},
-	"keep": {"name": "Keep", "defence": 12, "cost": {"stone": 30, "wood": 15}, "work": 18.0, "site_x": 30.0},
+	"walls": {
+		"name": "Walls", "defence": 10, "cost": {"stone": 12, "wood": 4}, "work": 8.0,
+		"site_x": -60.0, "scaffold": [[-104.0, 104.0]],
+	},
+	"towers": {
+		"name": "Towers", "defence": 15, "cost": {"stone": 20, "wood": 8}, "work": 12.0,
+		"site_x": -110.0, "scaffold": [[-128.0, -92.0], [92.0, 128.0]],
+	},
+	"gate": {
+		"name": "Gate", "defence": 5, "cost": {"wood": 18, "stone": 4}, "work": 8.0,
+		"site_x": 0.0, "scaffold": [[-22.0, 22.0]],
+	},
+	"keep": {
+		"name": "Keep", "defence": 12, "cost": {"stone": 30, "wood": 15}, "work": 18.0,
+		"site_x": 30.0, "scaffold": [[-42.0, 42.0]],
+	},
 }
 ## Back to front.
 const DRAW_ORDER := ["keep", "walls", "towers", "gate"]
