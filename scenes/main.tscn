@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scripts/grove.gd" id="5_grove"]
 [ext_resource type="Script" path="res://scripts/skill_tree.gd" id="7_skills"]
 [ext_resource type="Script" path="res://scripts/sky.gd" id="8_sky"]
+[ext_resource type="Script" path="res://scripts/raiders.gd" id="9_raiders"]
 
 [node name="Main" type="Node2D"]
 
@@ -53,6 +54,10 @@ grove = NodePath("../Grove")
 rock = NodePath("../Rock")
 wilds = NodePath("../Wilds")
 castle = NodePath("../Castle")
+
+[node name="Raiders" type="Node2D" parent="."]
+position = Vector2(0, 270)
+script = ExtResource("9_raiders")
 
 [node name="HUD" type="CanvasLayer" parent="."]
 script = ExtResource("2_hud")
@@ -102,13 +107,49 @@ theme_override_font_sizes/font_size = 12
 text = "Day 1"
 horizontal_alignment = 2
 
+[node name="RaidLabel" type="Label" parent="HUD"]
+unique_name_in_owner = true
+offset_left = 300.0
+offset_top = 58.0
+offset_right = 632.0
+offset_bottom = 78.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.2, 0.2, 0.25, 1)
+theme_override_font_sizes/font_size = 12
+text = "Raid on day 4"
+horizontal_alignment = 2
+
+[node name="ToastLabel" type="Label" parent="HUD"]
+unique_name_in_owner = true
+visible = false
+offset_left = 200.0
+offset_top = 96.0
+offset_right = 632.0
+offset_bottom = 140.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.2, 0.2, 0.25, 1)
+theme_override_font_sizes/font_size = 14
+text = "Message"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="ResetButton" type="Button" parent="HUD"]
+unique_name_in_owner = true
+offset_left = 8.0
+offset_top = 246.0
+offset_right = 108.0
+offset_bottom = 266.0
+focus_mode = 0
+theme_override_font_sizes/font_size = 9
+text = "New game"
+
 [node name="OfflineLabel" type="Label" parent="HUD"]
 unique_name_in_owner = true
 visible = false
 offset_left = 270.0
-offset_top = 58.0
+offset_top = 74.0
 offset_right = 632.0
-offset_bottom = 78.0
+offset_bottom = 94.0
 mouse_filter = 2
 theme_override_colors/font_color = Color(0.25, 0.4, 0.2, 1)
 theme_override_font_sizes/font_size = 12

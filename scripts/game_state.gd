@@ -15,30 +15,48 @@ signal trees_changed
 signal skills_changed
 ## Dawn or dusk arrived, or the peasants ate.
 signal daytime_changed
+signal raid_started
+signal raid_resolved(won: bool)
+## Something happened that the player should be told about.
+signal announced(text: String)
 
 const CastleData = preload("res://scripts/castle_data.gd")
 const SkillData = preload("res://scripts/skill_data.gd")
 const JobData = preload("res://scripts/job_data.gd")
 
-const START_JOBS := {"wood": 1, "stone": 1, "hunter": 1, "build": 1, "forester": 0, "cook": 0}
+const START_JOBS := {"wood": 1, "stone": 1, "hunter": 1, "build": 1, "soldier": 0, "forester": 0, "cook": 0}
 const START_PEASANTS := 4
 const PEASANT_BASE_COST := 10
 const PEASANT_COST_GROWTH := 1.25
 const PEASANT_BASE_CARRY := 2
-## Hunters walk a long way, so they bring back more per trip.
-const HUNTER_EXTRA_CARRY := 2
+## Hunters have their own carry size, raised by hunting skills only.
+const HUNTER_CARRY := 3
 
 ## A day lasts DAY_LENGTH seconds; the last part of it is night, when
 ## everyone sleeps. Night begins at NIGHT_START (a fraction of the day).
 const DAY_LENGTH := 120.0
 const NIGHT_START := 0.72
-const START_FOOD := 12
+const START_FOOD := 20
 ## Every peasant eats this much at dawn. If there isn't enough, everyone
 ## goes hungry and works at HUNGRY_WORK_MULT until the next dawn.
-const FOOD_PER_PEASANT := 2.0
+const FOOD_PER_PEASANT := 3.0
 const HUNGRY_WORK_MULT := 0.6
 const COOK_FOOD_SAVING := 0.08
 const MAX_USEFUL_COOKS := 6
+
+## Raiders test the castle's defence every RAID_INTERVAL days, and each raid is
+## RAID_STRENGTH_GROWTH times stronger than the last. Beating one gives renown;
+## losing one costs RAID_LOSS of everything in the stockhouse.
+const FIRST_RAID_DAY := 4
+const RAID_INTERVAL := 3
+const RAID_BASE_STRENGTH := 45.0
+const RAID_STRENGTH_GROWTH := 1.38
+## Seconds between the raiders appearing and reaching the walls.
+const RAID_MARCH_TIME := 12.0
+const RAID_LOSS := 0.4
+const RAID_BASE_RENOWN := 2
+const SOLDIER_DEFENCE := 5
+const SOLDIERS_PER_GARRISON_LEVEL := 2
 const START_TREES := 3
 ## Trees the grove has room for before any skills. The screen fits MAX_TREE_PLOTS.
 const BASE_TREE_PLOTS := 8
@@ -59,7 +77,7 @@ const LEVELS_PER_RANK := 5
 const FIRST_RANK_UP := 18
 const RANK_UP_STEP := 24
 
-const SAVE_VERSION := 4
+const SAVE_VERSION := 5
 const AUTOSAVE_INTERVAL := 10.0
 const MAX_OFFLINE_SECONDS := 8 * 3600
 ## Offline progress is only granted (and reported) after this long away.
@@ -82,6 +100,9 @@ var day := 1
 var day_time := 0.0
 ## False if there wasn't enough food at dawn today.
 var fed := true
+var raids_faced := 0
+## True while raiders are marching on the castle.
+var raid_incoming := false
 ## Ids of the skills the player owns.
 var skills: Array[String] = []
 
@@ -104,6 +125,7 @@ var save_path := "user://save.json"
 
 var _window_income := {"wood": 0, "stone": 0, "food": 0}
 var _was_night := false
+var _raid_timer := 0.0
 var _window_time := 0.0
 var _autosave_time := 0.0
 
@@ -125,6 +147,7 @@ func _process(delta: float) -> void:
 	if is_night() != _was_night:
 		_was_night = is_night()
 		daytime_changed.emit()
+	_update_raid(delta)
 
 	_window_time += delta
 	if _window_time >= INCOME_WINDOW:
@@ -206,6 +229,51 @@ func _eat() -> void:
 	resources.food = maxi(resources.food - needed, 0)
 	resources_changed.emit()
 	daytime_changed.emit()
+	if not fed:
+		announced.emit("Not enough food: your peasants are hungry and slow today")
+
+
+# --- Raids ---
+
+## The day the next raid arrives.
+func next_raid_day() -> int:
+	return FIRST_RAID_DAY + RAID_INTERVAL * raids_faced
+
+
+## How much defence the next raid needs to be beaten.
+func raid_strength() -> int:
+	return roundi(RAID_BASE_STRENGTH * pow(RAID_STRENGTH_GROWTH, raids_faced))
+
+
+func _update_raid(delta: float) -> void:
+	if not raid_incoming:
+		if day >= next_raid_day():
+			raid_incoming = true
+			_raid_timer = RAID_MARCH_TIME
+			raid_started.emit()
+			announced.emit("Raiders approach! Their strength is %d, your defence is %d" % [raid_strength(), total_defence()])
+		return
+	_raid_timer -= delta
+	if _raid_timer <= 0.0:
+		_resolve_raid()
+
+
+func _resolve_raid() -> void:
+	var won := total_defence() >= raid_strength()
+	if won:
+		var reward := RAID_BASE_RENOWN + raids_faced / 3 + int(skill_total("raid_renown"))
+		renown += reward
+		announced.emit("Raid repelled! +%d renown" % reward)
+	else:
+		var loss := RAID_LOSS * (1.0 - skill_total("raid_loss_cut"))
+		for type: String in resources:
+			resources[type] -= int(resources[type] * loss)
+		announced.emit("The raiders broke in and took %d%% of your stores" % roundi(loss * 100))
+	raids_faced += 1
+	raid_incoming = false
+	raid_resolved.emit(won)
+	resources_changed.emit()
+	skills_changed.emit()
 
 
 # --- Peasants and their jobs ---
@@ -237,13 +305,24 @@ func hire_peasant() -> bool:
 
 ## Some jobs only exist once a skill is owned (see "requires_skill" in JobData).
 func job_unlocked(job: String) -> bool:
-	var skill: String = JobData.JOBS[job].get("requires_skill", "")
-	return skill == "" or skill in skills
+	var info: Dictionary = JobData.JOBS[job]
+	if info.has("requires_part") and part_levels[info.requires_part] == 0:
+		return false
+	return not info.has("requires_skill") or info.requires_skill in skills
+
+
+## The most peasants a job can hold, or -1 for no limit.
+func job_limit(job: String) -> int:
+	if job == "soldier":
+		return part_levels.garrison * (SOLDIERS_PER_GARRISON_LEVEL + int(skill_total("soldier_room")))
+	return -1
 
 
 ## Moves one idle peasant into a job (change = 1) or one out of it (change = -1).
 func assign(job: String, change: int) -> bool:
 	if change > 0 and (idle_peasants() <= 0 or not job_unlocked(job)):
+		return false
+	if change > 0 and job_limit(job) >= 0 and jobs[job] >= job_limit(job):
 		return false
 	if change < 0 and jobs[job] <= 0:
 		return false
@@ -327,12 +406,18 @@ func part_block_reason(id: String) -> String:
 	return ""
 
 
-## Sum of every part's defence. The 3D mode will use this and the part levels.
+## The castle's defence: every part's levels, plus the soldiers on the walls.
+## Raids are checked against this, and the 3D mode will use it too.
 func total_defence() -> int:
-	var total := 0
+	var from_parts := 0.0
 	for id: String in part_levels:
-		total += part_levels[id] * CastleData.PARTS[id].defence
-	return total
+		from_parts += part_levels[id] * CastleData.PARTS[id].defence
+	from_parts *= 1.0 + skill_total("part_defence")
+	return roundi(from_parts) + jobs.soldier * soldier_defence()
+
+
+func soldier_defence() -> int:
+	return SOLDIER_DEFENCE + int(skill_total("soldier_defence"))
 
 
 func _scaled_cost(base: Dictionary, growth: float, level: int) -> Dictionary:
@@ -413,6 +498,7 @@ func _finish_job() -> void:
 	renown += CastleData.PARTS[job_part].renown
 	if castle_rank() > rank_before:
 		renown += RENOWN_PER_RANK + int(skill_total("rank_renown"))
+		announced.emit("Castle rank %d! Parts can now reach level %d" % [castle_rank(), level_cap()])
 	job_part = ""
 	castle_changed.emit()
 	skills_changed.emit()
@@ -459,10 +545,9 @@ func peasant_speed_mult() -> float:
 
 ## How many resources a gatherer with this job carries per trip.
 func carry_amount(job: String) -> int:
-	var amount := PEASANT_BASE_CARRY + int(skill_total("carry"))
 	if job == "hunter":
-		amount += HUNTER_EXTRA_CARRY + int(skill_total("hunter_carry"))
-	return amount
+		return HUNTER_CARRY + int(skill_total("hunter_carry"))
+	return PEASANT_BASE_CARRY + int(skill_total("carry"))
 
 
 ## Multiplies how long a gatherer spends chopping or mining.
@@ -508,6 +593,7 @@ func save_game() -> void:
 		"day": day,
 		"day_time": day_time,
 		"fed": fed,
+		"raids_faced": raids_faced,
 		"skills": skills,
 		"income_rate": income_rate,
 		"job": {
@@ -520,6 +606,35 @@ func save_game() -> void:
 		push_warning("Could not save to %s" % save_path)
 		return
 	file.store_string(JSON.stringify(data, "\t"))
+
+
+## Wipes the save file and starts over from the beginning.
+func reset_game() -> void:
+	if FileAccess.file_exists(save_path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path))
+	resources = {"wood": 0, "stone": 0, "food": START_FOOD}
+	for id: String in part_levels:
+		part_levels[id] = 0
+	peasants = START_PEASANTS
+	jobs = START_JOBS.duplicate()
+	trees = START_TREES
+	planting_work = 0.0
+	renown = 0
+	skills.clear()
+	day = 1
+	day_time = 0.0
+	fed = true
+	raids_faced = 0
+	raid_incoming = false
+	job_part = ""
+	for type: String in income_rate:
+		income_rate[type] = 0.0
+		_window_income[type] = 0
+	_window_time = 0.0
+	_was_night = false
+	offline_report = {}
+	# Reloading the scene rebuilds everything on screen from the fresh state.
+	get_tree().reload_current_scene()
 
 
 ## Loads the save file if there is one, then grants offline progress.
@@ -547,6 +662,7 @@ func load_game() -> void:
 	day = maxi(int(data.get("day", 1)), 1)
 	day_time = clampf(float(data.get("day_time", 0.0)), 0.0, DAY_LENGTH - 0.1)
 	fed = bool(data.get("fed", true))
+	raids_faced = maxi(int(data.get("raids_faced", 0)), 0)
 	_was_night = is_night()
 	skills.clear()
 	var saved_skills: Variant = data.get("skills")

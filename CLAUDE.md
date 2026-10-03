@@ -40,20 +40,24 @@
 
 ## Current status
 - Stage: Milestone 1 (2D incremental builder), expanding the builder before the 3D part. Placeholder art.
-- Done: click-to-gather, peasants, plantable trees that regrow, save/load with offline progress,
-  castle as four upgradable parts (walls, towers, gate, keep) with a castle rank that caps levels,
-  builders that haul materials from the stockhouse and hammer them in, scaffolding and rope hoist,
-  skill tree (16 skills in Peasant and Builder branches, paid with renown from castle levels)
+- The player never clicks to gather. Peasants do all the work; the player hires them,
+  assigns them to jobs, orders castle parts and buys skills.
+- Done:
+  - Jobs: woodcutter, quarryman, hunter, builder, soldier (needs a garrison), forester and cook (skills)
+  - Castle: six upgradable parts (walls, towers, gate, keep, garrison, court); a castle rank caps levels
+  - Building: builders haul materials from the stockhouse and hammer them in; scaffolding and rope hoist
+  - Skill tree: four tabs (Peasants, Builders, Village, Defence), 47 skills, paid with renown
+  - Day and night (peasants sleep), food and hunger, trees that run out and regrow
+  - Raids every 3 days, checked against the castle's defence; win renown or lose stores
+  - Save/load with offline progress, and a New game button
 - Design notes:
-  - Castle parts are defences. `scripts/castle_data.gd` holds each part's defence per level;
-    the later 3D wave defence reads the part levels from `GameState`.
+  - Castle parts and soldiers are defences. `GameState.total_defence()` and the part levels are
+    what the later 3D wave defence will read; raids are the 2D stand-in for it.
+  - Data lives in `scripts/*_data.gd` (castle parts, jobs, skills); adding an entry there is
+    usually all it takes to get new content on screen.
   - Henrik's design ideas are starting points: explore and expand on them, then explain the choices.
-- Agreed order for what comes next:
-  1. Trades as big skill-tree unlocks (woodcutter, mason, builder roles)
-  2. Day/night and hunger (hunter, cook)
-  3. Thirst, boredom, traits: hold until the wave defence prototype exists
-  4. Milestone 2: 3D wave defence, which also acts as the prestige loop
-- Known balance issue: stone income is about 8x wood late on (rock is endless, trees are capped at 8).
-  Trades (next step) are the planned fix.
+- Ideas not built yet: thirst, boredom and peasant traits; houses and other village buildings
+  (needs a wider, scrolling world); real pixel art; sound
+- Then Milestone 2: 3D wave defence, which also acts as the prestige loop
 - Testing: run Godot with `--headless` and `-- --save=user://test_save.json` so tests
   open no window and never touch the real save (`user://save.json`).

@@ -12,7 +12,7 @@ var growth := 1.0
 
 func _init() -> void:
 	resource_type = "wood"
-	size = Vector2(22, 50)
+	size = Vector2(15, 50)
 
 
 func start_as_sapling() -> void:

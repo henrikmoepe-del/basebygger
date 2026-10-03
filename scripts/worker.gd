@@ -14,7 +14,7 @@ var world: Node2D
 
 
 func _process(delta: float) -> void:
-	if GameState.is_night():
+	if GameState.is_night() and _sleeps():
 		# Everyone walks back to the stockhouse and sleeps inside until dawn.
 		if _walk_to(world.stock_x, delta):
 			hide()
@@ -22,6 +22,11 @@ func _process(delta: float) -> void:
 		show()
 		_work(delta)
 	queue_redraw()
+
+
+## Jobs that keep going through the night return false.
+func _sleeps() -> bool:
+	return true
 
 
 ## What the peasant does each frame. Idle peasants just walk home and wait.

@@ -8,7 +8,7 @@ extends RefCounted
 ## "cell" is the skill's column and row on its tab.
 ## "big" marks the few expensive skills that change more than a number.
 
-const BRANCHES := {"peasant": "Peasants", "builder": "Builders", "village": "Village"}
+const BRANCHES := {"peasant": "Peasants", "builder": "Builders", "village": "Village", "defence": "Defence"}
 
 const SKILLS := {
 	# --- Peasants: walking, carrying, gathering, trees ---
@@ -178,5 +178,40 @@ const SKILLS := {
 	"v_herald": {
 		"branch": "village", "name": "Heralds", "text": "Each new castle rank gives 3 more renown.",
 		"cost": 4, "requires": "", "effects": {"rank_renown": 3}, "cell": Vector2i(5, 0),
+	},
+
+	# --- Defence: soldiers and raids ---
+	"d_drill": {
+		"branch": "defence", "name": "Drills", "text": "Each soldier gives 2 more defence.",
+		"cost": 3, "requires": "", "effects": {"soldier_defence": 2}, "cell": Vector2i(1, 0),
+	},
+	"d_bunks": {
+		"branch": "defence", "name": "Bunks", "text": "Room for 1 more soldier per garrison level.",
+		"cost": 4, "requires": "d_drill", "effects": {"soldier_room": 1}, "cell": Vector2i(0, 1),
+	},
+	"d_arms": {
+		"branch": "defence", "name": "Better Arms", "text": "Each soldier gives another 3 defence.",
+		"cost": 5, "requires": "d_drill", "effects": {"soldier_defence": 3}, "cell": Vector2i(1, 1),
+	},
+	"d_veterans": {
+		"branch": "defence", "name": "Veterans", "text": "Each soldier gives another 5 defence.",
+		"cost": 8, "requires": "d_arms", "effects": {"soldier_defence": 5}, "cell": Vector2i(1, 2),
+		"big": true,
+	},
+	"d_walls": {
+		"branch": "defence", "name": "Thick Walls", "text": "Castle parts give 15% more defence.",
+		"cost": 4, "requires": "", "effects": {"part_defence": 0.15}, "cell": Vector2i(3, 0),
+	},
+	"d_walls2": {
+		"branch": "defence", "name": "Murder Holes", "text": "Castle parts give another 20% defence.",
+		"cost": 7, "requires": "d_walls", "effects": {"part_defence": 0.2}, "cell": Vector2i(3, 1),
+	},
+	"d_cellars": {
+		"branch": "defence", "name": "Hidden Cellars", "text": "A lost raid takes half as much from your stores.",
+		"cost": 3, "requires": "", "effects": {"raid_loss_cut": 0.5}, "cell": Vector2i(5, 0),
+	},
+	"d_spoils": {
+		"branch": "defence", "name": "Spoils of War", "text": "Each raid you beat gives 2 more renown.",
+		"cost": 4, "requires": "d_cellars", "effects": {"raid_renown": 2}, "cell": Vector2i(5, 1),
 	},
 }

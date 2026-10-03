@@ -9,10 +9,11 @@ const Gatherer = preload("res://scripts/gatherer.gd")
 const Builder = preload("res://scripts/builder.gd")
 const Forester = preload("res://scripts/forester.gd")
 const Cook = preload("res://scripts/cook.gd")
+const Soldier = preload("res://scripts/soldier.gd")
 ## Which script runs each job ("" = idle).
 const JOB_SCRIPTS := {
 	"": Worker, "wood": Gatherer, "stone": Gatherer, "hunter": Gatherer,
-	"build": Builder, "forester": Forester, "cook": Cook,
+	"build": Builder, "forester": Forester, "cook": Cook, "soldier": Soldier,
 }
 
 @export var grove: Node2D
@@ -49,6 +50,11 @@ func find_spot(resource_type: String) -> Node2D:
 	return rock
 
 
+## The height of the top of the castle walls, where soldiers stand (negative = up).
+func wall_top_y() -> float:
+	return CastleData.top_y("walls", GameState.part_levels.walls)
+
+
 ## Where the cooks stand.
 func kitchen_x() -> float:
 	return stock_x - 24.0
@@ -76,7 +82,11 @@ func _spawn(job: String) -> void:
 	worker.job = job
 	worker.world = self
 	worker.speed *= randf_range(0.9, 1.1)
-	if job == "build":
+	if job == "soldier":
+		# Soldiers spread out along the wall, clear of the gate in the middle.
+		var side := -1.0 if randf() < 0.5 else 1.0
+		worker.home_x = castle.position.x + side * randf_range(26.0, 96.0)
+	elif job == "build":
 		# Builders wait in front of the castle.
 		worker.home_x = castle.position.x - 140.0 + randf_range(0.0, 60.0)
 	elif job == "":

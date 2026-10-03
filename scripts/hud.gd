@@ -4,6 +4,9 @@ extends CanvasLayer
 const CastleData = preload("res://scripts/castle_data.gd")
 const JobData = preload("res://scripts/job_data.gd")
 const OFFLINE_MESSAGE_TIME := 10.0
+const TOAST_TIME := 7.0
+## How long the reset button waits for the confirming second press.
+const RESET_CONFIRM_TIME := 3.0
 const TEXT_COLOR := Color(0.2, 0.2, 0.25)
 const HUNGRY_COLOR := Color(0.75, 0.15, 0.15)
 const OUTLINE_COLOR := Color(0.96, 0.95, 0.85)
@@ -12,6 +15,9 @@ const OUTLINE_COLOR := Color(0.96, 0.95, 0.85)
 @onready var defence_label: Label = %DefenceLabel
 @onready var rank_label: Label = %RankLabel
 @onready var day_label: Label = %DayLabel
+@onready var raid_label: Label = %RaidLabel
+@onready var toast_label: Label = %ToastLabel
+@onready var reset_button: Button = %ResetButton
 @onready var peasants_label: Label = %PeasantsLabel
 @onready var jobs_box: VBoxContainer = %Jobs
 @onready var hire_button: Button = %HireButton
@@ -24,6 +30,8 @@ const OUTLINE_COLOR := Color(0.96, 0.95, 0.85)
 var _part_buttons := {}
 ## Job id -> {"label": Label, "minus": Button, "plus": Button}.
 var _job_rows := {}
+var _toast_tween: Tween
+var _reset_armed := false
 
 
 func _ready() -> void:
@@ -35,6 +43,9 @@ func _ready() -> void:
 		changed.connect(_refresh)
 	hire_button.pressed.connect(GameState.hire_peasant)
 	skills_button.pressed.connect(skill_tree.show)
+	reset_button.pressed.connect(_on_reset_pressed)
+	GameState.announced.connect(_show_toast)
+	GameState.raid_resolved.connect(func(_won: bool) -> void: _refresh())
 	_make_part_buttons()
 	_make_job_rows()
 	# A pale outline keeps the dark text readable against the night sky.
@@ -89,6 +100,30 @@ func _new_button(font_size: int) -> Button:
 	return button
 
 
+## Shows a message in the middle of the screen for a few seconds.
+func _show_toast(text: String) -> void:
+	toast_label.text = text
+	toast_label.modulate.a = 1.0
+	toast_label.show()
+	if _toast_tween:
+		_toast_tween.kill()
+	_toast_tween = create_tween()
+	_toast_tween.tween_interval(TOAST_TIME)
+	_toast_tween.tween_property(toast_label, "modulate:a", 0.0, 1.0)
+
+
+## Starting over wipes everything, so it takes two presses in a row.
+func _on_reset_pressed() -> void:
+	if _reset_armed:
+		GameState.reset_game()
+		return
+	_reset_armed = true
+	reset_button.text = "Sure? Press again"
+	await get_tree().create_timer(RESET_CONFIRM_TIME).timeout
+	_reset_armed = false
+	reset_button.text = "New game"
+
+
 ## Tells the player what they earned while the game was closed, then fades out.
 func _show_offline_report() -> void:
 	var report: Dictionary = GameState.offline_report
@@ -121,14 +156,23 @@ func _refresh() -> void:
 		"Fed (eat %d at dawn)" % GameState.food_needed() if GameState.fed else "HUNGRY: working slowly"]
 	day_label.add_theme_color_override("font_color", TEXT_COLOR if GameState.fed else HUNGRY_COLOR)
 
+	var safe := GameState.total_defence() >= GameState.raid_strength()
+	raid_label.text = "%s: strength %d" % [
+		"Raiders at the walls" if GameState.raid_incoming else "Raid on day %d" % GameState.next_raid_day(),
+		GameState.raid_strength()]
+	raid_label.add_theme_color_override("font_color", TEXT_COLOR if safe else HUNGRY_COLOR)
+
 	var idle := GameState.idle_peasants()
 	peasants_label.text = "Peasants: %d  (%d idle)" % [GameState.peasants, idle]
 	for id: String in _job_rows:
 		var row: Dictionary = _job_rows[id]
 		row.row.visible = GameState.job_unlocked(id)
+		var limit := GameState.job_limit(id)
 		row.label.text = "%s: %d" % [JobData.JOBS[id].name, GameState.jobs[id]]
+		if limit >= 0:
+			row.label.text += "/%d" % limit
 		row.minus.disabled = GameState.jobs[id] <= 0
-		row.plus.disabled = idle <= 0
+		row.plus.disabled = idle <= 0 or (limit >= 0 and GameState.jobs[id] >= limit)
 
 	_set_button(hire_button, "Hire Peasant", GameState.peasant_cost(), "")
 	skills_button.text = "Skills\n%d renown" % GameState.renown
