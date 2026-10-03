@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" path="res://scripts/gather_spot.gd" id="1_gather"]
 [ext_resource type="Script" path="res://scripts/hud.gd" id="2_hud"]
+[ext_resource type="Script" path="res://scripts/castle.gd" id="3_castle"]
 
 [node name="Main" type="Node2D"]
 
@@ -30,6 +31,10 @@ script = ExtResource("1_gather")
 resource_type = "stone"
 size = Vector2(40, 26)
 
+[node name="Castle" type="Node2D" parent="."]
+position = Vector2(430, 300)
+script = ExtResource("3_castle")
+
 [node name="HUD" type="CanvasLayer" parent="."]
 script = ExtResource("2_hud")
 
@@ -42,6 +47,27 @@ offset_bottom = 30.0
 mouse_filter = 2
 theme_override_colors/font_color = Color(0.2, 0.2, 0.25, 1)
 text = "Wood: 0   Stone: 0"
+
+[node name="DefenceLabel" type="Label" parent="HUD"]
+unique_name_in_owner = true
+offset_left = 480.0
+offset_top = 6.0
+offset_right = 632.0
+offset_bottom = 30.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.2, 0.2, 0.25, 1)
+text = "Defence: 0"
+horizontal_alignment = 2
+
+[node name="BuildButton" type="Button" parent="HUD"]
+unique_name_in_owner = true
+offset_left = 330.0
+offset_top = 306.0
+offset_right = 530.0
+offset_bottom = 354.0
+focus_mode = 0
+theme_override_font_sizes/font_size = 14
+text = "Build"
 
 [node name="HintLabel" type="Label" parent="HUD"]
 offset_left = 30.0

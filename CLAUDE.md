@@ -39,5 +39,9 @@
 - If you believe a tool/program/pluggen would be of good use, for example to create pixel 2d art, to create sound, etc, then say so 
 
 ## Current status
-- Stage: planning
-- Next step: decide on the game idea and core mechanic
+- Stage: Milestone 1 (2D incremental builder), early prototype with placeholder art
+- Done: project setup, click-to-gather (wood, stone), build castle pieces in order
+- Design note: castle pieces are defences. Each has a `defence` value in
+  `scripts/castle_data.gd`; the later 3D wave defence reads the built castle from `GameState`.
+- Next step: peasants that gather automatically (price rises per hire)
+- After that: trees that grow, builders and upgrades, save/load, then Milestone 2 (3D wave defence)
