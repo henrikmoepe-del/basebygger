@@ -1,13 +1,11 @@
 extends Control
-## The skill tree screen: one button per skill in SkillData.SKILLS, laid out
-## by each skill's "cell", with lines from every skill to the one it requires.
-## It covers the whole screen while open, so clicks don't reach the game.
+## The skill tree screen: a tab per branch in SkillData.BRANCHES and one
+## button per skill, laid out by each skill's "cell", with lines from every
+## skill to the one it requires. It covers the whole screen while open.
 
 const SkillData = preload("res://scripts/skill_data.gd")
-const ORIGIN := Vector2(16, 66)
-const CELL := Vector2(96, 46)
-## Extra space between the peasant columns (0-2) and the builder columns (3-5).
-const BRANCH_GAP := 30.0
+const ORIGIN := Vector2(30, 66)
+const CELL := Vector2(98, 44)
 const NODE_SIZE := Vector2(90, 34)
 const BACKGROUND := Color(0.13, 0.14, 0.20, 0.96)
 const LINE_LOCKED := Color(0.40, 0.42, 0.50)
@@ -18,13 +16,25 @@ const BIG_TEXT := Color(1.0, 0.85, 0.40)
 @onready var renown_label: Label = %SkillRenownLabel
 @onready var info_label: Label = %SkillInfoLabel
 @onready var close_button: Button = %SkillCloseButton
+@onready var tabs_box: HBoxContainer = %SkillTabs
 
-## Skill id -> its button.
+var _branch := "peasant"
+## Skill id -> its button, and branch id -> its tab button.
 var _buttons := {}
+var _tabs := {}
 
 
 func _ready() -> void:
 	hide()
+	for branch: String in SkillData.BRANCHES:
+		var tab := Button.new()
+		tab.toggle_mode = true
+		tab.focus_mode = Control.FOCUS_NONE
+		tab.custom_minimum_size = Vector2(110, 0)
+		tab.add_theme_font_size_override("font_size", 12)
+		tab.pressed.connect(_show_branch.bind(branch))
+		tabs_box.add_child(tab)
+		_tabs[branch] = tab
 	for id: String in SkillData.SKILLS:
 		var skill: Dictionary = SkillData.SKILLS[id]
 		var button := Button.new()
@@ -41,14 +51,14 @@ func _ready() -> void:
 		_buttons[id] = button
 	close_button.pressed.connect(hide)
 	GameState.skills_changed.connect(_refresh)
-	_refresh()
+	_show_branch(_branch)
 
 
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), BACKGROUND)
 	for id: String in SkillData.SKILLS:
 		var skill: Dictionary = SkillData.SKILLS[id]
-		if skill.requires == "":
+		if skill.branch != _branch or skill.requires == "":
 			continue
 		var from := _cell_position(SkillData.SKILLS[skill.requires].cell) + NODE_SIZE / 2
 		var to := _cell_position(skill.cell) + NODE_SIZE / 2
@@ -56,19 +66,32 @@ func _draw() -> void:
 
 
 func _cell_position(cell: Vector2i) -> Vector2:
-	var gap := BRANCH_GAP if cell.x >= 3 else 0.0
-	return ORIGIN + Vector2(cell.x * CELL.x + gap, cell.y * CELL.y)
+	return ORIGIN + Vector2(cell) * CELL
+
+
+func _show_branch(branch: String) -> void:
+	_branch = branch
+	_refresh()
 
 
 func _refresh() -> void:
 	renown_label.text = "Renown: %d" % GameState.renown
+	for branch: String in _tabs:
+		var owned := 0
+		var total := 0
+		for id: String in SkillData.SKILLS:
+			if SkillData.SKILLS[id].branch == branch:
+				total += 1
+				owned += int(id in GameState.skills)
+		_tabs[branch].text = "%s %d/%d" % [SkillData.BRANCHES[branch], owned, total]
+		_tabs[branch].button_pressed = branch == _branch
 	for id: String in _buttons:
 		var skill: Dictionary = SkillData.SKILLS[id]
 		var button: Button = _buttons[id]
-		var reason := GameState.skill_block_reason(id)
 		var owned := id in GameState.skills
+		button.visible = skill.branch == _branch
 		button.text = "%s\n%s" % [skill.name, "Owned" if owned else "%d renown" % skill.cost]
-		button.disabled = reason != ""
+		button.disabled = GameState.skill_block_reason(id) != ""
 		if owned:
 			# Owned skills can't be clicked, but should still read clearly.
 			button.add_theme_color_override("font_disabled_color", OWNED_TEXT)

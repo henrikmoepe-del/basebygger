@@ -12,7 +12,6 @@ const TEXT_COLOR := Color(0.2, 0.2, 0.25)
 @onready var peasants_label: Label = %PeasantsLabel
 @onready var jobs_box: VBoxContainer = %Jobs
 @onready var hire_button: Button = %HireButton
-@onready var plant_button: Button = %PlantButton
 @onready var parts_box: HBoxContainer = %Parts
 @onready var skills_button: Button = %SkillsButton
 @onready var skill_tree: Control = %SkillTree
@@ -31,7 +30,6 @@ func _ready() -> void:
 	]:
 		changed.connect(_refresh)
 	hire_button.pressed.connect(GameState.hire_peasant)
-	plant_button.pressed.connect(GameState.plant_tree)
 	skills_button.pressed.connect(skill_tree.show)
 	_make_part_buttons()
 	_make_job_rows()
@@ -119,8 +117,6 @@ func _refresh() -> void:
 		row.plus.disabled = idle <= 0
 
 	_set_button(hire_button, "Hire Peasant", GameState.peasant_cost(), "")
-	_set_button(plant_button, "Plant Tree (%d/%d)" % [GameState.trees, GameState.MAX_TREES],
-			GameState.tree_cost(), "Grove full")
 	skills_button.text = "Skills\n%d renown" % GameState.renown
 
 	for id: String in _part_buttons:

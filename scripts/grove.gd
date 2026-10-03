@@ -5,7 +5,7 @@ const TreeSpot = preload("res://scripts/tree.gd")
 
 ## The first tree stands nearest the stockhouse; later ones are a longer walk.
 @export var first_x := 178.0
-@export var spacing := -22.0
+@export var spacing := -14.0
 
 
 func _ready() -> void:
@@ -22,10 +22,15 @@ func best_tree() -> Node2D:
 	return best
 
 
+## Where tree number index stands (0 = the first tree).
+func plot_x(index: int) -> float:
+	return first_x + spacing * index
+
+
 func _sync(as_sapling: bool) -> void:
 	while get_child_count() < GameState.trees:
 		var tree := TreeSpot.new()
-		tree.position.x = first_x + spacing * get_child_count()
+		tree.position.x = plot_x(get_child_count())
 		if as_sapling:
 			tree.start_as_sapling()
 		add_child(tree)

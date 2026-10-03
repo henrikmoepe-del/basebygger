@@ -18,15 +18,20 @@ const CastleData = preload("res://scripts/castle_data.gd")
 const SkillData = preload("res://scripts/skill_data.gd")
 const JobData = preload("res://scripts/job_data.gd")
 
-const START_JOBS := {"wood": 1, "stone": 1, "build": 1}
+const START_JOBS := {"wood": 1, "stone": 1, "build": 1, "forester": 0}
 const START_PEASANTS := 3
 const PEASANT_BASE_COST := 10
 const PEASANT_COST_GROWTH := 1.25
 const PEASANT_BASE_CARRY := 2
-const START_TREES := 2
-const MAX_TREES := 8
-const TREE_BASE_COST := 8
-const TREE_COST_GROWTH := 1.6
+const START_TREES := 3
+## Trees the grove has room for before any skills. The screen fits MAX_TREE_PLOTS.
+const BASE_TREE_PLOTS := 8
+const MAX_TREE_PLOTS := 12
+## Seconds of forester work to plant a tree; each further tree takes longer.
+const PLANT_BASE_TIME := 8.0
+const PLANT_TIME_GROWTH := 1.35
+## How much each forester speeds up regrowth by tending the grove.
+const FORESTER_TEND_BONUS := 0.15
 ## How many units of material a builder carries per trip.
 const BUILDER_BASE_LOAD := 4
 ## Renown pays for skills. It is earned by building the castle.
@@ -53,6 +58,8 @@ var peasants := START_PEASANTS
 ## How many peasants are assigned to each job. The rest are idle.
 var jobs := START_JOBS.duplicate()
 var trees := START_TREES
+## Seconds of forester work done on the next tree.
+var planting_work := 0.0
 var renown := 0
 ## Ids of the skills the player owns.
 var skills: Array[String] = []
@@ -177,19 +184,27 @@ func assign(job: String, change: int) -> bool:
 	return true
 
 
-## Cost of the next tree, or an empty Dictionary when the grove is full.
-func tree_cost() -> Dictionary:
-	if trees >= MAX_TREES:
-		return {}
-	return {"wood": ceili(TREE_BASE_COST * pow(TREE_COST_GROWTH, trees - START_TREES))}
+# --- The grove ---
+
+## How many trees the grove has room for.
+func max_trees() -> int:
+	return mini(BASE_TREE_PLOTS + int(skill_total("tree_plots")), MAX_TREE_PLOTS)
 
 
-func plant_tree() -> bool:
-	if trees >= MAX_TREES or not spend(tree_cost()):
-		return false
-	trees += 1
-	trees_changed.emit()
-	return true
+## Seconds of forester work the next tree needs.
+func plant_time() -> float:
+	return PLANT_BASE_TIME * pow(PLANT_TIME_GROWTH, trees - START_TREES) / (1.0 + skill_total("plant_speed"))
+
+
+## A forester at the next plot spent this long planting.
+func add_planting_work(seconds: float) -> void:
+	if trees >= max_trees():
+		return
+	planting_work += seconds
+	if planting_work >= plant_time():
+		planting_work = 0.0
+		trees += 1
+		trees_changed.emit()
 
 
 # --- Castle parts and rank ---
@@ -220,12 +235,17 @@ func levels_for_next_rank() -> int:
 
 ## Materials for the part's next level.
 func part_cost(id: String) -> Dictionary:
-	return _scaled_cost(CastleData.PARTS[id].cost, CastleData.COST_GROWTH, part_levels[id])
+	var cost := _scaled_cost(CastleData.PARTS[id].cost, CastleData.COST_GROWTH, part_levels[id])
+	var discount := 1.0 - skill_total("part_discount")
+	for type: String in cost:
+		cost[type] = ceili(cost[type] * discount)
+	return cost
 
 
 ## Seconds of hammering for the part's next level.
 func part_work(id: String) -> float:
-	return CastleData.PARTS[id].work * pow(CastleData.WORK_GROWTH, part_levels[id])
+	var discount := 1.0 - skill_total("work_discount")
+	return CastleData.PARTS[id].work * pow(CastleData.WORK_GROWTH, part_levels[id]) * discount
 
 
 ## Why the part can't be ordered right now (apart from cost), or "" if it can.
@@ -324,7 +344,7 @@ func _finish_job() -> void:
 	part_levels[job_part] += 1
 	renown += CastleData.PARTS[job_part].renown
 	if castle_rank() > rank_before:
-		renown += RENOWN_PER_RANK
+		renown += RENOWN_PER_RANK + int(skill_total("rank_renown"))
 	job_part = ""
 	castle_changed.emit()
 	skills_changed.emit()
@@ -380,7 +400,8 @@ func gather_time_mult() -> float:
 
 
 func tree_grow_mult() -> float:
-	return 1.0 + skill_total("tree_growth")
+	var tending: float = jobs.forester * (FORESTER_TEND_BONUS + skill_total("tend"))
+	return 1.0 + skill_total("tree_growth") + tending
 
 
 func tree_bonus_wood() -> int:
@@ -447,7 +468,7 @@ func load_game() -> void:
 		# More workers than peasants: the save is inconsistent, so everyone goes idle.
 		for job: String in jobs:
 			jobs[job] = 0
-	trees = clampi(int(data.get("trees", START_TREES)), START_TREES, MAX_TREES)
+	trees = clampi(int(data.get("trees", START_TREES)), START_TREES, MAX_TREE_PLOTS)
 	renown = maxi(int(data.get("renown", 0)), 0)
 	skills.clear()
 	var saved_skills: Variant = data.get("skills")

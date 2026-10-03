@@ -7,8 +7,9 @@ const CastleData = preload("res://scripts/castle_data.gd")
 const Worker = preload("res://scripts/worker.gd")
 const Gatherer = preload("res://scripts/gatherer.gd")
 const Builder = preload("res://scripts/builder.gd")
+const Forester = preload("res://scripts/forester.gd")
 ## Which script runs each job ("" = idle).
-const JOB_SCRIPTS := {"": Worker, "wood": Gatherer, "stone": Gatherer, "build": Builder}
+const JOB_SCRIPTS := {"": Worker, "wood": Gatherer, "stone": Gatherer, "build": Builder, "forester": Forester}
 
 @export var grove: Node2D
 @export var rock: Node2D
