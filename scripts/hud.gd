@@ -3,16 +3,19 @@ extends CanvasLayer
 
 @onready var resources_label: Label = %ResourcesLabel
 @onready var defence_label: Label = %DefenceLabel
-@onready var build_button: Button = %BuildButton
 @onready var hire_button: Button = %HireButton
+@onready var plant_button: Button = %PlantButton
+@onready var build_button: Button = %BuildButton
 
 
 func _ready() -> void:
 	GameState.resources_changed.connect(_refresh)
 	GameState.castle_changed.connect(_refresh)
 	GameState.peasants_changed.connect(_refresh)
-	build_button.pressed.connect(GameState.build_next)
+	GameState.trees_changed.connect(_refresh)
 	hire_button.pressed.connect(GameState.hire_peasant)
+	plant_button.pressed.connect(GameState.plant_tree)
+	build_button.pressed.connect(GameState.build_next)
 	_refresh()
 
 
@@ -20,17 +23,22 @@ func _refresh() -> void:
 	resources_label.text = "Wood: %d   Stone: %d" % [GameState.resources.wood, GameState.resources.stone]
 	defence_label.text = "Defence: %d" % GameState.total_defence()
 
-	var hire_cost := GameState.peasant_cost()
-	hire_button.text = "Hire Peasant (%d)\n%s" % [GameState.peasants, _cost_text(hire_cost)]
-	hire_button.disabled = not GameState.can_afford(hire_cost)
-
+	_set_button(hire_button, "Hire Peasant (%d)" % GameState.peasants, GameState.peasant_cost(), "")
+	_set_button(plant_button, "Plant Tree (%d/%d)" % [GameState.trees, GameState.MAX_TREES],
+			GameState.tree_cost(), "Grove full")
 	var piece := GameState.next_piece()
-	if piece.is_empty():
-		build_button.text = "Castle complete"
-		build_button.disabled = true
+	_set_button(build_button, "Build %s" % piece.get("name", ""), piece.get("cost", {}), "Castle complete")
+
+
+## Shows "title + cost" and greys the button out when it can't be afforded.
+## An empty cost means there is nothing left to buy: show done_text instead.
+func _set_button(button: Button, title: String, cost: Dictionary, done_text: String) -> void:
+	if cost.is_empty():
+		button.text = done_text
+		button.disabled = true
 		return
-	build_button.text = "Build %s\n%s" % [piece.name, _cost_text(piece.cost)]
-	build_button.disabled = not GameState.can_afford(piece.cost)
+	button.text = "%s\n%s" % [title, _cost_text(cost)]
+	button.disabled = not GameState.can_afford(cost)
 
 
 func _cost_text(cost: Dictionary) -> String:

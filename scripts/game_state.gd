@@ -6,15 +6,21 @@ signal resources_changed
 signal castle_changed
 
 signal peasants_changed
+signal trees_changed
 
 const CastleData = preload("res://scripts/castle_data.gd")
 const PEASANT_BASE_COST := 10
 const PEASANT_COST_GROWTH := 1.5
+const START_TREES := 2
+const MAX_TREES := 8
+const TREE_BASE_COST := 8
+const TREE_COST_GROWTH := 1.6
 
 var resources := {"wood": 0, "stone": 0}
 ## How many castle pieces are built, in CastleData.PIECES order.
 var built_count := 0
 var peasants := 0
+var trees := START_TREES
 
 
 func add_resource(type: String, amount: int) -> void:
@@ -65,6 +71,21 @@ func hire_peasant() -> bool:
 		return false
 	peasants += 1
 	peasants_changed.emit()
+	return true
+
+
+## Cost of the next tree, or an empty Dictionary when the grove is full.
+func tree_cost() -> Dictionary:
+	if trees >= MAX_TREES:
+		return {}
+	return {"wood": ceili(TREE_BASE_COST * pow(TREE_COST_GROWTH, trees - START_TREES))}
+
+
+func plant_tree() -> bool:
+	if trees >= MAX_TREES or not spend(tree_cost()):
+		return false
+	trees += 1
+	trees_changed.emit()
 	return true
 
 

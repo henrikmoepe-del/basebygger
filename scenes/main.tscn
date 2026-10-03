@@ -4,6 +4,7 @@
 [ext_resource type="Script" path="res://scripts/hud.gd" id="2_hud"]
 [ext_resource type="Script" path="res://scripts/castle.gd" id="3_castle"]
 [ext_resource type="Script" path="res://scripts/peasants.gd" id="4_peasants"]
+[ext_resource type="Script" path="res://scripts/grove.gd" id="5_grove"]
 
 [node name="Main" type="Node2D"]
 
@@ -20,26 +21,22 @@ offset_bottom = 360.0
 mouse_filter = 2
 color = Color(0.45, 0.68, 0.38, 1)
 
-[node name="Tree" type="Node2D" parent="."]
-position = Vector2(70, 300)
-script = ExtResource("1_gather")
-resource_type = "wood"
-size = Vector2(44, 72)
+[node name="Grove" type="Node2D" parent="."]
+position = Vector2(0, 300)
+script = ExtResource("5_grove")
 
 [node name="Rock" type="Node2D" parent="."]
-position = Vector2(150, 300)
+position = Vector2(232, 300)
 script = ExtResource("1_gather")
-resource_type = "stone"
-size = Vector2(40, 26)
 
 [node name="Castle" type="Node2D" parent="."]
 position = Vector2(430, 300)
 script = ExtResource("3_castle")
 
-[node name="Peasants" type="Node2D" parent="." node_paths=PackedStringArray("tree", "rock")]
+[node name="Peasants" type="Node2D" parent="." node_paths=PackedStringArray("grove", "rock")]
 position = Vector2(0, 300)
 script = ExtResource("4_peasants")
-tree = NodePath("../Tree")
+grove = NodePath("../Grove")
 rock = NodePath("../Rock")
 
 [node name="HUD" type="CanvasLayer" parent="."]
@@ -55,6 +52,16 @@ mouse_filter = 2
 theme_override_colors/font_color = Color(0.2, 0.2, 0.25, 1)
 text = "Wood: 0   Stone: 0"
 
+[node name="HintLabel" type="Label" parent="HUD"]
+offset_left = 8.0
+offset_top = 26.0
+offset_right = 220.0
+offset_bottom = 46.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.35, 0.35, 0.3, 1)
+theme_override_font_sizes/font_size = 12
+text = "Click the trees and the rock"
+
 [node name="DefenceLabel" type="Label" parent="HUD"]
 unique_name_in_owner = true
 offset_left = 480.0
@@ -66,32 +73,33 @@ theme_override_colors/font_color = Color(0.2, 0.2, 0.25, 1)
 text = "Defence: 0"
 horizontal_alignment = 2
 
-[node name="BuildButton" type="Button" parent="HUD"]
-unique_name_in_owner = true
-offset_left = 330.0
+[node name="Actions" type="HBoxContainer" parent="HUD"]
+offset_left = 8.0
 offset_top = 306.0
-offset_right = 530.0
+offset_right = 632.0
 offset_bottom = 354.0
-focus_mode = 0
-theme_override_font_sizes/font_size = 14
-text = "Build"
+theme_override_constants/separation = 8
 
-[node name="HireButton" type="Button" parent="HUD"]
+[node name="HireButton" type="Button" parent="HUD/Actions"]
 unique_name_in_owner = true
-offset_left = 20.0
-offset_top = 306.0
-offset_right = 200.0
-offset_bottom = 354.0
+layout_mode = 2
+size_flags_horizontal = 3
 focus_mode = 0
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 12
 text = "Hire Peasant"
 
-[node name="HintLabel" type="Label" parent="HUD"]
-offset_left = 8.0
-offset_top = 26.0
-offset_right = 220.0
-offset_bottom = 46.0
-mouse_filter = 2
-theme_override_colors/font_color = Color(0.35, 0.35, 0.3, 1)
+[node name="PlantButton" type="Button" parent="HUD/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
 theme_override_font_sizes/font_size = 12
-text = "Click the tree and rock"
+text = "Plant Tree"
+
+[node name="BuildButton" type="Button" parent="HUD/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+theme_override_font_sizes/font_size = 12
+text = "Build"

@@ -4,9 +4,9 @@ extends Node2D
 
 const Peasant = preload("res://scripts/peasant.gd")
 
-@export var tree: Node2D
+@export var grove: Node2D
 @export var rock: Node2D
-@export var home_x := 250.0
+@export var home_x := 275.0
 
 
 func _ready() -> void:
@@ -20,14 +20,19 @@ func _draw() -> void:
 	draw_rect(Rect2(home_x - 9, -6, 18, 2), Color(0.33, 0.21, 0.13))
 
 
+## Where a peasant should go for this resource right now (null = nowhere).
+func find_spot(resource_type: String) -> Node2D:
+	if resource_type == "wood":
+		return grove.best_tree()
+	return rock
+
+
 func _sync() -> void:
 	while get_child_count() < GameState.peasants:
-		var index := get_child_count()
 		var peasant := Peasant.new()
 		# Alternate jobs so wood and stone both come in.
-		var spot := tree if index % 2 == 0 else rock
-		peasant.resource_type = spot.resource_type
-		peasant.work_x = spot.position.x + randf_range(-6.0, 6.0)
+		peasant.resource_type = "wood" if get_child_count() % 2 == 0 else "stone"
+		peasant.find_spot = find_spot
 		peasant.home_x = home_x + randf_range(-6.0, 6.0)
 		peasant.speed *= randf_range(0.9, 1.1)
 		peasant.position.x = peasant.home_x
