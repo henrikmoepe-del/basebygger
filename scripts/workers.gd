@@ -8,11 +8,16 @@ const Worker = preload("res://scripts/worker.gd")
 const Gatherer = preload("res://scripts/gatherer.gd")
 const Builder = preload("res://scripts/builder.gd")
 const Forester = preload("res://scripts/forester.gd")
+const Cook = preload("res://scripts/cook.gd")
 ## Which script runs each job ("" = idle).
-const JOB_SCRIPTS := {"": Worker, "wood": Gatherer, "stone": Gatherer, "build": Builder, "forester": Forester}
+const JOB_SCRIPTS := {
+	"": Worker, "wood": Gatherer, "stone": Gatherer, "hunter": Gatherer,
+	"build": Builder, "forester": Forester, "cook": Cook,
+}
 
 @export var grove: Node2D
 @export var rock: Node2D
+@export var wilds: Node2D
 @export var castle: Node2D
 @export var stock_x := 215.0
 
@@ -27,13 +32,26 @@ func _draw() -> void:
 	draw_rect(Rect2(stock_x - 14, -18, 28, 18), Color(0.48, 0.32, 0.20))
 	draw_rect(Rect2(stock_x - 17, -24, 34, 7), Color(0.33, 0.21, 0.13))
 	draw_rect(Rect2(stock_x - 4, -11, 8, 11), Color(0.20, 0.13, 0.08))
+	if GameState.jobs.cook > 0:
+		# The cooking pot over a fire.
+		var x := kitchen_x()
+		draw_rect(Rect2(x - 4, -8, 8, 5), Color(0.22, 0.23, 0.27))
+		draw_rect(Rect2(x - 3, -3, 6, 3), Color(0.95, 0.55, 0.15))
 
 
 ## Where a gatherer should go for this resource right now (null = nowhere).
 func find_spot(resource_type: String) -> Node2D:
-	if resource_type == "wood":
-		return grove.best_tree()
+	match resource_type:
+		"wood":
+			return grove.best_tree()
+		"food":
+			return wilds
 	return rock
+
+
+## Where the cooks stand.
+func kitchen_x() -> float:
+	return stock_x - 24.0
 
 
 ## Where builders stand to work on the current job.
@@ -43,6 +61,7 @@ func site_x() -> float:
 
 ## Adds and removes peasant nodes until each job has the right number.
 func _sync() -> void:
+	queue_redraw()
 	for job: String in JOB_SCRIPTS:
 		var wanted: int = GameState.idle_peasants() if job == "" else GameState.jobs[job]
 		var current := get_children().filter(func(w: Node) -> bool: return w.job == job and not w.is_queued_for_deletion())
@@ -61,7 +80,7 @@ func _spawn(job: String) -> void:
 		# Builders wait in front of the castle.
 		worker.home_x = castle.position.x - 140.0 + randf_range(0.0, 60.0)
 	elif job == "":
-		worker.home_x = stock_x - 24.0 + randf_range(-12.0, 4.0)
+		worker.home_x = stock_x + randf_range(-12.0, 12.0)
 	else:
 		worker.home_x = stock_x + randf_range(-6.0, 6.0)
 	# Everyone comes out of the stockhouse.

@@ -13,16 +13,32 @@ signal peasants_changed
 signal trees_changed
 ## A skill was bought or renown changed.
 signal skills_changed
+## Dawn or dusk arrived, or the peasants ate.
+signal daytime_changed
 
 const CastleData = preload("res://scripts/castle_data.gd")
 const SkillData = preload("res://scripts/skill_data.gd")
 const JobData = preload("res://scripts/job_data.gd")
 
-const START_JOBS := {"wood": 1, "stone": 1, "build": 1, "forester": 0}
-const START_PEASANTS := 3
+const START_JOBS := {"wood": 1, "stone": 1, "hunter": 1, "build": 1, "forester": 0, "cook": 0}
+const START_PEASANTS := 4
 const PEASANT_BASE_COST := 10
 const PEASANT_COST_GROWTH := 1.25
 const PEASANT_BASE_CARRY := 2
+## Hunters walk a long way, so they bring back more per trip.
+const HUNTER_EXTRA_CARRY := 2
+
+## A day lasts DAY_LENGTH seconds; the last part of it is night, when
+## everyone sleeps. Night begins at NIGHT_START (a fraction of the day).
+const DAY_LENGTH := 120.0
+const NIGHT_START := 0.72
+const START_FOOD := 12
+## Every peasant eats this much at dawn. If there isn't enough, everyone
+## goes hungry and works at HUNGRY_WORK_MULT until the next dawn.
+const FOOD_PER_PEASANT := 2.0
+const HUNGRY_WORK_MULT := 0.6
+const COOK_FOOD_SAVING := 0.08
+const MAX_USEFUL_COOKS := 6
 const START_TREES := 3
 ## Trees the grove has room for before any skills. The screen fits MAX_TREE_PLOTS.
 const BASE_TREE_PLOTS := 8
@@ -43,16 +59,16 @@ const LEVELS_PER_RANK := 5
 const FIRST_RANK_UP := 18
 const RANK_UP_STEP := 24
 
-const SAVE_VERSION := 3
+const SAVE_VERSION := 4
 const AUTOSAVE_INTERVAL := 10.0
 const MAX_OFFLINE_SECONDS := 8 * 3600
 ## Offline progress is only granted (and reported) after this long away.
 const MIN_OFFLINE_SECONDS := 60
-## Income is averaged over this many seconds.
-const INCOME_WINDOW := 30.0
+## Income is averaged over a whole day, so it includes the night.
+const INCOME_WINDOW := DAY_LENGTH
 
 ## What is in the stockhouse.
-var resources := {"wood": 0, "stone": 0}
+var resources := {"wood": 0, "stone": 0, "food": START_FOOD}
 var part_levels := {"walls": 0, "towers": 0, "gate": 0, "keep": 0, "garrison": 0, "court": 0}
 var peasants := START_PEASANTS
 ## How many peasants are assigned to each job. The rest are idle.
@@ -61,6 +77,11 @@ var trees := START_TREES
 ## Seconds of forester work done on the next tree.
 var planting_work := 0.0
 var renown := 0
+## Days start at 1. day_time is the seconds since this day's dawn.
+var day := 1
+var day_time := 0.0
+## False if there wasn't enough food at dawn today.
+var fed := true
 ## Ids of the skills the player owns.
 var skills: Array[String] = []
 
@@ -75,13 +96,14 @@ var job_work := 0.0       ## Seconds of hammering done.
 var job_work_total := 0.0
 
 ## Measured resources per second brought in by peasants. Used for offline progress.
-var income_rate := {"wood": 0.0, "stone": 0.0}
+var income_rate := {"wood": 0.0, "stone": 0.0, "food": 0.0}
 ## Filled in by load_game() when time away earned something:
 ## {"seconds": int, plus the amount gained of each resource}. Empty otherwise.
 var offline_report := {}
 var save_path := "user://save.json"
 
-var _window_income := {"wood": 0, "stone": 0}
+var _window_income := {"wood": 0, "stone": 0, "food": 0}
+var _was_night := false
 var _window_time := 0.0
 var _autosave_time := 0.0
 
@@ -95,6 +117,15 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	day_time += delta
+	if day_time >= DAY_LENGTH:
+		day_time -= DAY_LENGTH
+		day += 1
+		_eat()
+	if is_night() != _was_night:
+		_was_night = is_night()
+		daytime_changed.emit()
+
 	_window_time += delta
 	if _window_time >= INCOME_WINDOW:
 		for type: String in _window_income:
@@ -140,6 +171,43 @@ func spend(cost: Dictionary) -> bool:
 	return true
 
 
+# --- Day, night and food ---
+
+## How far through the day it is, from 0 (dawn) to 1 (the next dawn).
+func day_fraction() -> float:
+	return day_time / DAY_LENGTH
+
+
+## The fraction of the day at which night begins.
+func night_start() -> float:
+	return NIGHT_START + skill_total("night_shorter")
+
+
+func is_night() -> bool:
+	return day_fraction() >= night_start()
+
+
+## How much food the peasants eat at dawn.
+func food_needed() -> int:
+	var saving: float = mini(jobs.cook, MAX_USEFUL_COOKS) * COOK_FOOD_SAVING + skill_total("food_saving")
+	return ceili(peasants * FOOD_PER_PEASANT * (1.0 - saving))
+
+
+## Multiplies how fast everyone walks and works: slower when hungry.
+func work_mult() -> float:
+	if not fed:
+		return HUNGRY_WORK_MULT
+	return 1.0 + skill_total("fed_bonus")
+
+
+func _eat() -> void:
+	var needed := food_needed()
+	fed = resources.food >= needed
+	resources.food = maxi(resources.food - needed, 0)
+	resources_changed.emit()
+	daytime_changed.emit()
+
+
 # --- Peasants and their jobs ---
 
 func idle_peasants() -> int:
@@ -155,7 +223,7 @@ func peasant_cost() -> Dictionary:
 	# A grander court draws people in.
 	discount *= pow(1.0 - CastleData.COURT_HIRE_DISCOUNT, part_levels.court)
 	var growth := pow(PEASANT_COST_GROWTH, peasants - START_PEASANTS)
-	return {"wood": ceili(PEASANT_BASE_COST * growth * discount)}
+	return {"wood": ceili(PEASANT_BASE_COST * growth * discount), "food": 2 + peasants - START_PEASANTS}
 
 
 ## Hires a peasant. They start idle until given a job.
@@ -386,17 +454,20 @@ func skill_total(effect: String) -> float:
 # --- What skills do ---
 
 func peasant_speed_mult() -> float:
-	return 1.0 + skill_total("peasant_speed")
+	return (1.0 + skill_total("peasant_speed")) * work_mult()
 
 
-## How many resources a gatherer carries per trip.
-func carry_amount() -> int:
-	return PEASANT_BASE_CARRY + int(skill_total("carry"))
+## How many resources a gatherer with this job carries per trip.
+func carry_amount(job: String) -> int:
+	var amount := PEASANT_BASE_CARRY + int(skill_total("carry"))
+	if job == "hunter":
+		amount += HUNTER_EXTRA_CARRY + int(skill_total("hunter_carry"))
+	return amount
 
 
 ## Multiplies how long a gatherer spends chopping or mining.
 func gather_time_mult() -> float:
-	return 1.0 / (1.0 + skill_total("gather_speed"))
+	return 1.0 / ((1.0 + skill_total("gather_speed")) * work_mult())
 
 
 func tree_grow_mult() -> float:
@@ -414,12 +485,12 @@ func builder_load() -> int:
 
 
 func builder_speed_mult() -> float:
-	return peasant_speed_mult() + skill_total("builder_speed")
+	return (1.0 + skill_total("peasant_speed") + skill_total("builder_speed")) * work_mult()
 
 
 ## Seconds of hammering one builder does per second.
 func hammer_rate() -> float:
-	return 1.0 + skill_total("hammer")
+	return (1.0 + skill_total("hammer")) * work_mult()
 
 
 # --- Save and load ---
@@ -434,6 +505,9 @@ func save_game() -> void:
 		"jobs": jobs,
 		"trees": trees,
 		"renown": renown,
+		"day": day,
+		"day_time": day_time,
+		"fed": fed,
 		"skills": skills,
 		"income_rate": income_rate,
 		"job": {
@@ -470,6 +544,10 @@ func load_game() -> void:
 			jobs[job] = 0
 	trees = clampi(int(data.get("trees", START_TREES)), START_TREES, MAX_TREE_PLOTS)
 	renown = maxi(int(data.get("renown", 0)), 0)
+	day = maxi(int(data.get("day", 1)), 1)
+	day_time = clampf(float(data.get("day_time", 0.0)), 0.0, DAY_LENGTH - 0.1)
+	fed = bool(data.get("fed", true))
+	_was_night = is_night()
 	skills.clear()
 	var saved_skills: Variant = data.get("skills")
 	if saved_skills is Array:
@@ -501,7 +579,8 @@ func _load_numbers(target: Dictionary, saved: Variant, as_int: bool) -> void:
 		target[key] = int(value) if as_int else value
 
 
-## Gatherers keep working while the game is closed. Builders don't build.
+## Woodcutters and quarrymen keep working while the game is closed. Builders
+## don't build, and food stays as it was (nobody hunts, nobody eats).
 func _grant_offline_progress(seconds_away: float) -> void:
 	offline_report = {}
 	var seconds := minf(seconds_away, MAX_OFFLINE_SECONDS)
@@ -509,7 +588,7 @@ func _grant_offline_progress(seconds_away: float) -> void:
 		return
 	var report := {"seconds": int(seconds)}
 	var earned_any := false
-	for type: String in income_rate:
+	for type: String in ["wood", "stone"]:
 		var gained := int(income_rate[type] * seconds)
 		resources[type] += gained
 		report[type] = gained

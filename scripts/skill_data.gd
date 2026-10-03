@@ -149,6 +149,32 @@ const SKILLS := {
 		"branch": "village", "name": "Wide Grove", "text": "Room for 2 more trees.",
 		"cost": 4, "requires": "v_plots1", "effects": {"tree_plots": 2}, "cell": Vector2i(0, 2),
 	},
+	"v_cook": {
+		"branch": "village", "name": "Cooks", "text": "Unlocks the Cook job. Each cook makes the food go 8% further (up to 6 cooks).",
+		"cost": 4, "requires": "", "effects": {}, "cell": Vector2i(3, 0),
+		"big": true,
+	},
+	"v_feast": {
+		"branch": "village", "name": "Hearty Meals", "text": "Peasants who have eaten work 10% faster.",
+		"cost": 3, "requires": "v_cook", "effects": {"fed_bonus": 0.1}, "cell": Vector2i(3, 1),
+	},
+	"v_ration": {
+		"branch": "village", "name": "Rationing", "text": "Peasants eat 20% less.",
+		"cost": 4, "requires": "v_feast", "effects": {"food_saving": 0.2}, "cell": Vector2i(3, 2),
+	},
+	"v_hunt1": {
+		"branch": "village", "name": "Game Bags", "text": "Hunters carry 2 more per trip.",
+		"cost": 2, "requires": "", "effects": {"hunter_carry": 2}, "cell": Vector2i(4, 0),
+	},
+	"v_hunt2": {
+		"branch": "village", "name": "Trained Hounds", "text": "Hunters carry another 3 per trip.",
+		"cost": 4, "requires": "v_hunt1", "effects": {"hunter_carry": 3}, "cell": Vector2i(4, 1),
+	},
+	"v_lantern": {
+		"branch": "village", "name": "Lanterns", "text": "Peasants work later into the evening: nights are a quarter shorter.",
+		"cost": 5, "requires": "v_herald", "effects": {"night_shorter": 0.07}, "cell": Vector2i(5, 1),
+		"big": true,
+	},
 	"v_herald": {
 		"branch": "village", "name": "Heralds", "text": "Each new castle rank gives 3 more renown.",
 		"cost": 4, "requires": "", "effects": {"rank_renown": 3}, "cell": Vector2i(5, 0),

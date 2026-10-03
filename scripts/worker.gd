@@ -14,7 +14,13 @@ var world: Node2D
 
 
 func _process(delta: float) -> void:
-	_work(delta)
+	if GameState.is_night():
+		# Everyone walks back to the stockhouse and sleeps inside until dawn.
+		if _walk_to(world.stock_x, delta):
+			hide()
+	else:
+		show()
+		_work(delta)
 	queue_redraw()
 
 

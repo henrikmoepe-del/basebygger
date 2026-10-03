@@ -5,10 +5,13 @@ const CastleData = preload("res://scripts/castle_data.gd")
 const JobData = preload("res://scripts/job_data.gd")
 const OFFLINE_MESSAGE_TIME := 10.0
 const TEXT_COLOR := Color(0.2, 0.2, 0.25)
+const HUNGRY_COLOR := Color(0.75, 0.15, 0.15)
+const OUTLINE_COLOR := Color(0.96, 0.95, 0.85)
 
 @onready var resources_label: Label = %ResourcesLabel
 @onready var defence_label: Label = %DefenceLabel
 @onready var rank_label: Label = %RankLabel
+@onready var day_label: Label = %DayLabel
 @onready var peasants_label: Label = %PeasantsLabel
 @onready var jobs_box: VBoxContainer = %Jobs
 @onready var hire_button: Button = %HireButton
@@ -27,12 +30,18 @@ func _ready() -> void:
 	for changed: Signal in [
 		GameState.resources_changed, GameState.castle_changed, GameState.job_progress_changed,
 		GameState.peasants_changed, GameState.trees_changed, GameState.skills_changed,
+		GameState.daytime_changed,
 	]:
 		changed.connect(_refresh)
 	hire_button.pressed.connect(GameState.hire_peasant)
 	skills_button.pressed.connect(skill_tree.show)
 	_make_part_buttons()
 	_make_job_rows()
+	# A pale outline keeps the dark text readable against the night sky.
+	for label: Label in find_children("*", "Label", true, false):
+		if not skill_tree.is_ancestor_of(label):
+			label.add_theme_constant_override("outline_size", 4)
+			label.add_theme_color_override("font_outline_color", OUTLINE_COLOR)
 	_refresh()
 	_show_offline_report()
 
@@ -106,6 +115,11 @@ func _refresh() -> void:
 	defence_label.text = "Defence: %d" % GameState.total_defence()
 	rank_label.text = "Castle rank %d  (%d/%d levels to next)" % [
 		GameState.castle_rank(), GameState.total_levels(), GameState.levels_for_next_rank()]
+
+	day_label.text = "Day %d, %s.  %s" % [
+		GameState.day, "night" if GameState.is_night() else "daytime",
+		"Fed (eat %d at dawn)" % GameState.food_needed() if GameState.fed else "HUNGRY: working slowly"]
+	day_label.add_theme_color_override("font_color", TEXT_COLOR if GameState.fed else HUNGRY_COLOR)
 
 	var idle := GameState.idle_peasants()
 	peasants_label.text = "Peasants: %d  (%d idle)" % [GameState.peasants, idle]
