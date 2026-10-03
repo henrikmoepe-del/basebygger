@@ -73,6 +73,14 @@ theme_override_colors/font_color = Color(0.2, 0.2, 0.25, 1)
 text = "Defence: 0"
 horizontal_alignment = 2
 
+[node name="Upgrades" type="VBoxContainer" parent="HUD"]
+unique_name_in_owner = true
+offset_left = 8.0
+offset_top = 50.0
+offset_right = 258.0
+offset_bottom = 140.0
+theme_override_constants/separation = 3
+
 [node name="Actions" type="HBoxContainer" parent="HUD"]
 offset_left = 8.0
 offset_top = 306.0
@@ -95,6 +103,14 @@ size_flags_horizontal = 3
 focus_mode = 0
 theme_override_font_sizes/font_size = 12
 text = "Plant Tree"
+
+[node name="BuilderButton" type="Button" parent="HUD/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+theme_override_font_sizes/font_size = 12
+text = "Hire Builder"
 
 [node name="BuildButton" type="Button" parent="HUD/Actions"]
 unique_name_in_owner = true

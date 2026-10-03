@@ -41,8 +41,10 @@ func _process(delta: float) -> void:
 		State.WORKING:
 			_timer -= delta
 			if _timer <= 0.0:
-				if _spot.take():
-					_carrying = 1
+				# Take as much as the basket holds, or whatever is left.
+				while _carrying < GameState.carry_amount() and _spot.take():
+					_carrying += 1
+				if _carrying > 0:
 					_state = State.TO_HOME
 				else:
 					# Someone else took the last of it.
@@ -67,5 +69,5 @@ func _draw() -> void:
 
 ## Moves towards x and returns true once there.
 func _walk_to(x: float, delta: float) -> bool:
-	position.x = move_toward(position.x, x, speed * delta)
+	position.x = move_toward(position.x, x, speed * GameState.peasant_speed_mult() * delta)
 	return is_equal_approx(position.x, x)
