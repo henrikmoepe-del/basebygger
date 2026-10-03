@@ -10,19 +10,19 @@ extends RefCounted
 const SKILLS := {
 	# --- Peasant branch ---
 	"p_speed1": {
-		"name": "Sturdy Boots", "text": "Peasants walk 15% faster.",
+		"name": "Sturdy Boots", "text": "All peasants walk 15% faster.",
 		"cost": 1, "requires": "", "effects": {"peasant_speed": 0.15}, "cell": Vector2i(1, 0),
 	},
 	"p_click": {
-		"name": "Strong Arms", "text": "Your own clicks gather 1 more.",
-		"cost": 2, "requires": "p_speed1", "effects": {"click": 1}, "cell": Vector2i(0, 1),
+		"name": "Strong Backs", "text": "Gatherers carry 1 more per trip.",
+		"cost": 2, "requires": "p_speed1", "effects": {"carry": 1}, "cell": Vector2i(0, 1),
 	},
 	"p_speed2": {
-		"name": "Worn Paths", "text": "Peasants walk another 15% faster.",
+		"name": "Worn Paths", "text": "All peasants walk another 15% faster.",
 		"cost": 2, "requires": "p_speed1", "effects": {"peasant_speed": 0.15}, "cell": Vector2i(1, 1),
 	},
 	"p_carry1": {
-		"name": "Bigger Baskets", "text": "Peasants carry 1 more per trip.",
+		"name": "Bigger Baskets", "text": "Gatherers carry 1 more per trip.",
 		"cost": 2, "requires": "p_speed1", "effects": {"carry": 1}, "cell": Vector2i(2, 1),
 	},
 	"p_hire": {
@@ -35,7 +35,7 @@ const SKILLS := {
 		"cost": 3, "requires": "p_speed2", "effects": {"tree_growth": 0.3}, "cell": Vector2i(1, 2),
 	},
 	"p_work1": {
-		"name": "Sharper Tools", "text": "Peasants chop and mine 30% quicker.",
+		"name": "Sharper Tools", "text": "Gatherers chop and mine 30% quicker.",
 		"cost": 2, "requires": "p_carry1", "effects": {"gather_speed": 0.3}, "cell": Vector2i(2, 2),
 	},
 	"p_trees2": {
@@ -43,7 +43,7 @@ const SKILLS := {
 		"cost": 3, "requires": "p_trees1", "effects": {"tree_wood": 4}, "cell": Vector2i(1, 3),
 	},
 	"p_carry2": {
-		"name": "Handcarts", "text": "Peasants carry 2 more per trip.",
+		"name": "Handcarts", "text": "Gatherers carry 2 more per trip.",
 		"cost": 4, "requires": "p_work1", "effects": {"carry": 2}, "cell": Vector2i(2, 3),
 	},
 
@@ -61,7 +61,7 @@ const SKILLS := {
 		"cost": 3, "requires": "b_hammer1", "effects": {"hammer": 0.25}, "cell": Vector2i(4, 1),
 	},
 	"b_speed1": {
-		"name": "Sure Footing", "text": "Builders walk 20% faster.",
+		"name": "Sure Footing", "text": "Builders walk a further 20% faster.",
 		"cost": 2, "requires": "b_hammer1", "effects": {"builder_speed": 0.2}, "cell": Vector2i(5, 1),
 	},
 	"b_load2": {
@@ -74,7 +74,7 @@ const SKILLS := {
 		"big": true,
 	},
 	"b_cost": {
-		"name": "Foremen", "text": "Builders cost 25% less to hire.",
-		"cost": 3, "requires": "b_speed1", "effects": {"builder_discount": 0.25}, "cell": Vector2i(5, 2),
+		"name": "Foremen", "text": "Builders hammer another 25% faster.",
+		"cost": 3, "requires": "b_speed1", "effects": {"hammer": 0.25}, "cell": Vector2i(5, 2),
 	},
 }

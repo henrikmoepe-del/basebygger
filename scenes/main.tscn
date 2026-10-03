@@ -3,9 +3,8 @@
 [ext_resource type="Script" path="res://scripts/gather_spot.gd" id="1_gather"]
 [ext_resource type="Script" path="res://scripts/hud.gd" id="2_hud"]
 [ext_resource type="Script" path="res://scripts/castle.gd" id="3_castle"]
-[ext_resource type="Script" path="res://scripts/peasants.gd" id="4_peasants"]
+[ext_resource type="Script" path="res://scripts/workers.gd" id="4_workers"]
 [ext_resource type="Script" path="res://scripts/grove.gd" id="5_grove"]
-[ext_resource type="Script" path="res://scripts/builders.gd" id="6_builders"]
 [ext_resource type="Script" path="res://scripts/skill_tree.gd" id="7_skills"]
 
 [node name="Main" type="Node2D"]
@@ -35,15 +34,11 @@ script = ExtResource("1_gather")
 position = Vector2(450, 270)
 script = ExtResource("3_castle")
 
-[node name="Peasants" type="Node2D" parent="." node_paths=PackedStringArray("grove", "rock")]
+[node name="Workers" type="Node2D" parent="." node_paths=PackedStringArray("grove", "rock", "castle")]
 position = Vector2(0, 270)
-script = ExtResource("4_peasants")
+script = ExtResource("4_workers")
 grove = NodePath("../Grove")
 rock = NodePath("../Rock")
-
-[node name="Builders" type="Node2D" parent="." node_paths=PackedStringArray("castle")]
-position = Vector2(0, 270)
-script = ExtResource("6_builders")
 castle = NodePath("../Castle")
 
 [node name="HUD" type="CanvasLayer" parent="."]
@@ -58,16 +53,6 @@ offset_bottom = 30.0
 mouse_filter = 2
 theme_override_colors/font_color = Color(0.2, 0.2, 0.25, 1)
 text = "Wood: 0   Stone: 0"
-
-[node name="HintLabel" type="Label" parent="HUD"]
-offset_left = 8.0
-offset_top = 26.0
-offset_right = 220.0
-offset_bottom = 46.0
-mouse_filter = 2
-theme_override_colors/font_color = Color(0.35, 0.35, 0.3, 1)
-theme_override_font_sizes/font_size = 12
-text = "Click the trees and the rock"
 
 [node name="DefenceLabel" type="Label" parent="HUD"]
 unique_name_in_owner = true
@@ -105,6 +90,21 @@ theme_override_font_sizes/font_size = 12
 text = "While you were away"
 horizontal_alignment = 2
 
+[node name="Jobs" type="VBoxContainer" parent="HUD"]
+unique_name_in_owner = true
+offset_left = 8.0
+offset_top = 30.0
+offset_right = 190.0
+offset_bottom = 130.0
+theme_override_constants/separation = 2
+
+[node name="PeasantsLabel" type="Label" parent="HUD/Jobs"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.2, 0.2, 0.25, 1)
+theme_override_font_sizes/font_size = 12
+text = "Peasants: 3"
+
 [node name="Parts" type="HBoxContainer" parent="HUD"]
 unique_name_in_owner = true
 offset_left = 8.0
@@ -135,14 +135,6 @@ size_flags_horizontal = 3
 focus_mode = 0
 theme_override_font_sizes/font_size = 11
 text = "Plant Tree"
-
-[node name="BuilderButton" type="Button" parent="HUD/Actions"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-focus_mode = 0
-theme_override_font_sizes/font_size = 11
-text = "Hire Builder"
 
 [node name="SkillsButton" type="Button" parent="HUD/Actions"]
 unique_name_in_owner = true

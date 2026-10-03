@@ -2,6 +2,7 @@ extends RefCounted
 ## The castle's parts, as plain data. Each part has a level the player raises.
 ## Every part is a defence: "defence" is how much each level adds, and the
 ## later 3D wave-defence mode will read the part levels to build the castle.
+## "renown" is how much renown finishing a level gives.
 ##
 ## "cost" and "work" are for level 1; each further level multiplies them by
 ## COST_GROWTH and WORK_GROWTH. "work" is seconds of hammering for one builder.
@@ -25,19 +26,19 @@ const BANNER := Color(0.78, 0.22, 0.22)
 
 const PARTS := {
 	"walls": {
-		"name": "Walls", "defence": 10, "cost": {"stone": 12, "wood": 4}, "work": 8.0,
+		"name": "Walls", "defence": 10, "renown": 1, "cost": {"stone": 12, "wood": 4}, "work": 8.0,
 		"site_x": -60.0, "scaffold": [[-104.0, 104.0]],
 	},
 	"towers": {
-		"name": "Towers", "defence": 15, "cost": {"stone": 20, "wood": 8}, "work": 12.0,
+		"name": "Towers", "defence": 15, "renown": 1, "cost": {"stone": 20, "wood": 8}, "work": 12.0,
 		"site_x": -110.0, "scaffold": [[-128.0, -92.0], [92.0, 128.0]],
 	},
 	"gate": {
-		"name": "Gate", "defence": 5, "cost": {"wood": 18, "stone": 4}, "work": 8.0,
+		"name": "Gate", "defence": 5, "renown": 1, "cost": {"wood": 18, "stone": 4}, "work": 8.0,
 		"site_x": 0.0, "scaffold": [[-22.0, 22.0]],
 	},
 	"keep": {
-		"name": "Keep", "defence": 12, "cost": {"stone": 30, "wood": 15}, "work": 18.0,
+		"name": "Keep", "defence": 12, "renown": 1, "cost": {"stone": 30, "wood": 15}, "work": 18.0,
 		"site_x": 30.0, "scaffold": [[-42.0, 42.0]],
 	},
 }

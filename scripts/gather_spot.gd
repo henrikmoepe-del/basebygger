@@ -1,5 +1,5 @@
 extends Node2D
-## A spot that gives a resource, to the player on click and to peasants.
+## A spot peasants gather a resource from.
 ## Used as-is for the rock (never runs out); tree.gd extends it.
 ## Drawn with placeholder shapes until we have real art.
 
@@ -23,20 +23,6 @@ func _draw() -> void:
 	draw_rect(Rect2(r.position, Vector2(size.x, 6)), Color(0.72, 0.74, 0.78))
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		if _rect().has_point(make_input_local(event).position) and take():
-			GameState.add_resource(resource_type, GameState.click_amount())
-			_pop()
-			get_viewport().set_input_as_handled()
-
-
 func _rect() -> Rect2:
 	# Anchored at bottom-centre so the spot stands on the ground.
 	return Rect2(-size.x / 2, -size.y, size.x, size.y)
-
-
-func _pop() -> void:
-	# Quick squash-and-return so a click feels like it did something.
-	scale = Vector2(1.15, 0.9)
-	create_tween().tween_property(self, "scale", Vector2.ONE, 0.12)
