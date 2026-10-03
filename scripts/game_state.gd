@@ -35,8 +35,8 @@ const RENOWN_PER_RANK := 3
 ## No part can go above LEVELS_PER_RANK x castle rank. The rank rises with the
 ## total of all part levels, so the player must spread out before going higher.
 const LEVELS_PER_RANK := 5
-const FIRST_RANK_UP := 12
-const RANK_UP_STEP := 16
+const FIRST_RANK_UP := 18
+const RANK_UP_STEP := 24
 
 const SAVE_VERSION := 3
 const AUTOSAVE_INTERVAL := 10.0
@@ -48,7 +48,7 @@ const INCOME_WINDOW := 30.0
 
 ## What is in the stockhouse.
 var resources := {"wood": 0, "stone": 0}
-var part_levels := {"walls": 0, "towers": 0, "gate": 0, "keep": 0}
+var part_levels := {"walls": 0, "towers": 0, "gate": 0, "keep": 0, "garrison": 0, "court": 0}
 var peasants := START_PEASANTS
 ## How many peasants are assigned to each job. The rest are idle.
 var jobs := START_JOBS.duplicate()
@@ -145,6 +145,8 @@ func idle_peasants() -> int:
 ## Each peasant costs more than the last (the classic incremental curve).
 func peasant_cost() -> Dictionary:
 	var discount := 1.0 - skill_total("peasant_discount")
+	# A grander court draws people in.
+	discount *= pow(1.0 - CastleData.COURT_HIRE_DISCOUNT, part_levels.court)
 	var growth := pow(PEASANT_COST_GROWTH, peasants - START_PEASANTS)
 	return {"wood": ceili(PEASANT_BASE_COST * growth * discount)}
 

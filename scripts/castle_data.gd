@@ -14,6 +14,7 @@ const COST_GROWTH := 1.55
 const WORK_GROWTH := 1.45
 ## Parts stop getting visibly bigger past this level (they can still level up).
 const MAX_VISUAL_LEVEL := 12
+const COURT_HIRE_DISCOUNT := 0.04
 
 const STONE := Color(0.64, 0.64, 0.68)
 const STONE_LIGHT := Color(0.70, 0.70, 0.74)
@@ -23,6 +24,9 @@ const WOOD := Color(0.48, 0.32, 0.20)
 const WOOD_DARK := Color(0.33, 0.21, 0.13)
 const IRON := Color(0.22, 0.23, 0.27)
 const BANNER := Color(0.78, 0.22, 0.22)
+const ROOF_RED := Color(0.62, 0.30, 0.24)
+const ROOF_BLUE := Color(0.28, 0.38, 0.62)
+const PLASTER := Color(0.86, 0.82, 0.70)
 
 const PARTS := {
 	"walls": {
@@ -41,9 +45,21 @@ const PARTS := {
 		"name": "Keep", "defence": 12, "renown": 1, "cost": {"stone": 30, "wood": 15}, "work": 18.0,
 		"site_x": 30.0, "scaffold": [[-42.0, 42.0]],
 	},
+	# The garrison is the castle's strongest defence per level. Its soldiers
+	# will man the walls in the 3D mode.
+	"garrison": {
+		"name": "Garrison", "defence": 20, "renown": 1, "cost": {"stone": 25, "wood": 20}, "work": 14.0,
+		"site_x": 68.0, "scaffold": [[48.0, 88.0]],
+	},
+	# The court adds no defence, but gives double renown and draws people in:
+	# each level makes peasants COURT_HIRE_DISCOUNT cheaper to hire.
+	"court": {
+		"name": "Court", "defence": 0, "renown": 2, "cost": {"wood": 25, "stone": 15}, "work": 12.0,
+		"site_x": -68.0, "scaffold": [[-88.0, -48.0]],
+	},
 }
 ## Back to front.
-const DRAW_ORDER := ["keep", "walls", "towers", "gate"]
+const DRAW_ORDER := ["keep", "court", "garrison", "walls", "towers", "gate"]
 
 
 ## Placeholder art for a part at a level: a list of [Rect2, Color], relative to
@@ -95,6 +111,31 @@ static func shapes(part: String, level: int) -> Array:
 			if level >= 5:
 				out.append([Rect2(-1, -h - 36, 2, 36), WOOD_DARK])
 				out.append([Rect2(1, -h - 36, 18, 10), BANNER])
+		"garrison":
+			# Barracks behind the wall, right of the keep.
+			var h := 40 + 8 * v
+			out.append([Rect2(48, -h, 40, h), STONE_DARK])
+			out.append([Rect2(45, -h - 6, 46, 6), ROOF_RED])
+			for row in clampi(level, 1, 3):
+				out.append([Rect2(54, -h + 8 + row * 18, 5, 8), SHADOW])
+				out.append([Rect2(64, -h + 8 + row * 18, 5, 8), SHADOW])
+				out.append([Rect2(74, -h + 8 + row * 18, 5, 8), SHADOW])
+			if level >= 4:
+				# Weapon rack on the roof once the garrison is established.
+				out.append([Rect2(84, -h - 18, 1, 12), WOOD_DARK])
+				out.append([Rect2(80, -h - 16, 9, 1), IRON])
+		"court":
+			# Great hall behind the wall, left of the keep.
+			var h := 36 + 7 * v
+			out.append([Rect2(-88, -h, 40, h), PLASTER])
+			out.append([Rect2(-91, -h - 7, 46, 7), ROOF_BLUE])
+			out.append([Rect2(-72, -h + 8, 8, 14), ROOF_BLUE])
+			if level >= 3:
+				out.append([Rect2(-84, -h + 8, 6, 10), ROOF_BLUE])
+				out.append([Rect2(-58, -h + 8, 6, 10), ROOF_BLUE])
+			if level >= 5:
+				out.append([Rect2(-69, -h - 22, 1, 15), WOOD_DARK])
+				out.append([Rect2(-68, -h - 22, 10, 6), ROOF_BLUE])
 	return out
 
 
