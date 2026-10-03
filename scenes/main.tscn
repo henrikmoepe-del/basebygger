@@ -1,5 +1,8 @@
 [gd_scene format=3]
 
+[ext_resource type="Script" path="res://scripts/gather_spot.gd" id="1_gather"]
+[ext_resource type="Script" path="res://scripts/hud.gd" id="2_hud"]
+
 [node name="Main" type="Node2D"]
 
 [node name="Sky" type="ColorRect" parent="."]
@@ -14,3 +17,37 @@ offset_right = 640.0
 offset_bottom = 360.0
 mouse_filter = 2
 color = Color(0.45, 0.68, 0.38, 1)
+
+[node name="Tree" type="Node2D" parent="."]
+position = Vector2(70, 300)
+script = ExtResource("1_gather")
+resource_type = "wood"
+size = Vector2(44, 72)
+
+[node name="Rock" type="Node2D" parent="."]
+position = Vector2(150, 300)
+script = ExtResource("1_gather")
+resource_type = "stone"
+size = Vector2(40, 26)
+
+[node name="HUD" type="CanvasLayer" parent="."]
+script = ExtResource("2_hud")
+
+[node name="ResourcesLabel" type="Label" parent="HUD"]
+unique_name_in_owner = true
+offset_left = 8.0
+offset_top = 6.0
+offset_right = 300.0
+offset_bottom = 30.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.2, 0.2, 0.25, 1)
+text = "Wood: 0   Stone: 0"
+
+[node name="HintLabel" type="Label" parent="HUD"]
+offset_left = 30.0
+offset_top = 320.0
+offset_right = 220.0
+offset_bottom = 344.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.15, 0.3, 0.15, 1)
+text = "Click the tree and rock"
