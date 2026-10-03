@@ -1,0 +1,9 @@
+# Godot 4 cache and generated files
+.godot/
+*.translation
+export_presets.cfg
+
+# Builds
+build/
+*.exe
+*.pck

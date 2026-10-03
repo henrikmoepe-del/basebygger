@@ -1,0 +1,16 @@
+[gd_scene format=3]
+
+[node name="Main" type="Node2D"]
+
+[node name="Sky" type="ColorRect" parent="."]
+offset_right = 640.0
+offset_bottom = 360.0
+mouse_filter = 2
+color = Color(0.93, 0.92, 0.66, 1)
+
+[node name="Ground" type="ColorRect" parent="."]
+offset_top = 300.0
+offset_right = 640.0
+offset_bottom = 360.0
+mouse_filter = 2
+color = Color(0.45, 0.68, 0.38, 1)
