@@ -4,18 +4,25 @@ extends CanvasLayer
 @onready var resources_label: Label = %ResourcesLabel
 @onready var defence_label: Label = %DefenceLabel
 @onready var build_button: Button = %BuildButton
+@onready var hire_button: Button = %HireButton
 
 
 func _ready() -> void:
 	GameState.resources_changed.connect(_refresh)
 	GameState.castle_changed.connect(_refresh)
+	GameState.peasants_changed.connect(_refresh)
 	build_button.pressed.connect(GameState.build_next)
+	hire_button.pressed.connect(GameState.hire_peasant)
 	_refresh()
 
 
 func _refresh() -> void:
 	resources_label.text = "Wood: %d   Stone: %d" % [GameState.resources.wood, GameState.resources.stone]
 	defence_label.text = "Defence: %d" % GameState.total_defence()
+
+	var hire_cost := GameState.peasant_cost()
+	hire_button.text = "Hire Peasant (%d)\n%s" % [GameState.peasants, _cost_text(hire_cost)]
+	hire_button.disabled = not GameState.can_afford(hire_cost)
 
 	var piece := GameState.next_piece()
 	if piece.is_empty():

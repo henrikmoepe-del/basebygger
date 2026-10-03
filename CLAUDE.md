@@ -40,8 +40,9 @@
 
 ## Current status
 - Stage: Milestone 1 (2D incremental builder), early prototype with placeholder art
-- Done: project setup, click-to-gather (wood, stone), build castle pieces in order
+- Done: project setup, click-to-gather (wood, stone), build castle pieces in order,
+  hireable peasants that walk and gather automatically
 - Design note: castle pieces are defences. Each has a `defence` value in
   `scripts/castle_data.gd`; the later 3D wave defence reads the built castle from `GameState`.
-- Next step: peasants that gather automatically (price rises per hire)
-- After that: trees that grow, builders and upgrades, save/load, then Milestone 2 (3D wave defence)
+- Next step: trees that peasants plant, which grow over time and are chopped for wood
+- After that: builders and upgrades, save/load, then Milestone 2 (3D wave defence)

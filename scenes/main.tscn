@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://scripts/gather_spot.gd" id="1_gather"]
 [ext_resource type="Script" path="res://scripts/hud.gd" id="2_hud"]
 [ext_resource type="Script" path="res://scripts/castle.gd" id="3_castle"]
+[ext_resource type="Script" path="res://scripts/peasants.gd" id="4_peasants"]
 
 [node name="Main" type="Node2D"]
 
@@ -34,6 +35,12 @@ size = Vector2(40, 26)
 [node name="Castle" type="Node2D" parent="."]
 position = Vector2(430, 300)
 script = ExtResource("3_castle")
+
+[node name="Peasants" type="Node2D" parent="." node_paths=PackedStringArray("tree", "rock")]
+position = Vector2(0, 300)
+script = ExtResource("4_peasants")
+tree = NodePath("../Tree")
+rock = NodePath("../Rock")
 
 [node name="HUD" type="CanvasLayer" parent="."]
 script = ExtResource("2_hud")
@@ -69,11 +76,22 @@ focus_mode = 0
 theme_override_font_sizes/font_size = 14
 text = "Build"
 
+[node name="HireButton" type="Button" parent="HUD"]
+unique_name_in_owner = true
+offset_left = 20.0
+offset_top = 306.0
+offset_right = 200.0
+offset_bottom = 354.0
+focus_mode = 0
+theme_override_font_sizes/font_size = 14
+text = "Hire Peasant"
+
 [node name="HintLabel" type="Label" parent="HUD"]
-offset_left = 30.0
-offset_top = 320.0
+offset_left = 8.0
+offset_top = 26.0
 offset_right = 220.0
-offset_bottom = 344.0
+offset_bottom = 46.0
 mouse_filter = 2
-theme_override_colors/font_color = Color(0.15, 0.3, 0.15, 1)
+theme_override_colors/font_color = Color(0.35, 0.35, 0.3, 1)
+theme_override_font_sizes/font_size = 12
 text = "Click the tree and rock"
