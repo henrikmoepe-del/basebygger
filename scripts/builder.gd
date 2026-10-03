@@ -31,7 +31,7 @@ func _process(delta: float) -> void:
 			_state = _choose_task()
 		State.TO_STOCK:
 			if _walk_to(stock_x + _offset, delta):
-				_carrying = GameState.job_take_load(GameState.BUILDER_LOAD)
+				_carrying = GameState.job_take_load(GameState.builder_load())
 				_state = State.TO_SITE if _carrying > 0 else State.IDLE
 		State.TO_SITE:
 			if _walk_to(site_x.call() + _offset, delta):
@@ -73,5 +73,5 @@ func _draw() -> void:
 
 ## Moves towards x and returns true once there.
 func _walk_to(x: float, delta: float) -> bool:
-	position.x = move_toward(position.x, x, speed * delta)
+	position.x = move_toward(position.x, x, speed * GameState.builder_speed_mult() * delta)
 	return is_equal_approx(position.x, x)

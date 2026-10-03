@@ -37,7 +37,7 @@ func _process(delta: float) -> void:
 				_timer = 0.0
 			elif _walk_to(_spot.position.x + _spot_offset, delta):
 				_state = State.WORKING
-				_timer = work_time
+				_timer = work_time * GameState.gather_time_mult()
 		State.WORKING:
 			_timer -= delta
 			if _timer <= 0.0:

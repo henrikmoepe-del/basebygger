@@ -11,9 +11,11 @@ signal job_delivered
 signal peasants_changed
 signal trees_changed
 signal builders_changed
-signal upgrades_changed
+## A skill was bought or renown changed.
+signal skills_changed
 
 const CastleData = preload("res://scripts/castle_data.gd")
+const SkillData = preload("res://scripts/skill_data.gd")
 const PEASANT_BASE_COST := 10
 const PEASANT_COST_GROWTH := 1.4
 const PEASANT_BASE_CARRY := 2
@@ -25,7 +27,10 @@ const START_BUILDERS := 1
 const BUILDER_BASE_COST := 20
 const BUILDER_COST_GROWTH := 1.7
 ## How many units of material a builder carries per trip.
-const BUILDER_LOAD := 4
+const BUILDER_BASE_LOAD := 4
+## Renown pays for skills. It is earned by building the castle.
+const RENOWN_PER_LEVEL := 1
+const RENOWN_PER_RANK := 3
 
 ## No part can go above LEVELS_PER_RANK x castle rank. The rank rises with the
 ## total of all part levels, so the player must spread out before going higher.
@@ -41,20 +46,15 @@ const MIN_OFFLINE_SECONDS := 60
 ## Peasant income is averaged over this many seconds.
 const INCOME_WINDOW := 30.0
 
-## Upgrades can be bought again and again; each level costs "growth" times more.
-const UPGRADES := {
-	"peasant_speed": {"name": "Faster Peasants", "cost": {"wood": 20}, "growth": 1.8},
-	"carry": {"name": "Bigger Baskets", "cost": {"wood": 25, "stone": 25}, "growth": 2.0},
-	"builder_speed": {"name": "Better Hammers", "cost": {"stone": 30}, "growth": 1.8},
-}
-
 ## What is in the stockhouse.
 var resources := {"wood": 0, "stone": 0}
 var part_levels := {"walls": 0, "towers": 0, "gate": 0, "keep": 0}
 var peasants := 0
 var trees := START_TREES
 var builders := START_BUILDERS
-var upgrades := {"peasant_speed": 0, "carry": 0, "builder_speed": 0}
+var renown := 0
+## Ids of the skills the player owns.
+var skills: Array[String] = []
 
 ## The building job: the one part being raised a level right now ("" = none).
 ## Its materials are paid for when ordered, then builders haul them from the
@@ -232,9 +232,14 @@ func job_can_hammer() -> bool:
 func job_add_work(seconds: float) -> void:
 	job_work = minf(job_work + seconds, _job_work_allowed())
 	if job_hauled >= job_units and job_work >= job_work_total:
+		var rank_before := castle_rank()
 		part_levels[job_part] += 1
 		job_part = ""
+		renown += RENOWN_PER_LEVEL
+		if castle_rank() > rank_before:
+			renown += RENOWN_PER_RANK
 		castle_changed.emit()
+		skills_changed.emit()
 	job_progress_changed.emit()
 
 
@@ -247,7 +252,7 @@ func job_fraction() -> float:
 
 ## Seconds of hammering one builder does per second.
 func hammer_rate() -> float:
-	return 1.0 + 0.25 * upgrades.builder_speed
+	return 1.0 + skill_total("hammer")
 
 
 func _job_work_allowed() -> float:
@@ -260,7 +265,8 @@ func _job_work_allowed() -> float:
 
 ## Each peasant costs more than the last (the classic incremental curve).
 func peasant_cost() -> Dictionary:
-	return {"wood": ceili(PEASANT_BASE_COST * pow(PEASANT_COST_GROWTH, peasants))}
+	var discount := 1.0 - skill_total("peasant_discount")
+	return {"wood": ceili(PEASANT_BASE_COST * pow(PEASANT_COST_GROWTH, peasants) * discount)}
 
 
 func hire_peasant() -> bool:
@@ -287,7 +293,8 @@ func plant_tree() -> bool:
 
 
 func builder_cost() -> Dictionary:
-	return {"stone": ceili(BUILDER_BASE_COST * pow(BUILDER_COST_GROWTH, builders - START_BUILDERS))}
+	var discount := 1.0 - skill_total("builder_discount")
+	return {"stone": ceili(BUILDER_BASE_COST * pow(BUILDER_COST_GROWTH, builders - START_BUILDERS) * discount)}
 
 
 func hire_builder() -> bool:
@@ -298,15 +305,26 @@ func hire_builder() -> bool:
 	return true
 
 
-func upgrade_cost(id: String) -> Dictionary:
-	return _scaled_cost(UPGRADES[id].cost, UPGRADES[id].growth, upgrades[id])
+## Why the skill can't be bought right now, or "" if it can.
+func skill_block_reason(id: String) -> String:
+	var skill: Dictionary = SkillData.SKILLS[id]
+	if id in skills:
+		return "Owned"
+	if skill.requires != "" and not skill.requires in skills:
+		return "Needs %s" % SkillData.SKILLS[skill.requires].name
+	if renown < skill.cost:
+		return "Not enough renown"
+	return ""
 
 
-func buy_upgrade(id: String) -> bool:
-	if not spend(upgrade_cost(id)):
+func buy_skill(id: String) -> bool:
+	if skill_block_reason(id) != "":
 		return false
-	upgrades[id] += 1
-	upgrades_changed.emit()
+	renown -= SkillData.SKILLS[id].cost
+	skills.append(id)
+	skills_changed.emit()
+	# Skills change costs and speeds, so everything on screen refreshes.
+	resources_changed.emit()
 	return true
 
 
@@ -317,15 +335,50 @@ func _scaled_cost(base: Dictionary, growth: float, level: int) -> Dictionary:
 	return cost
 
 
-# --- What the upgrades do ---
+# --- What skills do ---
+
+## Adds up one effect across all owned skills.
+func skill_total(effect: String) -> float:
+	var total := 0.0
+	for id in skills:
+		total += SkillData.SKILLS[id].effects.get(effect, 0.0)
+	return total
+
 
 func peasant_speed_mult() -> float:
-	return 1.0 + 0.2 * upgrades.peasant_speed
+	return 1.0 + skill_total("peasant_speed")
 
 
 ## How many resources a peasant carries per trip.
 func carry_amount() -> int:
-	return PEASANT_BASE_CARRY + upgrades.carry
+	return PEASANT_BASE_CARRY + int(skill_total("carry"))
+
+
+## Multiplies how long a peasant spends chopping or mining.
+func gather_time_mult() -> float:
+	return 1.0 / (1.0 + skill_total("gather_speed"))
+
+
+## How much one click from the player gathers.
+func click_amount() -> int:
+	return 1 + int(skill_total("click"))
+
+
+func tree_grow_mult() -> float:
+	return 1.0 + skill_total("tree_growth")
+
+
+func tree_bonus_wood() -> int:
+	return int(skill_total("tree_wood"))
+
+
+## How many units of material a builder carries per trip.
+func builder_load() -> int:
+	return BUILDER_BASE_LOAD + int(skill_total("builder_load"))
+
+
+func builder_speed_mult() -> float:
+	return 1.0 + skill_total("builder_speed")
 
 
 # --- Save and load ---
@@ -339,7 +392,8 @@ func save_game() -> void:
 		"peasants": peasants,
 		"trees": trees,
 		"builders": builders,
-		"upgrades": upgrades,
+		"renown": renown,
+		"skills": skills,
 		"income_rate": income_rate,
 		"job": {
 			"part": job_part, "units": job_units, "hauled": job_hauled,
@@ -366,11 +420,18 @@ func load_game() -> void:
 	# Missing or out-of-range values fall back to something safe.
 	_load_numbers(resources, data.get("resources"), true)
 	_load_numbers(part_levels, data.get("part_levels"), true)
-	_load_numbers(upgrades, data.get("upgrades"), true)
 	_load_numbers(income_rate, data.get("income_rate"), false)
 	peasants = maxi(int(data.get("peasants", 0)), 0)
 	trees = clampi(int(data.get("trees", START_TREES)), START_TREES, MAX_TREES)
 	builders = maxi(int(data.get("builders", START_BUILDERS)), START_BUILDERS)
+	renown = maxi(int(data.get("renown", 0)), 0)
+	skills.clear()
+	var saved_skills: Variant = data.get("skills")
+	if saved_skills is Array:
+		for id: Variant in saved_skills:
+			# Skip anything that is no longer in the skill tree.
+			if id is String and SkillData.SKILLS.has(id) and not id in skills:
+				skills.append(id)
 
 	var job: Variant = data.get("job")
 	if job is Dictionary and part_levels.has(job.get("part", "")) and float(job.get("work_total", 0.0)) > 0.0:

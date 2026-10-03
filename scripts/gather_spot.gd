@@ -26,7 +26,7 @@ func _draw() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		if _rect().has_point(make_input_local(event).position) and take():
-			GameState.add_resource(resource_type, 1)
+			GameState.add_resource(resource_type, GameState.click_amount())
 			_pop()
 			get_viewport().set_input_as_handled()
 

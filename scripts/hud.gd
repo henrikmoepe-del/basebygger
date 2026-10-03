@@ -11,32 +11,32 @@ const OFFLINE_MESSAGE_TIME := 10.0
 @onready var plant_button: Button = %PlantButton
 @onready var builder_button: Button = %BuilderButton
 @onready var parts_box: HBoxContainer = %Parts
-@onready var upgrades_box: VBoxContainer = %Upgrades
+@onready var skills_button: Button = %SkillsButton
+@onready var skill_tree: Control = %SkillTree
 @onready var offline_label: Label = %OfflineLabel
 
-## Castle part id -> its button, and upgrade id -> its button.
+## Castle part id -> its button.
 var _part_buttons := {}
-var _upgrade_buttons := {}
 
 
 func _ready() -> void:
 	for changed: Signal in [
 		GameState.resources_changed, GameState.castle_changed, GameState.job_progress_changed,
 		GameState.peasants_changed, GameState.trees_changed, GameState.builders_changed,
-		GameState.upgrades_changed,
+		GameState.skills_changed,
 	]:
 		changed.connect(_refresh)
 	hire_button.pressed.connect(GameState.hire_peasant)
 	plant_button.pressed.connect(GameState.plant_tree)
 	builder_button.pressed.connect(GameState.hire_builder)
+	skills_button.pressed.connect(skill_tree.show)
 	_make_buttons()
 	_refresh()
 	_show_offline_report()
 
 
-## One button per castle part and per upgrade, made from the data in
-## CastleData.PARTS and GameState.UPGRADES, so adding one there is all it
-## takes to get it on screen.
+## One button per castle part, made from the data in CastleData.PARTS,
+## so adding a part there is all it takes to get it on screen.
 func _make_buttons() -> void:
 	for id: String in CastleData.PARTS:
 		var button := _new_button(11)
@@ -44,12 +44,6 @@ func _make_buttons() -> void:
 		button.pressed.connect(GameState.order_part.bind(id))
 		parts_box.add_child(button)
 		_part_buttons[id] = button
-	for id: String in GameState.UPGRADES:
-		var button := _new_button(11)
-		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.pressed.connect(GameState.buy_upgrade.bind(id))
-		upgrades_box.add_child(button)
-		_upgrade_buttons[id] = button
 
 
 func _new_button(font_size: int) -> Button:
@@ -74,7 +68,8 @@ func _show_offline_report() -> void:
 
 
 func _refresh() -> void:
-	resources_label.text = "Wood: %d   Stone: %d" % [GameState.resources.wood, GameState.resources.stone]
+	resources_label.text = "Wood: %d   Stone: %d   Renown: %d" % [
+		GameState.resources.wood, GameState.resources.stone, GameState.renown]
 	defence_label.text = "Defence: %d" % GameState.total_defence()
 	rank_label.text = "Castle rank %d  (%d/%d levels to next)" % [
 		GameState.castle_rank(), GameState.total_levels(), GameState.levels_for_next_rank()]
@@ -87,11 +82,8 @@ func _refresh() -> void:
 	for id: String in _part_buttons:
 		_refresh_part_button(id, _part_buttons[id])
 
-	for id: String in _upgrade_buttons:
-		var cost := GameState.upgrade_cost(id)
-		var button: Button = _upgrade_buttons[id]
-		button.text = "%s (Lv %d): %s" % [GameState.UPGRADES[id].name, GameState.upgrades[id], _cost_text(cost)]
-		button.disabled = not GameState.can_afford(cost)
+	skills_button.text = "Skills
+%d renown" % GameState.renown
 
 
 func _refresh_part_button(id: String, button: Button) -> void:

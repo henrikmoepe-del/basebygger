@@ -42,19 +42,18 @@
 - Stage: Milestone 1 (2D incremental builder), expanding the builder before the 3D part. Placeholder art.
 - Done: click-to-gather, peasants, plantable trees that regrow, save/load with offline progress,
   castle as four upgradable parts (walls, towers, gate, keep) with a castle rank that caps levels,
-  builders that haul materials from the stockhouse and hammer them in, scaffolding and rope hoist
+  builders that haul materials from the stockhouse and hammer them in, scaffolding and rope hoist,
+  skill tree (16 skills in Peasant and Builder branches, paid with renown from castle levels)
 - Design notes:
   - Castle parts are defences. `scripts/castle_data.gd` holds each part's defence per level;
     the later 3D wave defence reads the part levels from `GameState`.
   - Henrik's design ideas are starting points: explore and expand on them, then explain the choices.
 - Agreed order for what comes next:
-  1. Skill tree, first version (about 15 nodes, Peasant and Builder branches, paid with a
-     separate currency earned from castle levels); replaces the three upgrade buttons
-  2. Trades as big skill-tree unlocks (woodcutter, mason, builder roles)
-  3. Day/night and hunger (hunter, cook)
-  4. Thirst, boredom, traits: hold until the wave defence prototype exists
-  5. Milestone 2: 3D wave defence, which also acts as the prestige loop
+  1. Trades as big skill-tree unlocks (woodcutter, mason, builder roles)
+  2. Day/night and hunger (hunter, cook)
+  3. Thirst, boredom, traits: hold until the wave defence prototype exists
+  4. Milestone 2: 3D wave defence, which also acts as the prestige loop
 - Known balance issue: stone income is about 8x wood late on (rock is endless, trees are capped at 8).
-  Trades (step 2) are the planned fix.
+  Trades (next step) are the planned fix.
 - Testing: run Godot with `--headless` and `-- --save=user://test_save.json` so tests
   open no window and never touch the real save (`user://save.json`).
