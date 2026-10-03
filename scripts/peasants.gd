@@ -1,12 +1,12 @@
 extends Node2D
 ## Spawns one walking peasant for every peasant hired in GameState,
-## and draws the stockpile they carry resources back to.
+## and draws the stockhouse they carry resources back to.
 
 const Peasant = preload("res://scripts/peasant.gd")
 
 @export var grove: Node2D
 @export var rock: Node2D
-@export var home_x := 275.0
+@export var home_x := 215.0
 
 
 func _ready() -> void:
@@ -15,9 +15,10 @@ func _ready() -> void:
 
 
 func _draw() -> void:
-	# Stockpile crate.
-	draw_rect(Rect2(home_x - 9, -10, 18, 10), Color(0.48, 0.32, 0.20))
-	draw_rect(Rect2(home_x - 9, -6, 18, 2), Color(0.33, 0.21, 0.13))
+	# The stockhouse: everything gathered is stored here.
+	draw_rect(Rect2(home_x - 14, -18, 28, 18), Color(0.48, 0.32, 0.20))
+	draw_rect(Rect2(home_x - 17, -24, 34, 7), Color(0.33, 0.21, 0.13))
+	draw_rect(Rect2(home_x - 4, -11, 8, 11), Color(0.20, 0.13, 0.08))
 
 
 ## Where a peasant should go for this resource right now (null = nowhere).

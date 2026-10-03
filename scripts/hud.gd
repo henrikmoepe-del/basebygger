@@ -1,24 +1,27 @@
 extends CanvasLayer
 ## On-screen text and buttons. Only reads GameState and reacts to its signals.
 
+const CastleData = preload("res://scripts/castle_data.gd")
+const OFFLINE_MESSAGE_TIME := 10.0
+
 @onready var resources_label: Label = %ResourcesLabel
 @onready var defence_label: Label = %DefenceLabel
+@onready var rank_label: Label = %RankLabel
 @onready var hire_button: Button = %HireButton
 @onready var plant_button: Button = %PlantButton
 @onready var builder_button: Button = %BuilderButton
-@onready var build_button: Button = %BuildButton
+@onready var parts_box: HBoxContainer = %Parts
 @onready var upgrades_box: VBoxContainer = %Upgrades
 @onready var offline_label: Label = %OfflineLabel
 
-const OFFLINE_MESSAGE_TIME := 10.0
-
-## Upgrade id -> its button.
+## Castle part id -> its button, and upgrade id -> its button.
+var _part_buttons := {}
 var _upgrade_buttons := {}
 
 
 func _ready() -> void:
 	for changed: Signal in [
-		GameState.resources_changed, GameState.castle_changed, GameState.build_progress_changed,
+		GameState.resources_changed, GameState.castle_changed, GameState.job_progress_changed,
 		GameState.peasants_changed, GameState.trees_changed, GameState.builders_changed,
 		GameState.upgrades_changed,
 	]:
@@ -26,10 +29,34 @@ func _ready() -> void:
 	hire_button.pressed.connect(GameState.hire_peasant)
 	plant_button.pressed.connect(GameState.plant_tree)
 	builder_button.pressed.connect(GameState.hire_builder)
-	build_button.pressed.connect(GameState.start_build)
-	_make_upgrade_buttons()
+	_make_buttons()
 	_refresh()
 	_show_offline_report()
+
+
+## One button per castle part and per upgrade, made from the data in
+## CastleData.PARTS and GameState.UPGRADES, so adding one there is all it
+## takes to get it on screen.
+func _make_buttons() -> void:
+	for id: String in CastleData.PARTS:
+		var button := _new_button(11)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.pressed.connect(GameState.order_part.bind(id))
+		parts_box.add_child(button)
+		_part_buttons[id] = button
+	for id: String in GameState.UPGRADES:
+		var button := _new_button(11)
+		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		button.pressed.connect(GameState.buy_upgrade.bind(id))
+		upgrades_box.add_child(button)
+		_upgrade_buttons[id] = button
+
+
+func _new_button(font_size: int) -> Button:
+	var button := Button.new()
+	button.focus_mode = Control.FOCUS_NONE
+	button.add_theme_font_size_override("font_size", font_size)
+	return button
 
 
 ## Tells the player what they earned while the game was closed, then fades out.
@@ -46,40 +73,38 @@ func _show_offline_report() -> void:
 	tween.tween_property(offline_label, "modulate:a", 0.0, 1.0)
 
 
-## One button per upgrade in GameState.UPGRADES, so adding an upgrade there
-## is all it takes to get it on screen.
-func _make_upgrade_buttons() -> void:
-	for id: String in GameState.UPGRADES:
-		var button := Button.new()
-		button.focus_mode = Control.FOCUS_NONE
-		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.add_theme_font_size_override("font_size", 11)
-		button.pressed.connect(GameState.buy_upgrade.bind(id))
-		upgrades_box.add_child(button)
-		_upgrade_buttons[id] = button
-
-
 func _refresh() -> void:
 	resources_label.text = "Wood: %d   Stone: %d" % [GameState.resources.wood, GameState.resources.stone]
 	defence_label.text = "Defence: %d" % GameState.total_defence()
+	rank_label.text = "Castle rank %d  (%d/%d levels to next)" % [
+		GameState.castle_rank(), GameState.total_levels(), GameState.levels_for_next_rank()]
 
 	_set_button(hire_button, "Hire Peasant (%d)" % GameState.peasants, GameState.peasant_cost(), "")
 	_set_button(plant_button, "Plant Tree (%d/%d)" % [GameState.trees, GameState.MAX_TREES],
 			GameState.tree_cost(), "Grove full")
 	_set_button(builder_button, "Hire Builder (%d)" % GameState.builders, GameState.builder_cost(), "")
 
-	var piece := GameState.next_piece()
-	if GameState.building:
-		build_button.text = "Building %s\n%d%%" % [piece.name, GameState.build_fraction() * 100]
-		build_button.disabled = true
-	else:
-		_set_button(build_button, "Build %s" % piece.get("name", ""), piece.get("cost", {}), "Castle complete")
+	for id: String in _part_buttons:
+		_refresh_part_button(id, _part_buttons[id])
 
 	for id: String in _upgrade_buttons:
 		var cost := GameState.upgrade_cost(id)
 		var button: Button = _upgrade_buttons[id]
 		button.text = "%s (Lv %d): %s" % [GameState.UPGRADES[id].name, GameState.upgrades[id], _cost_text(cost)]
 		button.disabled = not GameState.can_afford(cost)
+
+
+func _refresh_part_button(id: String, button: Button) -> void:
+	var part_name: String = CastleData.PARTS[id].name
+	var level: int = GameState.part_levels[id]
+	if id == GameState.job_part:
+		button.text = "Building %s Lv %d\n%d%%" % [part_name, level + 1, GameState.job_fraction() * 100]
+		button.disabled = true
+		return
+	var reason := GameState.part_block_reason(id)
+	var cost := GameState.part_cost(id)
+	button.text = "%s Lv %d\n%s" % [part_name, level, reason if reason != "" else _cost_text(cost)]
+	button.disabled = reason != "" or not GameState.can_afford(cost)
 
 
 ## Shows "title + cost" and greys the button out when it can't be afforded.
