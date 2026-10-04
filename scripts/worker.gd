@@ -140,4 +140,5 @@ func _go_to(target: Vector2, delta: float) -> bool:
 	_back = step.back
 	if position.is_equal_approx(step.pos):
 		_route.pop_front()
-	return position.is_equal_approx(target)
+	# The way can end short of the target, if there is nothing to stand on there.
+	return _route.is_empty()

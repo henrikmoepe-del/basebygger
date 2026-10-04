@@ -209,9 +209,13 @@ func pickup_spot() -> Vector2:
 	return Vector2(hoist_x() + READY_PILE, 0)
 
 
-## Where a builder stands to put a piece in place.
+## Where a builder stands to put a piece in place. Pieces placed from the
+## top of the section are placed from wherever its deck has got to.
 func stand_spot(index: int) -> Vector2:
-	return _plan[index].stand
+	var piece: Dictionary = _plan[index]
+	if piece.top:
+		return Vector2(piece.stand.x, _deck_y(piece.section))
+	return piece.stand
 
 
 ## What a builder carrying a piece holds: the colour of its material.
@@ -229,21 +233,28 @@ func is_removal(index: int) -> bool:
 	return _plan[index].kind == BuildPlan.Kind.REMOVE
 
 
-## Where the builder who pulls the rope stands: at the top, beside the hoist.
+## Where the builder who pulls the rope stands: on the deck, beside the hoist.
 func hoist_spot() -> Vector2:
 	var piece := _next_piece()
 	var section: Array = _plan_sections[piece.section]
-	return Vector2(clampf(hoist_x(), section[0] + 4.0, section[1] - 4.0), piece.stand.y)
+	return Vector2(clampf(hoist_x(), section[0] + 4.0, section[1] - 4.0), _deck_y(piece.section))
+
+
+## How high the deck of a section is right now: the top of what is laid of
+## it so far, where builders stand to lay more (0 = still on the ground).
+func _deck_y(section: int) -> float:
+	var plan: Dictionary = GameState.job_plan
+	if _placed >= plan.fetch:
+		return plan.tops[section]
+	var piece := _next_piece()
+	if piece.section == section:
+		return piece.floor
+	return plan.tops[section] if piece.section > section else 0.0
 
 
 ## The piece that goes in next (the last one, once all are placed).
 func _next_piece() -> Dictionary:
 	return _plan[mini(_placed, _plan.size() - 1)]
-
-
-## The scaffold's ladder is at the end of the section nearest the hoist.
-func _ladder_x(section: Array, hoist: float) -> float:
-	return BuildPlan.ladder_x(section, hoist)
 
 
 # --- Where peasants can walk ---
@@ -260,52 +271,82 @@ func built_floors() -> Array:
 	return _floors
 
 
-## Where the builders stand on the part being built: on the stone laid so
-## far in the section they are working on, reached by the scaffold's ladder.
+## Where builders can stand on the part being built: the deck of every
+## section that has been started (reached by the building's own stairs or a
+## ladder), and every platform of the scaffolding that is standing.
 func job_floors() -> Array:
-	if not job_has_scaffold():
-		return []
-	var piece := _next_piece()
-	if piece.stand.y > -0.5:
-		return []
-	var section: Array = _plan_sections[piece.section]
-	return [{
-		"x0": section[0], "x1": section[1], "y": piece.stand.y, "stairs": [_ladder_x(section, hoist_x())],
-		"hidden": false, "back": not GameState.job_part in CastleData.FRONT,
-	}]
+	var out := []
+	if _plan.is_empty():
+		return out
+	var plan: Dictionary = GameState.job_plan
+	var back: bool = not GameState.job_part in CastleData.FRONT
+	if plan.scaffolded:
+		for i in _plan_sections.size():
+			var y := _deck_y(i)
+			if y < -0.5:
+				var section: Array = _plan_sections[i]
+				out.append({
+					"x0": section[0], "x1": section[1], "y": y, "stairs": [plan.access[i].x],
+					"hidden": plan.access[i].hidden, "back": back,
+				})
+	for platform: Dictionary in plan.platforms:
+		if _placed >= platform.from and _placed <= platform.until:
+			out.append({
+				"x0": platform.x0, "x1": platform.x1, "y": platform.y, "stairs": [platform.ladder],
+				"hidden": false, "back": back,
+			})
+	return out
 
 
 ## The way from one point to another, as a list of steps
-## {"pos": Vector2, "hidden": bool, "back": bool}. Every floor is reached from
-## the ground by its stairs, so the way is: along the floor to a stair, down,
-## along the ground, up the other stair, along that floor. "hidden" steps are
-## walked inside a building.
+## {"pos": Vector2, "hidden": bool, "back": bool}. Peasants only ever move
+## along the ground, along a floor, or up and down a stair. Every floor is
+## reached from the ground by its stairs, so the way is: along the floor to a
+## stair, down, along the ground, up the other stair, along that floor (or
+## straight up or down a stair the two floors share). "hidden" steps are
+## walked inside a building. A point with no floor under it can't be
+## reached: the way then ends on the ground below it.
 func route(from: Vector2, to: Vector2) -> Array:
 	var all := floors()
 	var start := _floor_at(all, from)
 	var goal := _floor_at(all, to)
+	var end := Vector2(to.x, all[goal].y if goal >= 0 else 0.0)
+	var end_back: bool = goal >= 0 and all[goal].back
 	var steps := []
 	var x := from.x
-	if start != goal:
+	if start < 0 and from.y < -0.5:
+		# Part way up a stair: carry on if it leads to the goal, else go back
+		# down it first.
+		if goal >= 0 and all[goal].stairs.has(from.x):
+			steps.append(_step(Vector2(from.x, all[goal].y), all[goal].hidden, end_back))
+			steps.append(_step(end, false, end_back))
+			return steps
+		var stair := _stair_floor(all, from.x)
+		steps.append(_step(Vector2(from.x, 0), stair >= 0 and all[stair].hidden, stair >= 0 and all[stair].back))
+		if goal >= 0:
+			var stair_x := _nearest_stair(all[goal], x)
+			steps.append(_step(Vector2(stair_x, 0), false, false))
+			steps.append(_step(Vector2(stair_x, all[goal].y), all[goal].hidden, end_back))
+	elif start != goal:
 		if start >= 0:
 			var flat: Dictionary = all[start]
+			if goal >= 0:
+				for stair: float in flat.stairs:
+					if all[goal].stairs.has(stair):
+						# Both floors are on this stair: no need to touch the ground.
+						steps.append(_step(Vector2(stair, flat.y), false, flat.back))
+						steps.append(_step(Vector2(stair, all[goal].y), all[goal].hidden, end_back))
+						steps.append(_step(end, false, end_back))
+						return steps
 			x = _nearest_stair(flat, from.x)
 			steps.append(_step(Vector2(x, flat.y), false, flat.back))
 			steps.append(_step(Vector2(x, 0), flat.hidden, flat.back))
-		elif from.y < -0.5:
-			# Part way up a stair: carry on if it leads to the goal, else go back down.
-			var stair := _stair_floor(all, from.x)
-			if goal >= 0 and all[goal].stairs.has(from.x):
-				steps.append(_step(Vector2(from.x, all[goal].y), all[goal].hidden, all[goal].back))
-				steps.append(_step(to, false, all[goal].back))
-				return steps
-			steps.append(_step(Vector2(from.x, 0), stair >= 0 and all[stair].hidden, stair >= 0 and all[stair].back))
 		if goal >= 0:
 			var flat: Dictionary = all[goal]
 			var stair_x := _nearest_stair(flat, x)
 			steps.append(_step(Vector2(stair_x, 0), false, false))
 			steps.append(_step(Vector2(stair_x, flat.y), flat.hidden, flat.back))
-	steps.append(_step(to, false, goal >= 0 and all[goal].back))
+	steps.append(_step(end, false, end_back))
 	return steps
 
 
@@ -376,6 +417,11 @@ func _draw_job(canvas: CanvasItem) -> void:
 	var built := mini(_placed, plan.fetch)
 	var done: bool = built >= plan.fetch
 	var piece := _next_piece()
+	# The old battlements and flags stay until new stone is laid over them.
+	for shape: Array in plan.gone:
+		var covered: bool = shape[0].end.y > piece.line + 0.01 or shape[0].intersects(piece.partial)
+		if not done and (shape[2] > piece.section or (shape[2] == piece.section and not covered)):
+			canvas.draw_rect(shape[0], shape[1])
 	for i in _plan_sections.size():
 		if done or i < piece.section:
 			_draw_shapes(canvas, plan.solid[i])
@@ -402,7 +448,7 @@ func _draw_ladder(canvas: CanvasItem, x: float, top: float, bottom := 0.0) -> vo
 		y -= RUNG_SPACING
 
 
-## The scaffolding standing right now: every bay and length of ladder that
+## The scaffolding and builders' ladders standing right now: everything that
 ## has been put up and not yet taken down again. A bay is a pole at its side
 ## and the planks the builders stand on.
 func _draw_scaffold(canvas: CanvasItem) -> void:
@@ -417,8 +463,8 @@ func _draw_scaffold(canvas: CanvasItem) -> void:
 		canvas.draw_rect(Rect2(area.position.x - 2, area.position.y, 2, area.size.y), SCAFFOLD_COLOR)
 		if piece.end:
 			canvas.draw_rect(Rect2(area.end.x, area.position.y, 2, area.size.y), SCAFFOLD_COLOR)
-		if area.end.y < -0.5:
-			canvas.draw_rect(Rect2(area.position.x - 2, area.end.y, area.size.x + 2, 1), SCAFFOLD_COLOR)
+		# The planks on top are the platform the builders stand on.
+		canvas.draw_rect(Rect2(area.position.x - 2, area.position.y, area.size.x + 4, 2), SCAFFOLD_COLOR)
 
 
 ## The yard at the foot of the site: the rough pile where carriers drop
@@ -453,10 +499,10 @@ func _draw_pile(canvas: CanvasItem, foot: Vector2, first: int, count: int) -> vo
 
 ## A beam sticking out above the builders, with stones rising on a rope.
 func _draw_hoists(canvas: CanvasItem) -> void:
-	if not _plan_scaffolded or _placed >= GameState.job_fetch() or _next_piece().stand.y > -0.5:
+	if not _plan_scaffolded or _placed >= GameState.job_fetch() or _deck_y(_next_piece().section) > -0.5:
 		return
 	var x := hoist_x()
-	var top: float = _next_piece().stand.y - HOIST_RISE
+	var top: float = _deck_y(_next_piece().section) - HOIST_RISE
 	canvas.draw_rect(Rect2(x - 10, top, 16, 2), SCAFFOLD_COLOR)
 	canvas.draw_rect(Rect2(x - 10, top, 2, HOIST_RISE), SCAFFOLD_COLOR)
 	canvas.draw_rect(Rect2(x + 2, top + 2, 1, 4), ROPE_COLOR)

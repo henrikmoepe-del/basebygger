@@ -56,8 +56,8 @@ func _work(delta: float) -> void:
 	match _state:
 		State.IDLE:
 			_state = _choose_task()
-			if _state == State.IDLE and position.y > -0.5:
-				# Nothing to do yet: wait by the yard, where the next work will be.
+			if _state == State.IDLE:
+				# Nothing to do yet: come down and wait by the yard, where the next work will be.
 				_walk_to(castle.yard_x() + 14.0 + _offset * 2.0, delta)
 		State.TO_STOCK:
 			# Stone from the stone stack, timber from the wood stack, the rest from the shed.

@@ -81,11 +81,19 @@
     place and set in. `GameState` counts how far the pieces have got (`job_hauled`, `job_formed`,
     `job_lifted`, `job_taken`, `job_placed`); `builder.gd` picks which step to do; `castle.gd` draws
     the yard, piles and hoist and says where to stand. Two benches and one rope per site.
-    Scaffolding and ladders are pieces too: they go up a lift at a time with the wall, and are
-    taken down and carried back when the part stands. Pieces follow their material (`item_for`):
-    stone blocks, planks for timber parts (thin courses), daub panels, thatch, roof tiles.
+    How a section goes up: walls a course at a time, laid from the top of what is built so far
+    (its "deck"). Builders reach the deck by the building's own stairs (in at the door, out on
+    top) or the wall's stair ladder; a section with neither gets one whole ladder, removed at the
+    end. Battlements, roofs and flags are set from the deck, doors from the ground. Scaffolding
+    is only for details on the face (windows, arrow slits): put up a lift at a time with one
+    ladder, then taken down and carried back. Old battlements and flags stay until new stone is
+    laid over them. Pieces follow their material (`item_for`): stone blocks, planks for timber
+    parts (thin courses), daub panels, thatch, roof tiles.
     Builders reserve a piece before walking to it, and wait by the yard when there is nothing to do.
-    No preview outline. Parts without sections (palisade, watchtower, village) are built from the ground.
+  - Movement rule: peasants only move along the ground, along a floor, or up and down a stair
+    (`castle.route`). A target with no floor under it is not reachable; the way ends on the ground
+    below it. Anything a peasant must stand on has to be a floor (`CastleData.floors`, or
+    `castle.job_floors` for decks and scaffold platforms). The build test checks for this.
   - Wanted next for building (Henrik): pieces that must be made first, e.g. a window made at a
     workstation from gathered materials and then carried to the site. The hook is `BuildPlan.ITEMS`
     ("item" per piece kind): give an item a recipe and have builders fetch it from the workstation.
