@@ -8,7 +8,7 @@ const SCREEN_SIZE := Vector2(640, 360)
 ## The ground line's height on screen stays put while zooming.
 const GROUND_Y := 270.0
 ## Zoom steps, from closest to furthest out.
-const ZOOM_LEVELS := [1.0, 0.75, 0.5]
+const ZOOM_LEVELS := [1.0, 0.75, 0.5, 0.35, 0.25]
 ## Pixels of shake lost per second.
 const SHAKE_FADE := 14.0
 

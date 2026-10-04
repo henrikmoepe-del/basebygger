@@ -4,6 +4,9 @@ extends Node
 ##     get_tree().call_group("sfx", "play", "chop")
 ## Press M to mute or unmute. Real sounds can replace these later by loading
 ## files into _sounds under the same names.
+##
+## The sounds of the world (WORLD_SOUNDS: peasants at work) grow fainter the
+## further the camera is zoomed out. Fanfares and clicks stay as they are.
 
 const MIX_RATE := 22050
 const VOICES := 6
@@ -11,6 +14,9 @@ const VOLUME_DB := -16.0
 ## The same sound can't start again sooner than this, so a crowd of peasants
 ## doesn't turn into a roar.
 const MIN_GAP := 0.09
+const WORLD_SOUNDS := ["chop", "mine", "deliver", "hammer", "place"]
+## At this zoom and further out, the world can't be heard at all.
+const SILENT_ZOOM := 0.15
 
 var _sounds := {}
 var _players: Array[AudioStreamPlayer] = []
@@ -26,6 +32,7 @@ func _ready() -> void:
 		"mine": _make([520.0], 0.06, 0.5),
 		"deliver": _make([660.0, 880.0], 0.09, 0.0),
 		"hammer": _make([300.0], 0.05, 0.4),
+		"place": _make([140.0], 0.08, 0.6),
 		"buy": _make([520.0, 780.0], 0.10, 0.0),
 		"built": _make([392.0, 523.0, 659.0], 0.32, 0.0),
 		"goal": _make([523.0, 659.0, 784.0, 1047.0], 0.45, 0.0),
@@ -57,11 +64,26 @@ func play(sound: String) -> void:
 	if now - _last_played.get(sound, -1.0) < MIN_GAP:
 		return
 	_last_played[sound] = now
+	var volume := VOLUME_DB
+	if sound in WORLD_SOUNDS:
+		var nearness := _nearness()
+		if nearness <= 0.0:
+			return
+		volume += linear_to_db(nearness)
 	for player in _players:
 		if not player.playing:
+			player.volume_db = volume
 			player.stream = _sounds[sound]
 			player.play()
 			return
+
+
+## How close the camera is to the world: 1 zoomed right in, 0 too far to hear.
+func _nearness() -> float:
+	var camera := get_viewport().get_camera_2d()
+	if camera == null:
+		return 1.0
+	return clampf((camera.zoom.x - SILENT_ZOOM) / (1.0 - SILENT_ZOOM), 0.0, 1.0)
 
 
 ## Builds a sound: the notes are played in turn across the length, mixed with
