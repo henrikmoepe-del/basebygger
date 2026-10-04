@@ -377,9 +377,10 @@ func floors() -> Array:
 	return _floors + job_floors()
 
 
-## The floors of what is built, without the scaffold: where guards stand.
+## The floors where guards stand and idle peasants stroll: those of what is
+## built, but not of the part being rebuilt, which is the builders' for now.
 func built_floors() -> Array:
-	return _floors
+	return _floors.filter(func(flat: Dictionary) -> bool: return flat.part != GameState.job_part)
 
 
 ## Where builders can stand on the part being built: the deck of every
@@ -548,6 +549,7 @@ func _rebuild_floors() -> void:
 	for part: String in CastleData.DRAW_ORDER:
 		for flat: Dictionary in CastleData.floors(part, GameState.part_levels[part]):
 			flat["back"] = not part in CastleData.FRONT
+			flat["part"] = part
 			_floors.append(flat)
 	version += 1
 

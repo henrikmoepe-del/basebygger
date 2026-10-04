@@ -102,8 +102,9 @@
   - Courses are counted from the top of what already stands, so a new course sits exactly on the
     old wall. A deck has a step in it: builders stand on the stretch of the course already laid
     (`castle._deck_step`, `surface_at`), not in front of it.
-  - While a level is added, old pieces the new level lacks (battlements, turrets, flags) stay until
-    stone is laid over them, and whatever rests on a removed piece goes with it (`_draw_job`).
+  - While a level is added, what the new level replaces (battlements, turrets, roofs, flags) is
+    first knocked down by builders standing on the old wall, a piece at a time, and falls to the
+    ground (`Kind.DISMANTLE`, `plan.gone`). Nobody strolls or stands guard on a part being rebuilt.
   - Stairs inside buildings go up in flights, back and forth (`castle.route` turns hidden steps
     into flights); a peasant finishes a flight before changing their mind. Until the stair door is
     built there is an open trapdoor in the deck.
@@ -165,6 +166,10 @@
   Dev key F7 starts a siege at any time.
 - Next for the siege: something for the player to do during it, enemy variety, real 3D models,
   then tie it into passing the crown
+- Seeing the game: `tests/screenshot.gd` opens the game window, plays a build and saves real
+  screenshots at steps through it (plans inside the file; `--plan=<name> --out=<folder>`), then
+  closes the window. Henrik allows this window when it helps; always let it close. Use it after
+  any change to how building or peasants look. `tests/snapshot.gd` does a rougher version headless.
 - Tests: `tests/test_build.gd` (builds every part and checks no builder is ever in the air) and
   `tests/test_raid.gd` (a defended and an undefended raid). Run with
   `godot --headless --path . -s tests/<name>.gd -- --save=user://test_save.json`.

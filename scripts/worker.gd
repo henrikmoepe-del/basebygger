@@ -184,10 +184,10 @@ func _pick_leisure(near_x: float, reach: float) -> void:
 			_playing = playing
 			_leisure_time = seconds
 			return
-	if free and roll < 0.6 and GameState.part_levels.tavern > 0:
+	if free and roll > 0.85 and GameState.part_levels.tavern > 0:
 		_leisure = Leisure.TAVERN
 		_leisure_spot = Vector2(CastleData.TAVERN_X, 0)
-		_leisure_time = randf_range(8.0, 18.0)
+		_leisure_time = randf_range(6.0, 12.0)
 		return
 	_leisure = Leisure.STROLL
 	_leisure_spot = world.stroll_spot(home_x) if free else Vector2(near_x + randf_range(-reach, reach), 0)

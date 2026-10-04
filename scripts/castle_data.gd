@@ -504,7 +504,7 @@ static func shapes(part: String, level: int) -> Array:
 				# The flag: on the great tower, or beside the stair door until there is one.
 				var pole := middle if level >= 7 else middle + 26.0
 				out.append([Rect2(pole - 1, top - 36, 2, 36), WOOD_DARK])
-				out.append([Rect2(pole + 1, top - 36, 24, 13), BANNER])
+				out.append([Rect2(pole + 1, top - 36, 24, 11), BANNER])
 		"houses":
 			# One hut per level, in a row going east.
 			for i in v:

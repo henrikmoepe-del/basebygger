@@ -1,0 +1,86 @@
+extends SceneTree
+## Takes real screenshots of a build in progress. Unlike snapshot.gd this
+## opens the game window, so it shows exactly what the player sees.
+## Run with:
+##   godot --path . -s tests/screenshot.gd -- --save=user://test_save.json --out=<folder> --plan=<name>
+## Plans are in PLANS below.
+
+## Each plan: the levels to start from, the part to raise, where the camera
+## looks [x, lift, zoom], how many builders, and how many pictures to take.
+const PLANS := {
+	"wall": {"levels": {}, "part": "walls", "camera": [330, -40, 2.0], "shots": 6},
+	"wall3": {"levels": {"walls": 2, "garrison": 1}, "part": "walls", "camera": [300, -30, 2.0], "shots": 6},
+	"keep": {"levels": {"walls": 2}, "part": "keep", "camera": [-100, 0, 1.5], "shots": 8},
+	"keep5": {"levels": {"walls": 3, "keep": 4}, "part": "keep", "camera": [-100, 60, 1.0], "shots": 10},
+	"tower": {"levels": {"walls": 2}, "part": "towers", "camera": [400, 0, 1.5], "shots": 8},
+	"court": {"levels": {"walls": 2}, "part": "court", "camera": [-290, -30, 2.0], "shots": 6},
+	"gate": {"levels": {"walls": 2}, "part": "gate", "camera": [30, -40, 2.0], "shots": 5},
+	"tavern": {"levels": {"walls": 1}, "part": "tavern", "camera": [1170, -45, 2.0], "shots": 5},
+	"idle": {"levels": {"walls": 3, "keep": 3, "towers": 3, "garrison": 2, "court": 2, "tavern": 1, "houses": 3}, "part": "", "camera": [100, 0, 0.75], "shots": 5},
+}
+
+var gs: Node
+
+
+func _initialize() -> void:
+	gs = root.get_node("GameState")
+	_run()
+
+
+func _arg(name: String, fallback: String) -> String:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--%s=" % name):
+			return arg.trim_prefix("--%s=" % name)
+	return fallback
+
+
+func _run() -> void:
+	var name := _arg("plan", "keep")
+	var plan: Dictionary = PLANS[name]
+	var out := _arg("out", "user://")
+	for part: String in plan.levels:
+		gs.part_levels[part] = plan.levels[part]
+	change_scene_to_file("res://scenes/main.tscn")
+	await process_frame
+	await process_frame
+	Engine.time_scale = 12.0
+	gs.no_nights = true
+	gs.peasants += 6
+	gs.jobs.build += 3
+	gs.peasants_changed.emit()
+	for type in gs.resources:
+		gs.resources[type] = 100000
+	var camera: Camera2D = current_scene.get_node("Camera")
+	camera.set_process(false)
+	camera.set_process_unhandled_input(false)
+	camera.zoom = Vector2(plan.camera[2], plan.camera[2])
+	camera.position = Vector2(plan.camera[0], 270.0 - 90.0 / plan.camera[2] - plan.camera[1])
+
+	if plan.part == "":
+		# Nothing to build: just watch the peasants for a while.
+		for shot in plan.shots:
+			var t := 0.0
+			while t < 25.0:
+				await process_frame
+				t += root.get_process_delta_time()
+				gs.day_time = 10.0
+			await _shoot("%s/%s_%d.png" % [out, name, shot])
+	else:
+		gs.order_part(plan.part)
+		var size: int = gs.job_size()
+		var next := 0
+		while gs.job_part != "" and next < plan.shots:
+			await process_frame
+			gs.day_time = 10.0
+			# Spread the pictures over the job, by pieces placed.
+			if gs.job_placed >= int(size * (next + 0.5) / plan.shots):
+				await _shoot("%s/%s_%d.png" % [out, name, next])
+				print("shot %d at %d of %d pieces" % [next, gs.job_placed, size])
+				next += 1
+	Engine.time_scale = 1.0
+	quit()
+
+
+func _shoot(path: String) -> void:
+	await RenderingServer.frame_post_draw
+	root.get_texture().get_image().save_png(path)
