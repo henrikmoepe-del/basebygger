@@ -102,10 +102,10 @@ const RENOWN_PER_RANK := 3
 ## No part can go above LEVELS_PER_RANK x castle rank. The rank rises with the
 ## total of all part levels, so the player must spread out before going higher.
 const LEVELS_PER_RANK := 5
-const FIRST_RANK_UP := 18
-const RANK_UP_STEP := 24
+const FIRST_RANK_UP := 22
+const RANK_UP_STEP := 30
 
-const SAVE_VERSION := 9
+const SAVE_VERSION := 10
 const AUTOSAVE_INTERVAL := 10.0
 const MAX_OFFLINE_SECONDS := 8 * 3600
 ## Offline progress is only granted (and reported) after this long away.
@@ -117,6 +117,7 @@ const INCOME_WINDOW := DAY_LENGTH
 var resources := {"wood": 0, "stone": 0, "food": START_FOOD}
 var part_levels := {
 	"walls": 0, "towers": 0, "gate": 0, "keep": 0, "garrison": 0, "court": 0,
+	"palisade": 0, "watchtower": 0,
 	"houses": 0, "well": 0, "tavern": 0,
 }
 var peasants := START_PEASANTS
@@ -251,7 +252,10 @@ func is_night() -> bool:
 func food_needed() -> int:
 	var cook_points: int = mini(jobs.cook + trained.cook, MAX_COOK_POINTS)
 	var saving: float = cook_points * COOK_FOOD_SAVING + skill_total("food_saving")
-	return ceili(peasants * FOOD_PER_PEASANT * (1.0 - saving))
+	# Drawbacks: soldiers eat extra, the tavern whets appetites, the court has a household.
+	var mouths: float = peasants + jobs.soldier * CastleData.SOLDIER_EXTRA_FOOD
+	mouths *= 1.0 + CastleData.TAVERN_EXTRA_EATING * part_levels.tavern
+	return ceili(mouths * FOOD_PER_PEASANT * (1.0 - saving)) + CastleData.COURT_FOOD_UPKEEP * part_levels.court
 
 
 ## Multiplies how fast everyone walks and works: slower when hungry.
@@ -281,7 +285,8 @@ func next_raid_day() -> int:
 
 ## How much defence the next raid needs to be beaten.
 func raid_strength() -> int:
-	return roundi(RAID_BASE_STRENGTH * pow(RAID_STRENGTH_GROWTH, raids_faced))
+	var greed: float = 1.0 + CastleData.KEEP_RAID_GROWTH * part_levels.keep
+	return roundi(RAID_BASE_STRENGTH * pow(RAID_STRENGTH_GROWTH, raids_faced) * greed)
 
 
 func _update_raid(delta: float) -> void:

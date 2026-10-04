@@ -19,24 +19,21 @@ const OUTLINE_COLOR := Color(0.96, 0.95, 0.85)
 @onready var toast_label: Label = %ToastLabel
 @onready var reset_button: Button = %ResetButton
 @onready var crown_button: Button = %CrownButton
-@onready var view_button: Button = %ViewButton
 @onready var peasants_label: Label = %PeasantsLabel
 @onready var jobs_box: VBoxContainer = %Jobs
 @onready var hire_button: Button = %HireButton
-@onready var parts_box: HBoxContainer = %Parts
+@onready var build_hover: Node2D = %BuildHover
+@onready var build_card: ColorRect = %BuildCard
+@onready var build_card_label: Label = %BuildCardLabel
 @onready var skills_button: Button = %SkillsButton
 @onready var skill_tree: Control = %SkillTree
 @onready var offline_label: Label = %OfflineLabel
 
-## Castle part id -> its button.
-var _part_buttons := {}
 ## Job id -> {"label": Label, "minus": Button, "plus": Button}.
 var _job_rows := {}
 var _toast_tween: Tween
 var _reset_armed := false
 var _crown_armed := false
-## Whether the build buttons show the village buildings or the castle parts.
-var _showing_village := false
 
 
 func _ready() -> void:
@@ -50,33 +47,19 @@ func _ready() -> void:
 	skills_button.pressed.connect(skill_tree.show)
 	reset_button.pressed.connect(_on_reset_pressed)
 	crown_button.pressed.connect(_on_crown_pressed)
-	view_button.pressed.connect(func() -> void:
-		_showing_village = not _showing_village
-		_refresh())
+	build_hover.hovered_changed.connect(func(_part: String) -> void: _refresh_build_card())
 	GameState.announced.connect(_show_toast)
 	GameState.raid_resolved.connect(func(_won: bool) -> void: _refresh())
-	_make_part_buttons()
 	_make_job_rows()
 	# A pale outline keeps the dark text readable against the night sky.
 	for label: Label in find_children("*", "Label", true, false):
-		if not skill_tree.is_ancestor_of(label):
+		if not skill_tree.is_ancestor_of(label) and label != build_card_label:
 			label.add_theme_constant_override("outline_size", 4)
 			label.add_theme_color_override("font_outline_color", OUTLINE_COLOR)
 	_refresh()
 	_show_offline_report()
 	if GameState.day == 1 and GameState.total_levels() == 0:
-		_show_toast("Your three peasants do the work. Hire more and give them jobs with + before the food runs out. Order castle parts below.")
-
-
-## One button per castle part, made from the data in CastleData.PARTS,
-## so adding a part there is all it takes to get it on screen.
-func _make_part_buttons() -> void:
-	for id: String in CastleData.PARTS:
-		var button := _new_button(10)
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.pressed.connect(GameState.order_part.bind(id))
-		parts_box.add_child(button)
-		_part_buttons[id] = button
+		_show_toast("Your three peasants do the work. Hire more and give them jobs with +. To build, point at a signpost by the castle and click.")
 
 
 ## One row per job in JobData.JOBS: its name and count, and - / + buttons
@@ -87,13 +70,13 @@ func _make_job_rows() -> void:
 		row.add_theme_constant_override("separation", 3)
 		var label := Label.new()
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		label.add_theme_font_size_override("font_size", 12)
+		label.add_theme_font_size_override("font_size", 11)
 		label.add_theme_color_override("font_color", TEXT_COLOR)
-		var minus := _new_button(11)
+		var minus := _new_button(10)
 		minus.text = "-"
 		minus.custom_minimum_size = Vector2(22, 0)
 		minus.pressed.connect(GameState.assign.bind(id, -1))
-		var plus := _new_button(11)
+		var plus := _new_button(10)
 		plus.text = "+"
 		plus.custom_minimum_size = Vector2(22, 0)
 		plus.pressed.connect(GameState.assign.bind(id, 1))
@@ -224,7 +207,6 @@ func _refresh() -> void:
 		row.minus.disabled = GameState.jobs[id] <= 0
 		row.plus.disabled = idle <= 0 or (limit >= 0 and GameState.jobs[id] >= limit)
 
-	view_button.text = "Building:\nvillage" if _showing_village else "Building:\ncastle"
 	var hire_title := "Hire Peasant (%d/%d)" % [GameState.peasants, GameState.max_peasants()]
 	if GameState.peasants >= GameState.max_peasants():
 		hire_button.text = "%s\nBuild more houses" % hire_title
@@ -233,23 +215,40 @@ func _refresh() -> void:
 		_set_button(hire_button, hire_title, GameState.peasant_cost(), "")
 	skills_button.text = "Skills\n%d renown" % GameState.renown
 
-	for id: String in _part_buttons:
-		_refresh_part_button(id, _part_buttons[id])
+	_refresh_build_card()
 
 
-func _refresh_part_button(id: String, button: Button) -> void:
-	var part_name: String = CastleData.PARTS[id].name
-	var level: int = GameState.part_levels[id]
-	if id == GameState.job_part:
-		button.visible = GameState.is_village(id) == _showing_village
-		button.text = "Building %s %d\n%d%%" % [part_name, level + 1, GameState.job_fraction() * 100]
-		button.disabled = true
+## The card for the castle part or village building under the mouse: what
+## its next level costs, what it gives, what it takes, and whether a click
+## would build it.
+func _refresh_build_card() -> void:
+	var id: String = build_hover.hovered
+	build_card.visible = id != "" and not skill_tree.visible
+	if id == "":
 		return
-	button.visible = GameState.is_village(id) == _showing_village
+	var part: Dictionary = CastleData.PARTS[id]
+	var level: int = GameState.part_levels[id]
+	var lines: PackedStringArray = ["%s   Lv %d > %d" % [part.name.to_upper(), level, level + 1]]
+	lines.append("Cost: %s" % _cost_text(GameState.part_cost(id)))
+	lines.append("+ %s" % part.benefit)
+	if part.drawback != "":
+		lines.append("-  %s" % part.drawback)
 	var reason := GameState.part_block_reason(id)
-	var cost := GameState.part_cost(id)
-	button.text = "%s Lv %d\n%s" % [part_name, level, reason if reason != "" else _cost_text(cost)]
-	button.disabled = reason != "" or not GameState.can_afford(cost)
+	if id == GameState.job_part:
+		lines.append("Being built: %d%%" % (GameState.job_fraction() * 100))
+	elif reason != "":
+		lines.append(reason)
+	elif not GameState.can_afford(GameState.part_cost(id)):
+		lines.append("Not enough materials yet")
+	else:
+		lines.append("Click to build")
+	build_card_label.text = "\n".join(lines)
+	# Keep the card beside the mouse, and on screen.
+	var mouse := build_card.get_viewport().get_mouse_position()
+	build_card.size.y = build_card_label.get_minimum_size().y + 12
+	build_card.position = Vector2(
+		clampf(mouse.x + 14, 4, 640 - build_card.size.x - 4),
+		clampf(mouse.y - build_card.size.y - 8, 4, 300 - build_card.size.y))
 
 
 ## Shows "title + cost" and greys the button out when it can't be afforded.

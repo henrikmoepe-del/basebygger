@@ -10,15 +10,16 @@ const GROUND_Y := 270.0
 const ZOOM_LEVELS := [1.0, 0.75, 0.5]
 
 ## The left and right edges of the world.
-@export var world_left := -400.0
-@export var world_right := 640.0
+@export var world_left := -480.0
+@export var world_right := 980.0
+## Where the view is centred when the game starts: the castle and the stockhouse.
+@export var start_x := 150.0
 
 var _zoom_index := 0
 
 
 func _ready() -> void:
-	# Start on the castle side, showing what the screen showed before the world grew.
-	position.x = world_right - SCREEN_SIZE.x / 2
+	position.x = start_x
 	_apply_zoom()
 
 

@@ -40,26 +40,37 @@
 
 ## Current status
 - Stage: Milestone 1 (2D incremental builder), expanding the builder before the 3D part. Placeholder art.
-- The player never clicks to gather. Peasants do all the work; the player hires them,
-  assigns them to jobs, orders castle parts and village buildings, and buys skills.
+- The player never clicks to gather. Peasants do all the work; the player hires them, gives
+  them jobs, trains them, points at the world to build, and buys skills.
+- World layout: the castle is in the middle (x = 0). Defence is to the west, where raiders come
+  from (palisade, watchtower). The stockhouse, rock, grove, wilds and village are to the east.
 - Done:
-  - Jobs: woodcutter, quarryman, hunter, builder, soldier (needs a garrison), forester and cook (skills)
-  - Castle: six upgradable parts (walls, towers, gate, keep, garrison, court); a castle rank caps levels
-  - Village (west of the grove): houses (population cap), well and tavern (morale = faster work)
+  - Start with 3 generalist peasants. Jobs: chop wood, mine stone, find food, build, cook,
+    stand guard (needs a garrison), tend the grove (needs the Foresters skill)
+  - Trades: big skill-tree unlocks that let peasants in a job be trained (twice as good, wear a hat)
+  - Castle: eight parts (walls, towers, gate, keep, garrison, court, palisade, watchtower);
+    a castle rank caps levels. Village: houses, well, tavern
+  - Hover to build: point at a part or a signpost for a card (cost, benefit, drawback), click to order
   - Building: builders haul materials from the stockhouse and hammer them in; scaffolding and rope hoist
-  - Skill tree: four tabs (Peasants, Builders, Village, Defence), 51 skills, paid with renown
-  - Day and night (peasants sleep), food and hunger, trees that run out and regrow
-  - Raids every 3 days, checked against the castle's defence; win renown or lose stores
-  - Pass the crown (prestige): start a new castle, keep legacy that speeds up all work
-  - Wide world with a camera you drag or move with A/D; save/load with offline progress; New game button
+  - Skill tree: a pannable node map with four arms, levels per skill, hidden "?" nodes; paid with renown
+  - Day and night, food and hunger, trees that run out and regrow, raids every 3 days
+  - Pass the crown (prestige) with lasting legacy; save/load with offline progress; New game
+  - Camera: drag or A/D to pan, mouse wheel to zoom out
+  - Dev shortcuts (editor runs only): F2 speed, F3 skip 10 min, F4 resources, F6 peasants, F1 hide
+- Agreed next steps (Henrik's list, in order):
+  1. Quarries (built and levelled, replacing the endless rock) and cows that haul loads
+  2. Underground mines with other minerals (iron first)
+  Also wanted later: better food from trained cooks, new buildings only trained builders can raise,
+  individual peasant traits
 - Design notes:
   - Castle parts and soldiers are defences. `GameState.total_defence()` and the part levels are
     what the later 3D wave defence will read; raids are the 2D stand-in for it.
   - Data lives in `scripts/*_data.gd` (castle parts and village buildings, jobs, skills); adding
     an entry there is usually all it takes to get new content on screen.
+  - Everything built should have a benefit and, where it makes sense, a real drawback
+    (see the drawback constants in `castle_data.gd`).
   - Henrik's design ideas are starting points: explore and expand on them, then explain the choices.
-- Ideas not built yet: individual peasant traits; farms; thirst and boredom as per-peasant needs
-  (they exist only as village-wide morale); real pixel art; sound; a proper tutorial
 - Then Milestone 2: 3D wave defence, which would replace raids and tie into passing the crown
 - Testing: run Godot with `--headless` and `-- --save=user://test_save.json` so tests
-  open no window and never touch the real save (`user://save.json`).
+  open no window and never touch the real save (`user://save.json`). After changing
+  `game_state.gd`, run the game once headless first: a parse error there makes test scripts hang.

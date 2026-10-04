@@ -4,8 +4,8 @@ extends Node2D
 const TreeSpot = preload("res://scripts/tree.gd")
 
 ## The first tree stands nearest the stockhouse; later ones are a longer walk.
-@export var first_x := 178.0
-@export var spacing := -14.0
+@export var first_x := 262.0
+@export var spacing := 14.0
 
 
 func _ready() -> void:

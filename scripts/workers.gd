@@ -20,7 +20,7 @@ const JOB_SCRIPTS := {
 @export var rock: Node2D
 @export var wilds: Node2D
 @export var castle: Node2D
-@export var stock_x := 215.0
+@export var stock_x := 170.0
 
 
 func _ready() -> void:
@@ -90,8 +90,8 @@ func _spawn(job: String) -> Node2D:
 		var side := -1.0 if randf() < 0.5 else 1.0
 		worker.home_x = castle.position.x + side * randf_range(26.0, 96.0)
 	elif job == "build":
-		# Builders wait in front of the castle.
-		worker.home_x = castle.position.x - 140.0 + randf_range(0.0, 60.0)
+		# Builders wait between the castle and the stockhouse.
+		worker.home_x = castle.position.x + 132.0 + randf_range(0.0, 20.0)
 	elif job == "":
 		worker.home_x = stock_x + randf_range(-12.0, 12.0)
 	else:
