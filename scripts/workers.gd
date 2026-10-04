@@ -37,6 +37,9 @@ const MAX_FLOATS := 12
 const STROLL_REACH := 440.0
 ## How far a peasant with time to spare may walk out into the lands.
 const LANDS_WEST := -680.0
+## How many archers stand on each floor in a raid, and how many spearmen hold the line.
+const ARCHERS_PER_FLOOR := 3
+const SPEARMEN := 4
 const LANDS_EAST := 1400.0
 const FLOAT_COLORS := {
 	"wood": Color(0.40, 0.26, 0.15), "stone": Color(0.36, 0.38, 0.46),
@@ -208,6 +211,45 @@ func guard_post(beat: float, fallback_x: float) -> Vector2:
 		if along <= 0.0:
 			return Vector2(randf_range(flat.x0 + 4.0, flat.x1 - 4.0), flat.y)
 	return Vector2(fallback_x, 0)
+
+
+## Where a soldier stands in a raid, as {"pos": Vector2, "melee": bool}.
+## Archers go up on the watchtower and then the westmost floors of the
+## castle; spearmen stand behind the palisade while it holds, and in front
+## of the castle after that. The posts are shared out in turn, an archer
+## then a spearman, so both lines are manned.
+func battle_post(soldier: Node2D) -> Dictionary:
+	var soldiers := get_children().filter(func(w: Node) -> bool: return w is Soldier and w.can_fight())
+	var index := maxi(soldiers.find(soldier), 0)
+	var high := []
+	var tower: int = GameState.part_levels.watchtower
+	if tower > 0:
+		var y := -CastleData.height("watchtower", tower)
+		high.append(Vector2(CastleData.WATCHTOWER_X - 7.0, y))
+		high.append(Vector2(CastleData.WATCHTOWER_X + 6.0, y))
+	var flats: Array = castle.built_floors().filter(func(flat: Dictionary) -> bool: return flat.x0 > CastleData.WATCHTOWER_X + 40.0)
+	flats.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.x0 < b.x0)
+	for flat: Dictionary in flats:
+		for spot in ARCHERS_PER_FLOOR:
+			var x: float = flat.x0 + 6.0 + spot * 11.0
+			if x < flat.x1 - 4.0:
+				high.append(Vector2(x, flat.y))
+	var low := []
+	var raid := get_tree().get_first_node_in_group("raid")
+	var line_x: float = CastleData.PALISADE_X + 31.0 if raid != null and raid.palisade_holds() else -CastleData.WALL_HALF - CastleData.END_TOWER_WIDTH - 40.0
+	for spot in SPEARMEN:
+		low.append(Vector2(line_x + spot * 7.0, 0))
+	# In turn: an archer, a spearman, an archer...
+	var posts := []
+	for i in maxi(high.size(), low.size()):
+		if i < high.size():
+			posts.append({"pos": high[i], "melee": false})
+		if i < low.size():
+			posts.append({"pos": low[i], "melee": true})
+	if index < posts.size():
+		return posts[index]
+	# More soldiers than posts: the rest stand with the spearmen.
+	return {"pos": Vector2(line_x + SPEARMEN * 7.0 + (index - posts.size()) * 7.0, 0), "melee": true}
 
 
 ## Somewhere for an idle peasant to wander to: near home, across the

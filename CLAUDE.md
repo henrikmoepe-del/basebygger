@@ -40,8 +40,8 @@
 - If you believe a tool/program/pluggen would be of good use, for example to create pixel 2d art, to create sound, etc, then say so 
 
 ## Current status
-- Stage: working on the 2D builder (make it better, more realistic, more fun). The 3D wave
-  defence has a first prototype but is PARKED at Henrik's request until he says otherwise.
+- Stage: working on the 2D builder (make it better, more realistic, more fun) and on raids.
+  The 3D wave defence is a first prototype; it now starts by itself when raiders reach the castle.
   Placeholder art.
 - The player never clicks to gather. Peasants do all the work; the player hires them, gives
   them jobs, trains them, points at the world to build, and buys skills.
@@ -104,6 +104,12 @@
     (`castle._deck_step`, `surface_at`), not in front of it.
   - While a level is added, old pieces the new level lacks (battlements, turrets, flags) stay until
     stone is laid over them, and whatever rests on a removed piece goes with it (`_draw_job`).
+  - Stairs inside buildings go up in flights, back and forth (`castle.route` turns hidden steps
+    into flights); a peasant finishes a flight before changing their mind. Until the stair door is
+    built there is an open trapdoor in the deck.
+  - Carrying: each item has its own shape on the shoulder (`builder._draw_item`). Ladders, benches
+    and the hoist (`BuildPlan.HEAVY`) take two builders to carry from the stockyard; with nobody to
+    help, one drags it slowly. The hoist stays on the deck until it is taken down and carried off.
   - Leisure (`worker.gd` `_relax`): nobody stands and waits. A peasant with no job, or a builder or
     gatherer with nothing to do right now, strolls, walks the lands, visits another to talk
     (speech bubbles) or play ball, or sits in the tavern. Builders stay near their yard.
@@ -144,13 +150,24 @@
   - Everything built should have a benefit and, where it makes sense, a real drawback
     (see the drawback constants in `castle_data.gd`).
   - Henrik's design ideas are starting points: explore and expand on them, then explain the choices.
-- 3D siege prototype (`scenes/siege.tscn`, `scripts/siege.gd`): when raiders approach, a
-  "Defend the walls!" button (currently hidden in `hud.gd`) opens a 3D fight built from the castle's part levels (boxes for now).
+- Raids (basics, `raiders.gd`, `soldier.gd`, `Workers.battle_post`): every 3 days raiders walk in
+  from the west, more and tougher each time. They are fought live in the 2D world. The palisade
+  blocks them until they hack it down; spearmen behind it jab through the stakes; archers on the
+  watchtower, towers and wall walk shoot from range (further from higher up). Soldiers take posts
+  by themselves, an archer then a spearman in turn. A beaten spearman falls back to the garrison
+  for the rest of the raid. All raiders down = raid beaten. A raider reaching the castle starts the
+  3D gate fight with the share of raiders still standing (`siege_share`). Not balanced.
+  Ideas next: the player choosing posts, more outer works, raider kinds, damage that lasts.
+- 3D siege prototype (`scenes/siege.tscn`, `scripts/siege.gd`): starts when raiders reach the
+  castle (the "Defend the walls!" button stays hidden). A 3D fight built from the castle's part levels (boxes for now).
   Archers on towers, walls and the watchtower shoot automatically; raiders break the palisade, then
   the gate. Survive 5 waves to win the raid. Without the button the raid resolves as before (number check).
   Dev key F7 starts a siege at any time.
 - Next for the siege: something for the player to do during it, enemy variety, real 3D models,
   then tie it into passing the crown
+- Tests: `tests/test_build.gd` (builds every part and checks no builder is ever in the air) and
+  `tests/test_raid.gd` (a defended and an undefended raid). Run with
+  `godot --headless --path . -s tests/<name>.gd -- --save=user://test_save.json`.
 - Testing: run Godot with `--headless` and `-- --save=user://test_save.json` so tests
   open no window and never touch the real save (`user://save.json`). After changing
   `game_state.gd`, run the game once headless first: a parse error there makes test scripts hang.

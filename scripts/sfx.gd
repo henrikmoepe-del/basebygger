@@ -14,7 +14,7 @@ const VOLUME_DB := -16.0
 ## The same sound can't start again sooner than this, so a crowd of peasants
 ## doesn't turn into a roar.
 const MIN_GAP := 0.09
-const WORLD_SOUNDS := ["chop", "mine", "deliver", "hammer", "place"]
+const WORLD_SOUNDS := ["chop", "mine", "deliver", "hammer", "place", "arrow"]
 ## At this zoom and further out, the world can't be heard at all.
 const SILENT_ZOOM := 0.15
 
@@ -33,6 +33,7 @@ func _ready() -> void:
 		"deliver": _make([660.0, 880.0], 0.09, 0.0),
 		"hammer": _make([300.0], 0.05, 0.4),
 		"place": _make([140.0], 0.08, 0.6),
+		"arrow": _make([1200.0, 700.0], 0.06, 0.5),
 		"buy": _make([520.0, 780.0], 0.10, 0.0),
 		"built": _make([392.0, 523.0, 659.0], 0.32, 0.0),
 		"goal": _make([523.0, 659.0, 784.0, 1047.0], 0.45, 0.0),

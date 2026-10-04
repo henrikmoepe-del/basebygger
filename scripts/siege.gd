@@ -195,7 +195,8 @@ func _build_ui() -> void:
 
 func _start_wave() -> void:
 	_wave += 1
-	_to_spawn = 4 + 2 * _wave + GameState.raids_faced
+	# Fewer come at the gate if many fell on the way to it.
+	_to_spawn = maxi(roundi((4 + 2 * _wave + GameState.raids_faced) * GameState.siege_share), 2)
 	_spawn_timer = 0.0
 
 

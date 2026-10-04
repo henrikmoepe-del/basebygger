@@ -67,7 +67,7 @@ func _ready() -> void:
 	for changed: Signal in [
 		GameState.resources_changed, GameState.castle_changed, GameState.job_progress_changed,
 		GameState.peasants_changed, GameState.trees_changed, GameState.skills_changed,
-		GameState.daytime_changed, GameState.raid_started,
+		GameState.daytime_changed, GameState.raid_started, GameState.raid_progress,
 	]:
 		changed.connect(_refresh)
 	_preview.position = Vector2(8, 8)
@@ -290,11 +290,11 @@ func _refresh_top_bar() -> void:
 	var quest := GameState.current_quest()
 	goal_label.text = "Goal: %s  (+%d renown)" % [quest.text, quest.renown] if not quest.is_empty() else "All goals reached"
 
-	var safe := GameState.total_defence() >= GameState.raid_strength()
-	raid_label.text = "%s: strength %d" % [
-		"Raiders at the walls" if GameState.raid_incoming else "Raid on day %d" % GameState.next_raid_day(),
-		GameState.raid_strength()]
-	raid_label.add_theme_color_override("font_color", UiTheme.PARCHMENT if safe else UiTheme.BAD)
+	if GameState.raid_incoming:
+		raid_label.text = "Raid! %d raiders left" % GameState.raiders_left
+	else:
+		raid_label.text = "Raid on day %d: %d raiders" % [GameState.next_raid_day(), GameState.raid_size()]
+	raid_label.add_theme_color_override("font_color", UiTheme.BAD if GameState.raid_incoming else UiTheme.PARCHMENT)
 	rank_label.text = "Castle rank %d  (%d of %d levels to the next)" % [
 		GameState.castle_rank(), GameState.total_levels(), GameState.levels_for_next_rank()]
 

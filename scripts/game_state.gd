@@ -18,6 +18,8 @@ signal skills_changed
 ## Dawn or dusk arrived, or the peasants ate.
 signal daytime_changed
 signal raid_started
+## A raider fell.
+signal raid_progress
 signal raid_resolved(won: bool)
 ## Something happened that the player should be told about.
 signal announced(text: String)
@@ -55,15 +57,20 @@ const HUNGRY_WORK_MULT := 0.6
 const COOK_FOOD_SAVING := 0.05
 const MAX_COOK_POINTS := 10
 
-## Raiders test the castle's defence every RAID_INTERVAL days, and each raid is
-## RAID_STRENGTH_GROWTH times stronger than the last. Beating one gives renown;
-## losing one costs RAID_LOSS of everything in the stockhouse.
+## Raiders come every RAID_INTERVAL days: RAID_BASE_SIZE of them at first,
+## RAID_SIZE_GROWTH more each time, each a little tougher than the last. They
+## are fought in the world (see raiders.gd). If they reach the castle, the
+## fight for the gate is fought in 3D. Beating a raid gives renown; losing
+## one costs RAID_LOSS of everything in the stockyard.
 const FIRST_RAID_DAY := 5
 const RAID_INTERVAL := 3
-const RAID_BASE_STRENGTH := 40.0
-const RAID_STRENGTH_GROWTH := 1.3
-## Seconds between the raiders appearing and reaching the walls.
-const RAID_MARCH_TIME := 12.0
+const RAID_BASE_SIZE := 3
+const RAID_SIZE_GROWTH := 2
+const RAIDER_BASE_HP := 12.0
+const RAIDER_HP_GROWTH := 1.12
+## The gate fight is never smaller than this share of a full one, however
+## few raiders got through.
+const MIN_SIEGE_SHARE := 0.25
 const RAID_LOSS := 0.4
 const RAID_BASE_RENOWN := 2
 const SOLDIER_DEFENCE := 8
@@ -172,6 +179,10 @@ var raids_won := 0
 var legacy := 0
 ## True while raiders are marching on the castle.
 var raid_incoming := false
+## How many raiders are still standing in the raid being fought.
+var raiders_left := 0
+## How big the gate fight is: the share of the raiders who reached the castle.
+var siege_share := 1.0
 ## True while the player is defending the castle in the 3D siege. The 2D
 ## world (time, autosaves, raid countdown) waits until it is over.
 var siege_active := false
@@ -203,7 +214,6 @@ var save_path := "user://save.json"
 
 var _window_income := {"wood": 0, "stone": 0, "food": 0, "iron": 0}
 var _was_night := false
-var _raid_timer := 0.0
 var _quest_timer := 0.0
 var _window_time := 0.0
 var _autosave_time := 0.0
@@ -389,24 +399,35 @@ func next_raid_day() -> int:
 	return FIRST_RAID_DAY + RAID_INTERVAL * raids_faced
 
 
-## How much defence the next raid needs to be beaten.
-func raid_strength() -> int:
+## How many raiders come next time. A rich keep draws more of them.
+func raid_size() -> int:
 	var greed: float = 1.0 + CastleData.KEEP_RAID_GROWTH * part_levels.keep
-	return roundi(RAID_BASE_STRENGTH * pow(RAID_STRENGTH_GROWTH, raids_faced) * greed)
+	return roundi((RAID_BASE_SIZE + RAID_SIZE_GROWTH * raids_faced) * greed)
 
 
-func _update_raid(delta: float) -> void:
-	if not raid_incoming:
-		if day >= next_raid_day():
-			raid_incoming = true
-			_raid_timer = RAID_MARCH_TIME
-			raid_started.emit()
-			announced.emit("Raiders approach! Their strength is %d, your defence is %d" % [raid_strength(), total_defence()])
-		return
-	_raid_timer -= delta
-	if _raid_timer <= 0.0:
-		# Nobody took command: the defence is weighed against the raid.
-		_resolve_raid(total_defence() >= raid_strength())
+## How much each raider of the next raid can take.
+func raider_hp() -> float:
+	return RAIDER_BASE_HP * pow(RAIDER_HP_GROWTH, raids_faced)
+
+
+func _update_raid(_delta: float) -> void:
+	if not raid_incoming and day >= next_raid_day():
+		raid_incoming = true
+		raiders_left = raid_size()
+		raid_started.emit()
+		announced.emit("Raiders approach from the west! %d of them" % raid_size())
+
+
+## Every raider has fallen before reaching the castle.
+func raid_beaten() -> void:
+	_resolve_raid(true)
+
+
+## Raiders have reached the castle: the fight for the gate begins, with as
+## many of them as are still standing.
+func raiders_reached(standing: int) -> void:
+	siege_share = clampf(float(standing) / raid_size(), MIN_SIEGE_SHARE, 1.0)
+	start_siege()
 
 
 ## Leaves the 2D world to fight the incoming raid in 3D (see siege.gd).
@@ -414,6 +435,7 @@ func _update_raid(delta: float) -> void:
 func start_siege() -> void:
 	if not raid_incoming:
 		raid_incoming = true
+		siege_share = 1.0
 		raid_started.emit()
 	siege_active = true
 	save_game()
