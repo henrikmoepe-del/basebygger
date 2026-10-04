@@ -51,8 +51,11 @@ var _inside := false
 ## True while on a flight of stairs: the peasant finishes it before going anywhere else.
 var _on_stair := false
 var _back := false
-## The door this peasant sleeps behind tonight (NAN during the day).
-var _bed_x := NAN
+## Where this peasant sleeps tonight (INF during the day), and whether they are asleep there.
+var _bed := Vector2.INF
+var _asleep := false
+## True if the peasant came to rest inside a building (in a room of the keep).
+var _rest_inside := false
 var _leisure := Leisure.NONE
 ## Seconds left of what the peasant is doing at leisure, and where.
 var _leisure_time := 0.0
@@ -67,16 +70,20 @@ var _met_frame := -10
 
 
 func _process(delta: float) -> void:
-	# Still inside for as long as they are on the stairs, whatever else they decide.
-	_inside = _on_stair
+	# Still inside for as long as they are on the stairs or in a room,
+	# whatever else they decide.
+	_inside = _on_stair or _rest_inside
+	_asleep = false
 	if GameState.is_night() and _sleeps():
-		# Everyone goes in at the nearest door and sleeps inside until dawn.
-		if is_nan(_bed_x):
-			_bed_x = world.bed_x(position.x)
-		if _walk_to(_bed_x, delta):
+		# Everyone goes in at the nearest door and sleeps inside until dawn:
+		# in a bed in the keep, if that is where they are.
+		if _bed == Vector2.INF:
+			_bed = world.bed_spot(self)
+		if _go_to(_bed, delta):
 			_inside = true
+			_asleep = true
 	else:
-		_bed_x = NAN
+		_bed = Vector2.INF
 		_work(delta)
 	# Out of sight inside a building, unless the player is looking into it.
 	visible = not _inside or world.castle.shows_inside(position)
@@ -217,6 +224,11 @@ func _draw_leisure() -> void:
 
 
 func _draw() -> void:
+	if _asleep and position.y < -0.5:
+		# In bed: lying down under the sheet.
+		draw_rect(Rect2(-5, -8, 11, 3), tunic())
+		draw_rect(Rect2(-8, -8, 3, 3), Color(0.93, 0.76, 0.62))
+		return
 	var bob := _bob()
 	var hop := -sin(clampf(_age / HOP_TIME, 0.0, 1.0) * PI) * 7.0
 	draw_set_transform(Vector2(0, hop))
@@ -294,5 +306,6 @@ func _go_to(target: Vector2, delta: float) -> bool:
 	if there:
 		_route.pop_front()
 		_on_stair = not _route.is_empty() and _route[0].get("stair", false)
+		_rest_inside = step.hidden and not step.get("stair", false)
 	# The way can end short of the target, if there is nothing to stand on there.
 	return _route.is_empty()

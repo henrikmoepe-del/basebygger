@@ -36,13 +36,15 @@ const SKIN := Color(0.93, 0.76, 0.62)
 const FLOAT_TIME := 1.2
 const MAX_FLOATS := 12
 ## Idle peasants stroll on floors no further than this from the castle's middle.
-const STROLL_REACH := 440.0
+const STROLL_REACH := 500.0
 ## How far a peasant with time to spare may walk out into the lands.
-const LANDS_WEST := -680.0
+const LANDS_WEST := -760.0
 ## How many archers stand on each floor in a raid, and how many spearmen hold the line.
 const ARCHERS_PER_FLOOR := 3
+## Peasants this close to the keep at nightfall go to their bed in it.
+const BED_REACH := 900.0
 const SPEARMEN := 4
-const LANDS_EAST := 1500.0
+const LANDS_EAST := 1560.0
 const FLOAT_COLORS := {
 	"wood": Color(0.40, 0.26, 0.15), "stone": Color(0.36, 0.38, 0.46),
 	"food": Color(0.70, 0.20, 0.25), "iron": Color(0.20, 0.22, 0.30),
@@ -58,7 +60,7 @@ const JOB_SCRIPTS := {
 @export var wilds: Node2D
 @export var mine: Node2D
 @export var castle: Node2D
-@export var stock_x := 550.0
+@export var stock_x := 610.0
 
 ## Numbers floating up from the stockhouse as loads arrive:
 ## each is {"text": String, "color": Color, "age": float, "x": float}.
@@ -97,8 +99,8 @@ func _draw() -> void:
 		var fade: float = 1.0 - number.age / FLOAT_TIME
 		draw_string(_font, Vector2(number.x, -28.0 - number.age * 14.0), number.text,
 				HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(number.color, fade))
-	if GameState.jobs.cook > 0:
-		# The cooking pot over a fire.
+	if GameState.jobs.cook > 0 and GameState.part_levels.keep == 0:
+		# The cooking pot over a fire, until there is a kitchen in the keep.
 		var x := kitchen_x()
 		draw_rect(Rect2(x - 4, -8, 8, 5), Color(0.22, 0.23, 0.27))
 		draw_rect(Rect2(x - 3, -3, 6, 3), Color(0.95, 0.55, 0.15))
@@ -204,7 +206,8 @@ func cow_site_x(resource_type: String) -> float:
 ## (0 to 1) picks the floor, so a soldier keeps to the same one; wide floors
 ## like the wall walk get more soldiers than a tower top.
 func guard_post(beat: float, fallback_x: float) -> Vector2:
-	var flats: Array = castle.built_floors()
+	# Out in the open: the wall walk, the tower tops, the roofs. Not the rooms.
+	var flats: Array = castle.built_floors().filter(func(flat: Dictionary) -> bool: return not flat.get("inside", false))
 	var total := 0.0
 	for flat: Dictionary in flats:
 		total += flat.x1 - flat.x0
@@ -230,7 +233,7 @@ func battle_post(soldier: Node2D) -> Dictionary:
 		var y := -CastleData.height("watchtower", tower)
 		high.append(Vector2(CastleData.WATCHTOWER_X - 7.0, y))
 		high.append(Vector2(CastleData.WATCHTOWER_X + 6.0, y))
-	var flats: Array = castle.built_floors().filter(func(flat: Dictionary) -> bool: return flat.x0 > CastleData.WATCHTOWER_X + 40.0)
+	var flats: Array = castle.built_floors().filter(func(flat: Dictionary) -> bool: return flat.x0 > CastleData.WATCHTOWER_X + 40.0 and not flat.get("inside", false))
 	flats.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.x0 < b.x0)
 	for flat: Dictionary in flats:
 		for spot in ARCHERS_PER_FLOOR:
@@ -278,6 +281,26 @@ func leisure_partner(seeker: Node2D, reach: float) -> Node2D:
 		return other != seeker and other.has_method("at_leisure") and other.at_leisure() \
 				and other.position.y > -0.5 and absf(other.position.x - seeker.position.x) <= reach)
 	return free.pick_random() if not free.is_empty() else null
+
+
+## Where a peasant sleeps tonight. Those within BED_REACH of the keep have a
+## bed there, as long as the beds last (the first peasants get them). The
+## rest sleep behind the nearest door.
+func bed_spot(sleeper: Node2D) -> Vector2:
+	var beds := CastleData.keep_beds(GameState.part_levels.keep)
+	var number := get_children().filter(func(w: Node) -> bool: return w.has_method("at_leisure")).find(sleeper)
+	var keep_x := CastleData.KEEP_LEFT + CastleData.KEEP_WIDTH / 2.0
+	if GameState.job_part != "keep" and number >= 0 and number < beds.size() and absf(sleeper.position.x - keep_x) <= BED_REACH:
+		return beds[number]
+	return Vector2(bed_x(sleeper.position.x), 0)
+
+
+## Where a cook works: in the keep's kitchen once there is a keep, and at
+## the pot by the stockyard until then. offset spreads the cooks out.
+func kitchen_spot(offset: float) -> Vector2:
+	if GameState.part_levels.keep > 0 and GameState.job_part != "keep":
+		return Vector2(CastleData.KEEP_LEFT + 30.0 + absf(offset) * 2.0, CastleData.keep_floor_y(0))
+	return Vector2(kitchen_x() + offset, 0)
 
 
 ## The door nearest to x where a peasant can sleep: the stockhouse, or any

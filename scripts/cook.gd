@@ -1,10 +1,11 @@
 extends "res://scripts/worker.gd"
-## A peasant who cooks at the pot by the stockhouse. Cooks make food go
-## further (the saving is counted in GameState.food_needed).
+## A peasant who cooks: at the pot by the stockyard at first, and in the
+## keep's kitchen once there is a keep. Cooks make food go further (the
+## saving is counted in GameState.food_needed).
 
 
 func _work(delta: float) -> void:
-	_walk_to(world.kitchen_x() + home_x - world.stock_x, delta)
+	_go_to(world.kitchen_spot(home_x - world.stock_x), delta)
 
 
 func _bob() -> float:

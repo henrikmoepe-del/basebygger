@@ -31,7 +31,9 @@ extends RefCounted
 ##   "solid"       per section: the new level's walls and roofs
 ##   "tops"        per section: the height of its deck when finished
 ##   "decks"       per section: [left, right], how wide its deck is
-##   "access"      per section: {"x", "hidden"}, the stair up to its deck
+##   "access"      per section: {"x", "hidden"}, the stair up to its deck; and
+##                 "ladder", the x of the ladder used instead while the walls
+##                 are still lower than START_LADDER
 ##   "platforms"   the scaffold platforms, each {"x0", "x1", "y", "ladder",
 ##                 "from", "until"}: it can be stood on while the number of
 ##                 pieces placed is from "from" to "until"
@@ -83,6 +85,8 @@ const SCAFFOLD_COLOR := Color(0.48, 0.32, 0.20)
 ## can reach this high from where they stand.
 const BAY_WIDTH := 45.0
 const LIFT_HEIGHT := 24.0
+## A building with stairs inside is reached by a ladder until its walls are this high.
+const START_LADDER := 40.0
 const FAR := 100000.0
 ## The yard at the foot of a section, as distances east of the rope: the
 ## shaped pieces wait by the rope, then the benches, then the rough pile.
@@ -267,6 +271,10 @@ static func _plan_section(plan: Dictionary, part: String, index: int, old_solid:
 				if x >= section[0] and x <= section[1]:
 					access = {"x": x, "hidden": flat.hidden}
 					own_stair = true
+	if own_stair and access.hidden and old_body.position.y > -START_LADDER:
+		# A building this low has no stairs inside yet: until its walls are
+		# up a storey or so, builders use a ladder against it.
+		access["ladder"] = clampf(ladder_x(section, hoist), deck_x[0] + 4.0, deck_x[1] - 4.0)
 	plan.tops.append(deck)
 	plan.decks.append(deck_x)
 	plan.access.append(access)
@@ -307,8 +315,8 @@ static func _plan_section(plan: Dictionary, part: String, index: int, old_solid:
 	# whether the way up and the rope are there yet; state.line how far the
 	# walls have risen.
 	var state := {
-		"floor": 0.0, "ladder": own_stair and access.hidden, "hoist": false, "line": 0.0,
-		"permanent": own_stair, "deck": deck_x,
+		"floor": 0.0, "ladder": own_stair and access.hidden and not access.has("ladder"), "hoist": false, "line": 0.0,
+		"permanent": own_stair and not access.has("ladder"), "deck": deck_x,
 	}
 	var any_work := not fittings.is_empty() or not gone.is_empty()
 	for cells: Array in new_cells:
@@ -400,10 +408,13 @@ static func _rise(plan: Dictionary, part: String, index: int, state: Dictionary,
 	var floor_now: float = state.floor
 	if not state.ladder:
 		state.ladder = true
-		var x: float = plan.access[index].x
+		var way: Dictionary = plan.access[index]
+		var x: float = way.get("ladder", way.x)
+		# A ladder that is only for the start of the work is a short one.
+		var top := maxf(deck, -START_LADDER - 8.0) if way.has("ladder") else deck
 		# It is put up from the ground, before anyone is on the deck.
 		state.floor = 0.0
-		_add(plan, Kind.LADDER, "ladder", Rect2(x - 3.0, deck, 6.0, -deck), SCAFFOLD_COLOR, index, Vector2(x, 0.0), false, state, Rect2())
+		_add(plan, Kind.LADDER, "ladder", Rect2(x - 3.0, top, 6.0, -top), SCAFFOLD_COLOR, index, Vector2(x, 0.0), false, state, Rect2())
 		if not state.permanent:
 			plan.pieces[-1].removed_by = TO_REMOVE
 		state.floor = floor_now

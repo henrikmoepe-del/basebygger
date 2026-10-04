@@ -74,7 +74,7 @@ const PARTS := {
 	"towers": {
 		"benefit": "+15 defence per level. More towers rise at levels 3 and 5", "drawback": "",
 		"name": "Towers", "defence": 15, "renown": 1, "cost": {"stone": 20, "wood": 8}, "work": 12.0,
-		"site_x": 395.0,
+		"site_x": 455.0,
 	},
 	"gate": {
 		"benefit": "+5 defence per level", "drawback": "",
@@ -84,44 +84,44 @@ const PARTS := {
 	"keep": {
 		"benefit": "+12 defence per level", "drawback": "Raids grow 3% stronger per level",
 		"name": "Keep", "defence": 12, "renown": 1, "cost": {"stone": 30, "wood": 15}, "work": 18.0,
-		"site_x": -135.0,
+		"site_x": -165.0,
 	},
 	# The quarry turns the loose stones east of the stockhouse into a proper
 	# stone supply (see GameState.quarry_rate).
 	"quarry": {
 		"benefit": "Stone appears 0.7 a second faster, and 10 more can pile up, per level", "drawback": "Dust: everyone works 2% slower per level",
 		"name": "Quarry", "defence": 0, "renown": 1, "cost": {"wood": 24, "stone": 6}, "work": 10.0,
-		"site_x": 740.0, "village": true, "max_level": 10,
+		"site_x": 800.0, "village": true, "max_level": 10,
 	},
 	# The farm's fields add to what the hunting grounds give (see GameState.site_rate).
 	"farm": {
 		"benefit": "Food appears 0.3 a second faster, and 12 more can wait, per level", "drawback": "",
 		"name": "Farm", "defence": 0, "renown": 1, "cost": {"wood": 20, "stone": 4}, "work": 8.0,
-		"site_x": 930.0, "village": true, "max_level": 10,
+		"site_x": 990.0, "village": true, "max_level": 10,
 	},
 	# The mine goes underground for iron, which high castle levels need.
 	"mine": {
 		"benefit": "Lets peasants mine iron: room for 2 miners per level", "drawback": "Each miner eats double",
 		"name": "Mine", "defence": 0, "renown": 2, "cost": {"wood": 40, "stone": 40}, "work": 20.0,
-		"site_x": 1048.0, "village": true, "max_level": 8,
+		"site_x": 1108.0, "village": true, "max_level": 8,
 	},
 	# The sawmill turns logs into planks, which finer buildings and later
 	# levels need on top of wood (see GameState.part_cost).
 	"sawmill": {
 		"benefit": "Lets peasants saw wood into planks: room for 2 sawyers per level", "drawback": "",
 		"name": "Sawmill", "defence": 0, "renown": 1, "cost": {"wood": 30, "stone": 10}, "work": 10.0,
-		"site_x": 1125.0, "village": true, "max_level": 6,
+		"site_x": 1185.0, "village": true, "max_level": 6,
 	},
 	# Outer defences: cheap wooden works that raiders meet first.
 	"palisade": {
 		"benefit": "+8 defence per level", "drawback": "",
 		"name": "Palisade", "defence": 8, "renown": 1, "cost": {"wood": 20}, "work": 8.0,
-		"site_x": -520.0,
+		"site_x": -580.0,
 	},
 	"watchtower": {
 		"benefit": "+6 defence per level", "drawback": "",
 		"name": "Watchtower", "defence": 6, "renown": 1, "cost": {"wood": 22, "stone": 6}, "work": 10.0,
-		"site_x": -586.0,
+		"site_x": -646.0,
 	},
 	# The garrison is the castle's strongest defence per level. Its soldiers
 	# will man the walls in the 3D mode.
@@ -135,25 +135,25 @@ const PARTS := {
 	"court": {
 		"benefit": "Double renown, and hiring costs 4% less per level", "drawback": "Its household eats 2 food a day per level",
 		"name": "Court", "defence": 0, "renown": 2, "cost": {"wood": 25, "stone": 15}, "work": 12.0,
-		"site_x": -305.0,
+		"site_x": -365.0,
 	},
 	# Houses raise how many peasants can live here (see GameState.max_peasants).
 	"houses": {
 		"benefit": "Room for 4 more peasants per level", "drawback": "",
 		"name": "Houses", "defence": 0, "renown": 0, "cost": {"wood": 12, "stone": 4}, "work": 6.0,
-		"site_x": 1278.0, "village": true, "max_level": 12,
+		"site_x": 1338.0, "village": true, "max_level": 12,
 	},
 	# The well and the tavern keep peasants content, which makes them work
 	# faster (see GameState.morale_bonus). Each level serves more peasants.
 	"well": {
 		"benefit": "Up to +15% work speed; each level serves 8 peasants", "drawback": "",
 		"name": "Well", "defence": 0, "renown": 1, "cost": {"stone": 16, "wood": 4}, "work": 8.0,
-		"site_x": 1190.0, "village": true, "max_level": 10,
+		"site_x": 1250.0, "village": true, "max_level": 10,
 	},
 	"tavern": {
 		"benefit": "Up to +15% work speed; each level serves 10 peasants", "drawback": "Peasants eat 3% more per level",
 		"name": "Tavern", "defence": 0, "renown": 1, "cost": {"wood": 24, "stone": 8}, "work": 10.0,
-		"site_x": 1236.0, "village": true, "max_level": 10,
+		"site_x": 1296.0, "village": true, "max_level": 10,
 	},
 }
 ## Back to front.
@@ -163,31 +163,37 @@ const DRAW_ORDER := ["houses", "tavern", "well", "sawmill", "mine", "farm", "qua
 const FRONT := ["court", "garrison", "keep", "towers"]
 
 ## Where the village stands, relative to the castle's ground-centre point.
-const QUARRY_X := 716.0
-const FARM_X := 952.0
-const MINE_X := 1066.0
-const SAWMILL_X := 1125.0
-const WELL_X := 1190.0
-const TAVERN_X := 1236.0
-const FIRST_HOUSE_X := 1292.0
+const QUARRY_X := 776.0
+const FARM_X := 1012.0
+const MINE_X := 1126.0
+const SAWMILL_X := 1185.0
+const WELL_X := 1250.0
+const TAVERN_X := 1296.0
+const FIRST_HOUSE_X := 1352.0
 const HOUSE_SPACING := 26.0
 ## The outer defences, west of the castle.
-const PALISADE_X := -520.0
-const WATCHTOWER_X := -610.0
+const PALISADE_X := -580.0
+const WATCHTOWER_X := -670.0
 
 ## The castle itself: the curtain wall runs between the two end towers, and
 ## the court, keep and garrison stand in the courtyard from west to east.
 ## More towers rise along the wall and beside the gate as Towers is levelled.
-const WALL_HALF := 360.0
-const WALL_STAIRS := [-260.0, 245.0]
+const WALL_HALF := 420.0
+const WALL_STAIRS := [-263.0, 245.0]
 const END_TOWER_WIDTH := 70.0
 const WALL_TOWER_WIDTH := 44.0
 const GATE_TOWER_WIDTH := 24.0
 const WALL_TOWERS_FROM := 3
 const GATE_TOWERS_FROM := 5
-const KEEP_LEFT := -200.0
-const KEEP_WIDTH := 130.0
-const COURT_LEFT := -345.0
+const KEEP_LEFT := -255.0
+const KEEP_WIDTH := 180.0
+## The keep is built in storeys: you step up into the entrance storey, and
+## every storey above is this much higher. Each level of the keep adds one.
+## A staircase runs up the middle, with a room on either side on every storey.
+const KEEP_ENTRANCE := 12.0
+const KEEP_STOREY := 24.0
+const KEEP_STAIRWELL := 28.0
+const COURT_LEFT := -405.0
 const COURT_WIDTH := 80.0
 const GARRISON_LEFT := 72.0
 const GARRISON_WIDTH := 100.0
@@ -215,7 +221,7 @@ static func towers(level: int) -> Array:
 	for x: float in [WALL_HALF, -WALL_HALF - END_TOWER_WIDTH]:
 		out.append({"x": x, "w": END_TOWER_WIDTH, "h": 90.0 + 18.0 * v, "kind": "end"})
 	if level >= WALL_TOWERS_FROM:
-		for x: float in [186.0, -255.0]:
+		for x: float in [186.0, -315.0]:
 			out.append({"x": x, "w": WALL_TOWER_WIDTH, "h": 70.0 + 16.0 * v, "kind": "wall"})
 	if level >= GATE_TOWERS_FROM:
 		for x: float in [34.0, -58.0]:
@@ -235,7 +241,7 @@ static func height(part: String, level: int) -> float:
 		"gate":
 			return 34.0 + 4.0 * mini(v, 7) + (8.0 if level >= 2 else 0.0)
 		"keep":
-			return 100.0 + 20.0 * v
+			return KEEP_ENTRANCE + KEEP_STOREY * keep_storeys(level)
 		"garrison":
 			return 50.0 + 10.0 * v
 		"court":
@@ -250,6 +256,49 @@ static func height(part: String, level: int) -> float:
 const BLOCK_BUILT := ["walls", "towers", "gate", "keep", "garrison", "court", "quarry", "well"]
 
 
+## How many storeys the keep has at a level.
+static func keep_storeys(level: int) -> int:
+	return 4 + mini(level, MAX_VISUAL_LEVEL) if level > 0 else 0
+
+
+## What each room of the keep is, as [left room, right room] for a storey
+## (0 = the entrance storey). The kitchen and hall are at the bottom, stores
+## above them, bedchambers above that, and the lord's chamber at the very top.
+static func keep_rooms(storey: int, storeys: int) -> Array:
+	if storey == 0:
+		return ["kitchen", "hall"]
+	if storey == 1:
+		return ["store", "armoury"]
+	if storey == storeys - 1:
+		return ["beds", "lord"]
+	return ["beds", "beds"]
+
+
+## Where the beds stand in a bedchamber this wide, from its left wall.
+static func bed_offsets(room_width: float) -> Array:
+	return [12.0, 34.0, 56.0].filter(func(x: float) -> bool: return x < room_width - 8.0)
+
+
+## Where every bed in the keep stands, for peasants to sleep in.
+static func keep_beds(level: int) -> Array:
+	var out := []
+	var storeys := keep_storeys(level)
+	var room_width := (KEEP_WIDTH - KEEP_STAIRWELL) / 2.0 - 6.0
+	for storey in storeys:
+		var rooms := keep_rooms(storey, storeys)
+		for side in 2:
+			if rooms[side] == "beds":
+				var left := KEEP_LEFT + 4.0 if side == 0 else KEEP_LEFT + KEEP_WIDTH / 2.0 + KEEP_STAIRWELL / 2.0 + 2.0
+				for bed: float in bed_offsets(room_width):
+					out.append(Vector2(left + bed, keep_floor_y(storey)))
+	return out
+
+
+## How high the floor of a storey of the keep is (negative = up).
+static func keep_floor_y(storey: int) -> float:
+	return -(KEEP_ENTRANCE + KEEP_STOREY * storey)
+
+
 ## How tall one course of a part is: builders raise it a course at a time.
 ## Planks are much thinner than blocks of stone.
 static func course(part: String) -> float:
@@ -259,7 +308,7 @@ static func course(part: String) -> float:
 		"towers":
 			return 12.0
 		"keep":
-			return 14.0
+			return 12.0
 		"court":
 			return 9.0
 	return 8.0 if part in BLOCK_BUILT else 4.0
@@ -321,6 +370,12 @@ static func floors(part: String, level: int) -> Array:
 					out.append({"x0": tower.x + 3.0, "x1": tower.x + tower.w - 3.0, "y": -tower.h, "stairs": [tower.x + tower.w / 2.0], "hidden": true})
 		"keep":
 			out.append({"x0": KEEP_LEFT + 3.0, "x1": KEEP_LEFT + KEEP_WIDTH - 3.0, "y": y, "stairs": [KEEP_LEFT + KEEP_WIDTH / 2.0], "hidden": true})
+			# Every storey inside is a floor too: the rooms.
+			for storey in keep_storeys(level):
+				out.append({
+					"x0": KEEP_LEFT + 5.0, "x1": KEEP_LEFT + KEEP_WIDTH - 5.0, "y": keep_floor_y(storey),
+					"stairs": [KEEP_LEFT + KEEP_WIDTH / 2.0], "hidden": true, "inside": true, "storey": storey,
+				})
 		"garrison":
 			out.append({"x0": GARRISON_LEFT + 3.0, "x1": GARRISON_LEFT + GARRISON_WIDTH - 3.0, "y": y, "stairs": [GARRISON_LEFT + GARRISON_WIDTH / 2.0], "hidden": true})
 		"watchtower":
@@ -492,9 +547,10 @@ static func shapes(part: String, level: int) -> Array:
 			out.append([Rect2(-1, -door, 2, door), band])
 		"keep":
 			var middle := KEEP_LEFT + KEEP_WIDTH / 2.0
-			_masonry(out, Rect2(KEEP_LEFT, -h, KEEP_WIDTH, h), STONE_DARK, 14.0)
+			_masonry(out, Rect2(KEEP_LEFT, -h, KEEP_WIDTH, h), STONE_DARK, 12.0)
 			out.append([Rect2(KEEP_LEFT - 4, -12, KEEP_WIDTH + 8, 12), SHADOW])
-			_windows(out, KEEP_LEFT, [20.0, 61.0, 102.0], Vector2(8, 16), -62.0, 42.0, -h, SHADOW)
+			# Two windows to each room, and one on the stairs, on every storey.
+			_windows(out, KEEP_LEFT, [18.0, 52.0, 86.0, 120.0, 154.0], Vector2(8, 12), -KEEP_ENTRANCE - KEEP_STOREY - 19.0, KEEP_STOREY, -h, SHADOW)
 			out.append([Rect2(middle - 8, -26, 16, 26), WOOD_DARK, FITTING])
 			if level >= 2:
 				_merlons(out, KEEP_LEFT, KEEP_WIDTH, -h, STONE_DARK)

@@ -10,14 +10,17 @@ extends SceneTree
 const PLANS := {
 	"wall": {"levels": {}, "part": "walls", "camera": [330, -40, 2.0], "shots": 6},
 	"wall3": {"levels": {"walls": 2, "garrison": 1}, "part": "walls", "camera": [300, -30, 2.0], "shots": 6},
-	"keep": {"levels": {"walls": 2}, "part": "keep", "camera": [-100, 0, 1.5], "shots": 8},
-	"keep5": {"levels": {"walls": 3, "keep": 4}, "part": "keep", "camera": [-100, 60, 1.0], "shots": 10},
-	"tower": {"levels": {"walls": 2}, "part": "towers", "camera": [400, 0, 1.5], "shots": 8},
-	"court": {"levels": {"walls": 2}, "part": "court", "camera": [-290, -30, 2.0], "shots": 6},
+	"keep": {"levels": {"walls": 2}, "part": "keep", "camera": [-165, 0, 1.5], "shots": 8},
+	"keep5": {"levels": {"walls": 3, "keep": 4}, "part": "keep", "camera": [-165, 80, 1.0], "shots": 10},
+	"tower": {"levels": {"walls": 2}, "part": "towers", "camera": [460, 0, 1.5], "shots": 8},
+	"court": {"levels": {"walls": 2}, "part": "court", "camera": [-350, -30, 2.0], "shots": 6},
+	"rooms": {"levels": {"walls": 3, "keep": 3, "towers": 2, "garrison": 2}, "part": "", "camera": [-165, 10, 1.5], "shots": 3, "open": true, "jobs": {"cook": 2}},
+	"rooms_night": {"levels": {"walls": 3, "keep": 3, "towers": 2, "garrison": 2}, "part": "", "camera": [-165, 10, 1.5], "shots": 2, "open": true, "jobs": {"cook": 2}, "night": true},
+	"rooms_build": {"levels": {"walls": 2}, "part": "keep", "camera": [-165, 0, 1.5], "shots": 5, "open": true},
 	"gate": {"levels": {"walls": 2}, "part": "gate", "camera": [30, -40, 2.0], "shots": 5},
 	"tavern": {"levels": {"walls": 1}, "part": "tavern", "camera": [1170, -45, 2.0], "shots": 5},
 	"inside": {"levels": {"walls": 3, "keep": 5, "towers": 4, "garrison": 3, "court": 2}, "part": "", "camera": [20, 20, 1.0], "shots": 4, "open": true, "soldiers": 8},
-	"inside_build": {"levels": {"walls": 2}, "part": "keep", "camera": [-100, 0, 1.5], "shots": 6, "open": true},
+	"inside_build": {"levels": {"walls": 2}, "part": "keep", "camera": [-165, 0, 1.5], "shots": 6, "open": true},
 	"sawmill": {"levels": {"walls": 1, "sawmill": 2}, "part": "", "camera": [1125, -45, 2.0], "shots": 3, "jobs": {"sawyer": 3}},
 	"stockyard": {"levels": {"walls": 1, "sawmill": 2, "mine": 1}, "part": "", "camera": [570, -45, 2.0], "shots": 2, "jobs": {"sawyer": 3}},
 	"idle": {"levels": {"walls": 3, "keep": 3, "towers": 3, "garrison": 2, "court": 2, "tavern": 1, "houses": 3}, "part": "", "camera": [100, 0, 0.75], "shots": 5},
@@ -52,7 +55,7 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	Engine.time_scale = 12.0
-	gs.no_nights = true
+	gs.no_nights = not plan.get("night", false)
 	gs.peasants += 6
 	gs.jobs.build += 3
 	gs.peasants_changed.emit()
@@ -81,7 +84,7 @@ func _run() -> void:
 			while t < 25.0:
 				await process_frame
 				t += root.get_process_delta_time()
-				gs.day_time = 10.0
+				gs.day_time = gs.DAY_LENGTH * 0.85 if plan.get("night", false) else 10.0
 			await _shoot("%s/%s_%d.png" % [out, name, shot])
 	else:
 		gs.order_part(plan.part)

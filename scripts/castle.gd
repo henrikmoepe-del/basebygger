@@ -46,11 +46,16 @@ const OPEN_ALPHA := 0.22
 const INSIDE_WALL := Color(0.27, 0.25, 0.27)
 const INSIDE_FLOOR := Color(0.48, 0.32, 0.20)
 const INSIDE_STAIR := Color(0.62, 0.45, 0.28)
+const INSIDE_PARTITION := Color(0.36, 0.33, 0.35)
+const FIRE := Color(0.95, 0.55, 0.15)
+const SACK := Color(0.82, 0.74, 0.52)
+const SHEET := Color(0.72, 0.70, 0.62)
 const FALL_GRAVITY := 420.0
 ## Stairs inside a building: how much each flight rises, and how far it runs
 ## to either side of the middle.
-const STAIR_FLIGHT := 22.0
-const STAIR_HALF := 9.0
+const STAIR_FLIGHT := CastleData.KEEP_STOREY
+const STAIR_BASE := CastleData.KEEP_ENTRANCE
+const STAIR_HALF := 10.0
 
 ## Goes up whenever the floors change, so peasants know to find their way again.
 var version := 0
@@ -150,21 +155,34 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		toggle_all_open()
 
 
-## The buildings that have an inside to look into, each {"rect", "stair"}:
-## everything with stairs inside, and what is being built with such stairs,
-## as high as it has got.
+## The buildings that have an inside to look into, each {"rect", "stair",
+## "part", "storeys"}: everything with stairs inside, and what is being built
+## with such stairs, as high as it has got. "storeys" is how many storeys of
+## rooms it has (only the keep has any).
 func interiors() -> Array:
 	var out := []
+	var found := {}
 	for flat: Dictionary in built_floors():
-		if flat.hidden:
-			out.append({"rect": Rect2(flat.x0 - 3.0, flat.y, flat.x1 - flat.x0 + 6.0, -flat.y), "stair": flat.stairs[0]})
+		if not flat.hidden or flat.get("inside", false):
+			continue
+		var key := "%s:%s" % [flat.part, flat.stairs[0]]
+		if not found.has(key):
+			found[key] = true
+			out.append({
+				"rect": Rect2(flat.x0 - 3.0, flat.y, flat.x1 - flat.x0 + 6.0, -flat.y), "stair": flat.stairs[0],
+				"part": flat.part, "storeys": CastleData.keep_storeys(GameState.part_levels.keep) if flat.part == "keep" else 0,
+			})
 	if job_has_scaffold():
 		var plan: Dictionary = GameState.job_plan
 		for i in _plan_sections.size():
 			var y := _deck_y(i)
-			if plan.access[i].hidden and y < -0.5:
+			if _stairs_reach(i) and y < -0.5:
 				var section: Array = _plan_sections[i]
-				out.append({"rect": Rect2(section[0], y, section[1] - section[0], -y), "stair": plan.access[i].x})
+				# The storeys the walls have risen past already have their rooms.
+				var storeys := 0
+				if GameState.job_part == "keep":
+					storeys = clampi(int((-y - CastleData.KEEP_ENTRANCE) / CastleData.KEEP_STOREY), 0, CastleData.keep_storeys(GameState.part_levels.keep + 1))
+				out.append({"rect": Rect2(section[0], y, section[1] - section[0], -y), "stair": plan.access[i].x, "part": GameState.job_part, "storeys": storeys})
 	return out
 
 
@@ -461,6 +479,14 @@ func built_floors() -> Array:
 	return _floors.filter(func(flat: Dictionary) -> bool: return flat.part != GameState.job_part)
 
 
+## True if a section being built is reached by the stairs inside it: it has
+## such stairs, and its walls are high enough for them (until then the
+## builders use a ladder).
+func _stairs_reach(section: int) -> bool:
+	var way: Dictionary = GameState.job_plan.access[section]
+	return way.hidden and (not way.has("ladder") or _deck_y(section) <= -BuildPlan.START_LADDER)
+
+
 ## Where builders can stand on the part being built: the deck of every
 ## section that has been started (reached by the building's own stairs or a
 ## ladder), and every platform of the scaffolding that is standing.
@@ -475,9 +501,10 @@ func job_floors() -> Array:
 			var y := _deck_y(i)
 			if y < -0.5:
 				var deck: Array = plan.decks[i]
+				var inside := _stairs_reach(i)
 				out.append({
-					"x0": deck[0], "x1": deck[1], "y": y, "stairs": [plan.access[i].x],
-					"hidden": plan.access[i].hidden, "back": back, "step": _deck_step(i),
+					"x0": deck[0], "x1": deck[1], "y": y, "stairs": [plan.access[i].x if inside or not plan.access[i].has("ladder") else plan.access[i].ladder],
+					"hidden": inside, "back": back, "step": _deck_step(i),
 				})
 	for platform: Dictionary in plan.platforms:
 		if _placed >= platform.from and _placed <= platform.until:
@@ -500,19 +527,30 @@ func route(from: Vector2, to: Vector2) -> Array:
 	var out := []
 	var at := from
 	for step: Dictionary in _plain_route(from, to):
-		if step.hidden and absf(step.pos.x - at.x) < 0.01:
-			# Stairs inside a building go up in flights, back and forth.
-			var rise: float = step.pos.y - at.y
-			var flights := maxi(int(absf(rise) / STAIR_FLIGHT), 1)
-			var side := 1.0
-			for i in range(1, flights):
-				out.append({"pos": Vector2(at.x + side * STAIR_HALF, at.y + rise * i / flights), "hidden": true, "back": step.back, "stair": true})
-				side = -side
+		if step.hidden and absf(step.pos.x - at.x) < 0.01 and absf(step.pos.y - at.y) > 0.5:
+			# Stairs inside a building go up in flights, back and forth, with
+			# a landing at every storey (see _landing).
+			var landings := []
+			var storey := 0
+			while _landing(at.x, storey).y > minf(at.y, step.pos.y) + 0.5:
+				if _landing(at.x, storey).y < maxf(at.y, step.pos.y) - 0.5:
+					landings.append(_landing(at.x, storey))
+				storey += 1
+			if step.pos.y > at.y:
+				landings.reverse()
+			for landing: Vector2 in landings:
+				out.append({"pos": landing, "hidden": true, "back": step.back, "stair": true})
 			out.append({"pos": step.pos, "hidden": true, "back": step.back, "stair": true})
 		else:
 			out.append(step)
 		at = step.pos
 	return out
+
+
+## Where the stairs inside a building turn at a storey: the flights go from
+## one side of the stair to the other, storey by storey.
+func _landing(stair_x: float, storey: int) -> Vector2:
+	return Vector2(stair_x + (STAIR_HALF if storey % 2 == 0 else -STAIR_HALF), -(STAIR_BASE + storey * STAIR_FLIGHT))
 
 
 ## The way as straight steps: route() turns the ones inside buildings into flights of stairs.
@@ -522,6 +560,8 @@ func _plain_route(from: Vector2, to: Vector2) -> Array:
 	var goal := _floor_at(all, to)
 	var end := Vector2(to.x, _surface(all[goal], to.x) if goal >= 0 else 0.0)
 	var end_back: bool = goal >= 0 and all[goal].back
+	# Steps along a floor inside a building (a room of the keep) are out of sight.
+	var end_in: bool = goal >= 0 and all[goal].get("inside", false)
 	var steps := []
 	var x := from.x
 	if start < 0 and from.y < -0.5:
@@ -529,7 +569,7 @@ func _plain_route(from: Vector2, to: Vector2) -> Array:
 		# down it first.
 		if goal >= 0 and all[goal].stairs.has(from.x):
 			steps.append(_step(Vector2(from.x, _surface(all[goal], from.x)), all[goal].hidden, end_back))
-			steps.append(_step(end, false, end_back))
+			steps.append(_step(end, end_in, end_back))
 			return steps
 		var stair := _stair_floor(all, from.x)
 		steps.append(_step(Vector2(from.x, 0), stair >= 0 and all[stair].hidden, stair >= 0 and all[stair].back))
@@ -544,19 +584,19 @@ func _plain_route(from: Vector2, to: Vector2) -> Array:
 				for stair: float in flat.stairs:
 					if all[goal].stairs.has(stair):
 						# Both floors are on this stair: no need to touch the ground.
-						steps.append(_step(Vector2(stair, _surface(flat, stair)), false, flat.back))
+						steps.append(_step(Vector2(stair, _surface(flat, stair)), flat.get("inside", false), flat.back))
 						steps.append(_step(Vector2(stair, _surface(all[goal], stair)), all[goal].hidden, end_back))
-						steps.append(_step(end, false, end_back))
+						steps.append(_step(end, end_in, end_back))
 						return steps
 			x = _nearest_stair(flat, from.x)
-			steps.append(_step(Vector2(x, _surface(flat, x)), false, flat.back))
+			steps.append(_step(Vector2(x, _surface(flat, x)), flat.get("inside", false), flat.back))
 			steps.append(_step(Vector2(x, 0), flat.hidden, flat.back))
 		if goal >= 0:
 			var flat: Dictionary = all[goal]
 			var stair_x := _nearest_stair(flat, x)
 			steps.append(_step(Vector2(stair_x, 0), false, false))
 			steps.append(_step(Vector2(stair_x, _surface(flat, stair_x)), flat.hidden, flat.back))
-	steps.append(_step(end, false, end_back))
+	steps.append(_step(end, end_in, end_back))
 	return steps
 
 
@@ -663,23 +703,102 @@ func _is_open(x: float) -> bool:
 
 
 ## The inside of a building, behind its see-through front: the back wall, the
-## landings, and the flights of stairs the peasants climb.
+## flights of stairs the peasants climb, and in the keep the rooms.
 func _draw_interior(canvas, inside: Dictionary) -> void:
 	var area: Rect2 = inside.rect
 	canvas.draw_rect(area.grow(-2.0), INSIDE_WALL)
-	var flights := maxi(int(area.size.y / STAIR_FLIGHT), 1)
-	var from := Vector2(inside.stair, 0)
-	var side := 1.0
-	for i in range(1, flights + 1):
-		var y: float = -area.size.y * i / flights
-		var to := Vector2(inside.stair + side * STAIR_HALF, y) if i < flights else Vector2(inside.stair, y)
-		if i < flights:
-			# A landing right across, at the top of each flight.
-			canvas.draw_rect(Rect2(area.position.x + 2.0, y, area.size.x - 4.0, 1), INSIDE_FLOOR)
+	var stair: float = inside.stair
+	if inside.storeys > 0:
+		_draw_rooms(canvas, area, stair, inside.storeys)
+	# The stairs: a flight from each landing to the next, side to side.
+	var from := Vector2(stair, 0)
+	var storey := 0
+	while _landing(stair, storey).y > area.position.y + 0.5:
+		var to := _landing(stair, storey)
+		if inside.storeys == 0:
+			# A landing right across.
+			canvas.draw_rect(Rect2(area.position.x + 2.0, to.y, area.size.x - 4.0, 1), INSIDE_FLOOR)
 		canvas.draw_line(from, to, INSIDE_STAIR, 1.0)
 		canvas.draw_line(from + Vector2(0, 1), to + Vector2(0, 1), INSIDE_STAIR, 1.0)
 		from = to
-		side = -side
+		storey += 1
+	canvas.draw_line(from, Vector2(stair, area.position.y), INSIDE_STAIR, 1.0)
+
+
+## The rooms of the keep: on every storey a floor, the walls of the stairwell
+## with a doorway on each side, and a room to the left and to the right,
+## furnished for what it is (see CastleData.keep_rooms).
+func _draw_rooms(canvas, area: Rect2, stair: float, storeys: int) -> void:
+	var well := CastleData.KEEP_STOREY
+	var half := CastleData.KEEP_STAIRWELL / 2.0
+	var total := CastleData.keep_storeys(GameState.part_levels.keep + (1 if GameState.job_part == "keep" else 0))
+	for storey in storeys:
+		var y := CastleData.keep_floor_y(storey)
+		var ceiling := y - well
+		canvas.draw_rect(Rect2(area.position.x + 2.0, y, area.size.x - 4.0, 2), INSIDE_FLOOR)
+		# The stairwell's walls, with a doorway at the bottom of each.
+		canvas.draw_rect(Rect2(stair - half - 2.0, ceiling + 2.0, 2, well - 16.0), INSIDE_PARTITION)
+		canvas.draw_rect(Rect2(stair + half, ceiling + 2.0, 2, well - 16.0), INSIDE_PARTITION)
+		var rooms := CastleData.keep_rooms(storey, total)
+		_draw_room(canvas, rooms[0], Rect2(area.position.x + 4.0, ceiling + 2.0, stair - half - 6.0 - area.position.x, well - 2.0))
+		_draw_room(canvas, rooms[1], Rect2(stair + half + 2.0, ceiling + 2.0, area.end.x - 6.0 - stair - half, well - 2.0))
+
+
+## One room's furniture. room is the space inside its walls; its floor is at the bottom.
+func _draw_room(canvas, kind: String, room: Rect2) -> void:
+	var x := room.position.x
+	var y := room.end.y
+	var w := room.size.x
+	match kind:
+		"kitchen":
+			# The hearth with a pot over the fire, and a table to work at.
+			canvas.draw_rect(Rect2(x + 4, y - 14, 14, 14), CastleData.STONE_DARK)
+			canvas.draw_rect(Rect2(x + 6, y - 6, 10, 6), FIRE)
+			canvas.draw_rect(Rect2(x + 8, y - 11, 6, 4), CastleData.IRON)
+			canvas.draw_rect(Rect2(x + w - 30, y - 7, 20, 2), CastleData.WOOD)
+			canvas.draw_rect(Rect2(x + w - 28, y - 5, 2, 5), CastleData.WOOD_DARK)
+			canvas.draw_rect(Rect2(x + w - 14, y - 5, 2, 5), CastleData.WOOD_DARK)
+		"hall":
+			# A long table with benches, and a banner on the wall.
+			canvas.draw_rect(Rect2(x + 10, y - 8, w - 24, 2), CastleData.WOOD)
+			canvas.draw_rect(Rect2(x + 12, y - 6, 2, 6), CastleData.WOOD_DARK)
+			canvas.draw_rect(Rect2(x + w - 18, y - 6, 2, 6), CastleData.WOOD_DARK)
+			canvas.draw_rect(Rect2(x + 8, y - 4, w - 20, 1), CastleData.WOOD_DARK)
+			canvas.draw_rect(Rect2(x + w / 2.0 - 4, y - 20, 8, 9), CastleData.BANNER)
+		"store":
+			# Barrels and sacks.
+			for i in 3:
+				canvas.draw_rect(Rect2(x + 5 + i * 10, y - 9, 8, 9), CastleData.WOOD)
+				canvas.draw_rect(Rect2(x + 5 + i * 10, y - 6, 8, 1), CastleData.IRON)
+			canvas.draw_rect(Rect2(x + w - 24, y - 6, 9, 6), SACK)
+			canvas.draw_rect(Rect2(x + w - 14, y - 5, 8, 5), SACK.darkened(0.12))
+		"armoury":
+			# A rack of spears and a row of shields.
+			canvas.draw_rect(Rect2(x + 6, y - 15, 22, 1), CastleData.WOOD_DARK)
+			for i in 4:
+				canvas.draw_rect(Rect2(x + 8 + i * 6, y - 17, 1, 17), CastleData.WOOD)
+				canvas.draw_rect(Rect2(x + 7 + i * 6, y - 19, 3, 3), CastleData.STONE_LIGHT)
+			for i in 3:
+				canvas.draw_rect(Rect2(x + w - 34 + i * 10, y - 13, 7, 8), CastleData.BANNER if i % 2 == 0 else CastleData.ROOF_BLUE)
+		"beds":
+			for bed: float in CastleData.bed_offsets(w):
+				_draw_bed(canvas, x + bed, y, SHEET)
+		"lord":
+			# One great bed with a canopy, and a chest.
+			canvas.draw_rect(Rect2(x + 8, y - 17, 2, 17), CastleData.WOOD_DARK)
+			canvas.draw_rect(Rect2(x + 30, y - 17, 2, 17), CastleData.WOOD_DARK)
+			canvas.draw_rect(Rect2(x + 6, y - 19, 28, 3), CastleData.BANNER)
+			canvas.draw_rect(Rect2(x + 9, y - 6, 22, 4), CastleData.BANNER.lightened(0.25))
+			canvas.draw_rect(Rect2(x + 9, y - 8, 5, 2), SHEET)
+			canvas.draw_rect(Rect2(x + w - 20, y - 7, 12, 7), CastleData.WOOD)
+			canvas.draw_rect(Rect2(x + w - 15, y - 5, 2, 2), CastleData.THATCH)
+
+
+func _draw_bed(canvas, x: float, y: float, sheet: Color) -> void:
+	canvas.draw_rect(Rect2(x - 8, y - 3, 16, 3), CastleData.WOOD)
+	canvas.draw_rect(Rect2(x - 8, y - 5, 16, 2), sheet)
+	canvas.draw_rect(Rect2(x - 8, y - 6, 4, 2), sheet.lightened(0.3))
+	canvas.draw_rect(Rect2(x - 9, y - 7, 1, 7), CastleData.WOOD_DARK)
 
 
 ## The part being built: the old level, then what is laid of the new one so
@@ -730,16 +849,15 @@ func _draw_scaffold(canvas) -> void:
 	if plan.scaffolded and _placed < plan.fetch:
 		for i in _plan_sections.size():
 			var y := _deck_y(i)
-			if plan.access[i].hidden and y < -0.5:
-				# An open trapdoor: its frame in the deck and its lid standing up.
-				# The stair door is built over it at the end.
+			if _stairs_reach(i) and y < -0.5:
+				# The head of the stairs: an opening left in the top of the
+				# unfinished wall, with the first steps showing. The stair
+				# door is built over it at the end.
 				var x: float = plan.access[i].x
-				# On top of the course being laid, where that has passed it.
 				y = _on_deck(i, x).y
-				canvas.draw_rect(Rect2(x - 6, y - 2, 12, 2), HATCH)
-				canvas.draw_rect(Rect2(x - 4, y - 1, 8, 1), CastleData.SHADOW)
-				canvas.draw_rect(Rect2(x + 5, y - 10, 2, 8), HATCH)
-				canvas.draw_rect(Rect2(x + 4, y - 10, 1, 8), CastleData.WOOD)
+				canvas.draw_rect(Rect2(x - 7, y, 14, 7), CastleData.SHADOW)
+				canvas.draw_rect(Rect2(x - 5, y + 2, 5, 1), HATCH)
+				canvas.draw_rect(Rect2(x, y + 4, 5, 1), HATCH)
 	for i in mini(_placed, GameState.job_fetch()):
 		var piece: Dictionary = _plan[i]
 		if piece.removed_by < 0 or piece.removed_by < _placed:

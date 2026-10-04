@@ -17,7 +17,7 @@ func _raid(limit: float) -> float:
 	gs.day = gs.next_raid_day()
 	var t := 0.0
 	var faced: int = gs.raids_faced
-	while gs.raids_faced == faced and not gs.siege_active and t < limit:
+	while gs.raids_faced == faced and t < limit:
 		await process_frame
 		t += root.get_process_delta_time()
 		gs.day_time = 10.0
@@ -61,9 +61,10 @@ func _run() -> void:
 	gs.peasants_changed.emit()
 	await process_frame
 	took = await _raid(600.0)
-	var reached: bool = gs.siege_active
-	print("%s undefended castle: reached the castle after %.0f s, siege %s, share %.2f" % [
-		"ok  " if reached else "FAIL", took, gs.siege_active, gs.siege_share])
+	# (The 3D fight for the gate is switched off: the raid just ends, unbeaten.)
+	var reached: bool = gs.raids_faced == 2 and gs.raids_won == 1 and not gs.raid_incoming
+	print("%s undefended castle: reached the castle after %.0f s, raids faced %d, won %d" % [
+		"ok  " if reached else "FAIL", took, gs.raids_faced, gs.raids_won])
 	print("ALL OK" if beaten and reached else "SOMETHING FAILED")
 	Engine.time_scale = 1.0
 	quit()

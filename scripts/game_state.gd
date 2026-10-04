@@ -71,6 +71,9 @@ const RAIDER_HP_GROWTH := 1.12
 ## The gate fight is never smaller than this share of a full one, however
 ## few raiders got through.
 const MIN_SIEGE_SHARE := 0.25
+## The 3D fight for the gate is switched off for now (Henrik, 2026-10-05):
+## raiders who reach the castle are simply gone, and nothing is taken.
+const SIEGE_ENABLED := false
 const RAID_LOSS := 0.4
 const RAID_BASE_RENOWN := 2
 const SOLDIER_DEFENCE := 8
@@ -437,7 +440,13 @@ func raid_beaten() -> void:
 ## many of them as are still standing.
 func raiders_reached(standing: int) -> void:
 	siege_share = clampf(float(standing) / raid_size(), MIN_SIEGE_SHARE, 1.0)
-	start_siege()
+	if SIEGE_ENABLED:
+		start_siege()
+		return
+	announced.emit("%d raiders reached the castle, and were gone again" % standing)
+	raids_faced += 1
+	raid_incoming = false
+	raid_resolved.emit(false)
 
 
 ## Leaves the 2D world to fight the incoming raid in 3D (see siege.gd).

@@ -77,7 +77,7 @@ What this means for the design now (Claude's notes):
   Placeholder art.
 - The player never clicks to gather. Peasants do all the work; the player hires them, gives
   them jobs, trains them, points at the world to build, and buys skills.
-- World layout: the castle is in the middle (x = 0) and about 860 wide. Defence is to the west, where
+- World layout: the castle is in the middle (x = 0) and about 980 wide. Defence is to the west, where
   raiders come from (palisade, watchtower). The stockhouse, quarry, grove, wilds, mine and village are to the east.
 - The castle is a side view with the front wall cut away: the curtain wall and gate are at the back,
   and the court, keep and garrison stand in the courtyard in front of it, between two end towers.
@@ -153,6 +153,17 @@ What this means for the design now (Claude's notes):
   - Ideas Henrik wants next (not started): materials made in their own buildings (bricks from a
     brickworks, planks from a sawmill) and carried to the site; rooms inside the keep, with walls
     that turn see-through when hovered or by a button.
+  - The keep has storeys and rooms: you step up into the entrance storey, and each level adds a
+    storey (`KEEP_STOREY`). A staircase runs up the middle with a room either side on every storey
+    (`CastleData.keep_rooms`): kitchen and great hall at the bottom, store and armoury above,
+    bedchambers above that, the lord's chamber at the top. Every storey is a floor marked
+    "inside" (`CastleData.floors`), so peasants walk into the rooms, out of sight unless the
+    keep is see-through. Cooks work in the kitchen once there is a keep; peasants within reach
+    sleep in the keep's beds, lying down, while the beds last (`Workers.bed_spot`); idle peasants
+    wander through the rooms. Rooms are drawn by `castle._draw_rooms`. Not yet: choosing which
+    rooms to build, and rooms that do something of their own.
+  - A building with stairs inside is reached by a short ladder until its walls are a storey high
+    (`BuildPlan.START_LADDER`); after that builders come up through an open stairwell in the wall top.
   - Looking inside: pointing at a building with stairs inside (towers, keep, garrison, also while
     it is being built) makes its front see-through, showing the back wall, the landings, the
     flights of stairs and the peasants on them; X or the Inside button does it for all of them
@@ -211,8 +222,9 @@ What this means for the design now (Claude's notes):
   for the rest of the raid. All raiders down = raid beaten. A raider reaching the castle starts the
   3D gate fight with the share of raiders still standing (`siege_share`). Not balanced.
   Ideas next: the player choosing posts, more outer works, raider kinds, damage that lasts.
-- 3D siege prototype (`scenes/siege.tscn`, `scripts/siege.gd`): starts when raiders reach the
-  castle (the "Defend the walls!" button stays hidden). A 3D fight built from the castle's part levels (boxes for now).
+- 3D siege prototype (`scenes/siege.tscn`, `scripts/siege.gd`): SWITCHED OFF for now at Henrik's
+  request (`GameState.SIEGE_ENABLED`). Raiders who reach the castle are simply gone and nothing
+  is taken. When on, it starts when raiders reach the castle. A 3D fight built from the castle's part levels (boxes for now).
   Archers on towers, walls and the watchtower shoot automatically; raiders break the palisade, then
   the gate. Survive 5 waves to win the raid. Without the button the raid resolves as before (number check).
   Dev key F7 starts a siege at any time.

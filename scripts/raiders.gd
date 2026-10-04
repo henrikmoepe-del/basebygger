@@ -20,12 +20,12 @@ const ARROW := Color(0.25, 0.20, 0.15)
 const BAR_BACK := Color(0.20, 0.13, 0.08)
 const BAR := Color(0.85, 0.75, 0.30)
 const GRASS := Color(0.45, 0.68, 0.38)
-const START_X := -900.0
+const START_X := -960.0
 const SPACING := 12.0
 const SPEED := 14.0
 const FLEE_SPEED := 90.0
 ## Where the castle begins: a raider who gets this far has reached it.
-const CASTLE_X := -436.0
+const CASTLE_X := -496.0
 ## How close a raider and a spearman must be to strike each other, and how
 ## far a spear reaches through the palisade.
 const MELEE_REACH := 12.0
@@ -132,8 +132,13 @@ func _move_raiders(delta: float, soldiers: Array) -> void:
 		elif foe != null and foe.position.x - raider.x <= MELEE_REACH + 1.0:
 			foe.hurt(RAIDER_DAMAGE * delta)
 		elif raider.x >= CASTLE_X - 0.5:
-			# The castle is reached: the fight moves to the gate.
-			GameState.raiders_reached(_standing())
+			# The castle is reached. (The fight for the gate in 3D is switched
+			# off for now: the raiders are simply gone.)
+			var standing := _standing()
+			_raiders.clear()
+			_arrows.clear()
+			GameState.raiders_reached(standing)
+			queue_redraw()
 			return
 
 

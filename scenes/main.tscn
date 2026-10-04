@@ -50,18 +50,18 @@ position = Vector2(0, 270)
 script = ExtResource("5_grove")
 
 [node name="Rock" type="Node2D" parent="."]
-position = Vector2(716, 270)
+position = Vector2(776, 270)
 script = ExtResource("13_quarry")
 
 [node name="Wilds" type="Node2D" parent="."]
-position = Vector2(1008, 270)
+position = Vector2(1068, 270)
 script = ExtResource("13_quarry")
 resource_type = "food"
 size = Vector2(44, 30)
 look = "bushes"
 
 [node name="MineSpot" type="Node2D" parent="."]
-position = Vector2(1066, 270)
+position = Vector2(1126, 270)
 script = ExtResource("1_gather")
 resource_type = "iron"
 look = "none"
