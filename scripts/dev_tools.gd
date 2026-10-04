@@ -8,10 +8,11 @@ extends CanvasLayer
 ##   F3  skip 10 minutes (resources from current income; the build job finishes)
 ##   F4  +1000 wood, stone and food, +20 renown
 ##   F6  +5 idle peasants (ignores the housing limit)
+##   F7  start a 3D siege now
 
 const SPEEDS := [1.0, 5.0, 20.0, 50.0]
 const SKIP_SECONDS := 600.0
-const HELP := "DEV  F1 help  F2 speed  F3 skip 10 min  F4 resources  F6 peasants"
+const HELP := "DEV  F1 help  F2 speed  F3 skip 10 min  F4 resources  F6 peasants  F7 siege"
 
 var _speed_index := 0
 var _label := Label.new()
@@ -51,6 +52,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_F6:
 			GameState.peasants += 5
 			GameState.peasants_changed.emit()
+		KEY_F7:
+			GameState.start_siege()
 
 
 func _exit_tree() -> void:

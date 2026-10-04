@@ -155,6 +155,9 @@ var raids_won := 0
 var legacy := 0
 ## True while raiders are marching on the castle.
 var raid_incoming := false
+## True while the player is defending the castle in the 3D siege. The 2D
+## world (time, autosaves, raid countdown) waits until it is over.
+var siege_active := false
 ## How many levels of each skill the player owns (skills not bought are left out).
 var skills := {}
 
@@ -191,6 +194,8 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if siege_active:
+		return
 	day_time += delta
 	if day_time >= DAY_LENGTH:
 		day_time -= DAY_LENGTH
@@ -310,15 +315,33 @@ func _update_raid(delta: float) -> void:
 			raid_incoming = true
 			_raid_timer = RAID_MARCH_TIME
 			raid_started.emit()
-			announced.emit("Raiders approach! Their strength is %d, your defence is %d" % [raid_strength(), total_defence()])
+			announced.emit("Raiders approach! Press Defend to command the walls yourself, or your defence of %d meets their %d" % [total_defence(), raid_strength()])
 		return
 	_raid_timer -= delta
 	if _raid_timer <= 0.0:
-		_resolve_raid()
+		# Nobody took command: the defence is weighed against the raid.
+		_resolve_raid(total_defence() >= raid_strength())
 
 
-func _resolve_raid() -> void:
-	var won := total_defence() >= raid_strength()
+## Leaves the 2D world to fight the incoming raid in 3D (see siege.gd).
+## With no raid on the way, one is called early (used by the dev tools).
+func start_siege() -> void:
+	if not raid_incoming:
+		raid_incoming = true
+		raid_started.emit()
+	siege_active = true
+	save_game()
+	get_tree().change_scene_to_file("res://scenes/siege.tscn")
+
+
+## Called by the 3D siege when it is won or lost.
+func finish_siege(won: bool) -> void:
+	siege_active = false
+	_resolve_raid(won)
+	save_game()
+
+
+func _resolve_raid(won: bool) -> void:
 	if won:
 		var reward := RAID_BASE_RENOWN + raids_faced / 3 + int(skill_total("raid_renown"))
 		renown += reward

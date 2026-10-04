@@ -39,7 +39,7 @@
 - If you believe a tool/program/pluggen would be of good use, for example to create pixel 2d art, to create sound, etc, then say so 
 
 ## Current status
-- Stage: Milestone 1 (2D incremental builder), expanding the builder before the 3D part. Placeholder art.
+- Stage: 2D builder is feature-rich; Milestone 2 (3D wave defence) has a first prototype. Placeholder art.
 - The player never clicks to gather. Peasants do all the work; the player hires them, gives
   them jobs, trains them, points at the world to build, and buys skills.
 - World layout: the castle is in the middle (x = 0). Defence is to the west, where raiders come
@@ -71,7 +71,13 @@
   - Everything built should have a benefit and, where it makes sense, a real drawback
     (see the drawback constants in `castle_data.gd`).
   - Henrik's design ideas are starting points: explore and expand on them, then explain the choices.
-- Then Milestone 2: 3D wave defence, which would replace raids and tie into passing the crown
+- 3D siege prototype (`scenes/siege.tscn`, `scripts/siege.gd`): when raiders approach, a
+  "Defend the walls!" button opens a 3D fight built from the castle's part levels (boxes for now).
+  Archers on towers, walls and the watchtower shoot automatically; raiders break the palisade, then
+  the gate. Survive 5 waves to win the raid. Without the button the raid resolves as before (number check).
+  Dev key F7 starts a siege at any time.
+- Next for the siege: something for the player to do during it, enemy variety, real 3D models,
+  then tie it into passing the crown
 - Testing: run Godot with `--headless` and `-- --save=user://test_save.json` so tests
   open no window and never touch the real save (`user://save.json`). After changing
   `game_state.gd`, run the game once headless first: a parse error there makes test scripts hang.

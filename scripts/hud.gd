@@ -23,6 +23,7 @@ const OUTLINE_COLOR := Color(0.96, 0.95, 0.85)
 @onready var jobs_box: VBoxContainer = %Jobs
 @onready var hire_button: Button = %HireButton
 @onready var cow_button: Button = %CowButton
+@onready var defend_button: Button = %DefendButton
 @onready var build_hover: Node2D = %BuildHover
 @onready var build_card: ColorRect = %BuildCard
 @onready var build_card_label: Label = %BuildCardLabel
@@ -46,6 +47,8 @@ func _ready() -> void:
 		changed.connect(_refresh)
 	hire_button.pressed.connect(GameState.hire_peasant)
 	cow_button.pressed.connect(GameState.buy_cow)
+	defend_button.pressed.connect(GameState.start_siege)
+	GameState.raid_started.connect(_refresh)
 	skills_button.pressed.connect(skill_tree.show)
 	reset_button.pressed.connect(_on_reset_pressed)
 	crown_button.pressed.connect(_on_crown_pressed)
@@ -183,6 +186,8 @@ func _refresh() -> void:
 		"Raiders at the walls" if GameState.raid_incoming else "Raid on day %d" % GameState.next_raid_day(),
 		GameState.raid_strength()]
 	raid_label.add_theme_color_override("font_color", TEXT_COLOR if safe else HUNGRY_COLOR)
+	# While raiders march in, the player can take command of the defence in 3D.
+	defend_button.visible = GameState.raid_incoming
 
 	var gain := GameState.legacy_gain()
 	crown_button.disabled = gain <= 0
