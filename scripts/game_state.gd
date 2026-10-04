@@ -30,13 +30,13 @@ const PEASANT_BASE_COST := 10
 const PEASANT_COST_GROWTH := 1.25
 const PEASANT_BASE_CARRY := 2
 ## Hunters have their own carry size, raised by hunting skills only.
-const HUNTER_CARRY := 3
+const HUNTER_CARRY := 4
 
 ## A day lasts DAY_LENGTH seconds; the last part of it is night, when
 ## everyone sleeps. Night begins at NIGHT_START (a fraction of the day).
 const DAY_LENGTH := 120.0
 const NIGHT_START := 0.72
-const START_FOOD := 20
+const START_FOOD := 30
 ## Every peasant eats this much at dawn. If there isn't enough, everyone
 ## goes hungry and works at HUNGRY_WORK_MULT until the next dawn.
 const FOOD_PER_PEASANT := 3.0
@@ -50,13 +50,24 @@ const MAX_USEFUL_COOKS := 6
 const FIRST_RAID_DAY := 4
 const RAID_INTERVAL := 3
 const RAID_BASE_STRENGTH := 45.0
-const RAID_STRENGTH_GROWTH := 1.38
+const RAID_STRENGTH_GROWTH := 1.3
 ## Seconds between the raiders appearing and reaching the walls.
 const RAID_MARCH_TIME := 12.0
 const RAID_LOSS := 0.4
 const RAID_BASE_RENOWN := 2
-const SOLDIER_DEFENCE := 5
+const SOLDIER_DEFENCE := 8
 const SOLDIERS_PER_GARRISON_LEVEL := 2
+
+## Passing the crown starts a new castle but keeps legacy, which makes every
+## later castle faster. It is the game's long loop (what other incremental
+## games call prestige). Legacy is earned from castle levels and raids won.
+const LEGACY_MIN_RANK := 2
+const LEVELS_PER_LEGACY := 8
+const RAIDS_WON_PER_LEGACY := 2
+## Each point of legacy makes everyone work this much faster.
+const LEGACY_WORK_BONUS := 0.1
+## Each point of legacy adds this much wood and stone to a new castle's stores.
+const LEGACY_START_STOCK := 10
 const START_TREES := 3
 ## Trees the grove has room for before any skills. The screen fits MAX_TREE_PLOTS.
 const BASE_TREE_PLOTS := 8
@@ -77,7 +88,7 @@ const LEVELS_PER_RANK := 5
 const FIRST_RANK_UP := 18
 const RANK_UP_STEP := 24
 
-const SAVE_VERSION := 5
+const SAVE_VERSION := 6
 const AUTOSAVE_INTERVAL := 10.0
 const MAX_OFFLINE_SECONDS := 8 * 3600
 ## Offline progress is only granted (and reported) after this long away.
@@ -101,6 +112,9 @@ var day_time := 0.0
 ## False if there wasn't enough food at dawn today.
 var fed := true
 var raids_faced := 0
+var raids_won := 0
+## Kept when the crown is passed on. See LEGACY_* above.
+var legacy := 0
 ## True while raiders are marching on the castle.
 var raid_incoming := false
 ## Ids of the skills the player owns.
@@ -218,9 +232,10 @@ func food_needed() -> int:
 
 ## Multiplies how fast everyone walks and works: slower when hungry.
 func work_mult() -> float:
+	var legacy_mult := 1.0 + LEGACY_WORK_BONUS * legacy
 	if not fed:
-		return HUNGRY_WORK_MULT
-	return 1.0 + skill_total("fed_bonus")
+		return HUNGRY_WORK_MULT * legacy_mult
+	return (1.0 + skill_total("fed_bonus")) * legacy_mult
 
 
 func _eat() -> void:
@@ -263,6 +278,7 @@ func _resolve_raid() -> void:
 	if won:
 		var reward := RAID_BASE_RENOWN + raids_faced / 3 + int(skill_total("raid_renown"))
 		renown += reward
+		raids_won += 1
 		announced.emit("Raid repelled! +%d renown" % reward)
 	else:
 		var loss := RAID_LOSS * (1.0 - skill_total("raid_loss_cut"))
@@ -594,6 +610,8 @@ func save_game() -> void:
 		"day_time": day_time,
 		"fed": fed,
 		"raids_faced": raids_faced,
+		"raids_won": raids_won,
+		"legacy": legacy,
 		"skills": skills,
 		"income_rate": income_rate,
 		"job": {
@@ -608,11 +626,33 @@ func save_game() -> void:
 	file.store_string(JSON.stringify(data, "\t"))
 
 
-## Wipes the save file and starts over from the beginning.
+## How much legacy passing the crown would give right now.
+func legacy_gain() -> int:
+	if castle_rank() < LEGACY_MIN_RANK:
+		return 0
+	return total_levels() / LEVELS_PER_LEGACY + raids_won / RAIDS_WON_PER_LEGACY
+
+
+## The heir starts a new castle from nothing, but with more legacy.
+func pass_the_crown() -> bool:
+	var gain := legacy_gain()
+	if gain <= 0:
+		return false
+	legacy += gain
+	_start_over()
+	announced.emit("A new heir begins with %d legacy: everyone works %d%% faster" % [legacy, roundi(legacy * LEGACY_WORK_BONUS * 100)])
+	return true
+
+
+## Wipes everything, legacy included, and starts from the very beginning.
 func reset_game() -> void:
-	if FileAccess.file_exists(save_path):
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path))
-	resources = {"wood": 0, "stone": 0, "food": START_FOOD}
+	legacy = 0
+	_start_over()
+
+
+func _start_over() -> void:
+	var start_stock := LEGACY_START_STOCK * legacy
+	resources = {"wood": start_stock, "stone": start_stock, "food": START_FOOD}
 	for id: String in part_levels:
 		part_levels[id] = 0
 	peasants = START_PEASANTS
@@ -625,6 +665,7 @@ func reset_game() -> void:
 	day_time = 0.0
 	fed = true
 	raids_faced = 0
+	raids_won = 0
 	raid_incoming = false
 	job_part = ""
 	for type: String in income_rate:
@@ -633,6 +674,7 @@ func reset_game() -> void:
 	_window_time = 0.0
 	_was_night = false
 	offline_report = {}
+	save_game()
 	# Reloading the scene rebuilds everything on screen from the fresh state.
 	get_tree().reload_current_scene()
 
@@ -663,6 +705,8 @@ func load_game() -> void:
 	day_time = clampf(float(data.get("day_time", 0.0)), 0.0, DAY_LENGTH - 0.1)
 	fed = bool(data.get("fed", true))
 	raids_faced = maxi(int(data.get("raids_faced", 0)), 0)
+	raids_won = clampi(int(data.get("raids_won", 0)), 0, raids_faced)
+	legacy = maxi(int(data.get("legacy", 0)), 0)
 	_was_night = is_night()
 	skills.clear()
 	var saved_skills: Variant = data.get("skills")

@@ -18,6 +18,7 @@ const OUTLINE_COLOR := Color(0.96, 0.95, 0.85)
 @onready var raid_label: Label = %RaidLabel
 @onready var toast_label: Label = %ToastLabel
 @onready var reset_button: Button = %ResetButton
+@onready var crown_button: Button = %CrownButton
 @onready var peasants_label: Label = %PeasantsLabel
 @onready var jobs_box: VBoxContainer = %Jobs
 @onready var hire_button: Button = %HireButton
@@ -32,6 +33,7 @@ var _part_buttons := {}
 var _job_rows := {}
 var _toast_tween: Tween
 var _reset_armed := false
+var _crown_armed := false
 
 
 func _ready() -> void:
@@ -44,6 +46,7 @@ func _ready() -> void:
 	hire_button.pressed.connect(GameState.hire_peasant)
 	skills_button.pressed.connect(skill_tree.show)
 	reset_button.pressed.connect(_on_reset_pressed)
+	crown_button.pressed.connect(_on_crown_pressed)
 	GameState.announced.connect(_show_toast)
 	GameState.raid_resolved.connect(func(_won: bool) -> void: _refresh())
 	_make_part_buttons()
@@ -124,6 +127,18 @@ func _on_reset_pressed() -> void:
 	reset_button.text = "New game"
 
 
+## Passing the crown also starts the castle over, so it takes two presses too.
+func _on_crown_pressed() -> void:
+	if _crown_armed:
+		GameState.pass_the_crown()
+		return
+	_crown_armed = true
+	_refresh()
+	await get_tree().create_timer(RESET_CONFIRM_TIME).timeout
+	_crown_armed = false
+	_refresh()
+
+
 ## Tells the player what they earned while the game was closed, then fades out.
 func _show_offline_report() -> void:
 	var report: Dictionary = GameState.offline_report
@@ -146,6 +161,8 @@ func _refresh() -> void:
 	for type: String in GameState.resources:
 		stock.append("%s: %d" % [type.capitalize(), GameState.resources[type]])
 	stock.append("Renown: %d" % GameState.renown)
+	if GameState.legacy > 0:
+		stock.append("Legacy: %d" % GameState.legacy)
 	resources_label.text = "   ".join(stock)
 	defence_label.text = "Defence: %d" % GameState.total_defence()
 	rank_label.text = "Castle rank %d  (%d/%d levels to next)" % [
@@ -161,6 +178,15 @@ func _refresh() -> void:
 		"Raiders at the walls" if GameState.raid_incoming else "Raid on day %d" % GameState.next_raid_day(),
 		GameState.raid_strength()]
 	raid_label.add_theme_color_override("font_color", TEXT_COLOR if safe else HUNGRY_COLOR)
+
+	var gain := GameState.legacy_gain()
+	crown_button.disabled = gain <= 0
+	if _crown_armed:
+		crown_button.text = "Start a new castle? Press again"
+	elif gain > 0:
+		crown_button.text = "Pass the crown (+%d legacy)" % gain
+	else:
+		crown_button.text = "Pass the crown (needs rank %d)" % GameState.LEGACY_MIN_RANK
 
 	var idle := GameState.idle_peasants()
 	peasants_label.text = "Peasants: %d  (%d idle)" % [GameState.peasants, idle]

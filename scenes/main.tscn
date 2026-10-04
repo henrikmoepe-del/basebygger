@@ -136,12 +136,23 @@ autowrap_mode = 3
 [node name="ResetButton" type="Button" parent="HUD"]
 unique_name_in_owner = true
 offset_left = 8.0
-offset_top = 246.0
-offset_right = 108.0
+offset_top = 248.0
+offset_right = 72.0
 offset_bottom = 266.0
 focus_mode = 0
 theme_override_font_sizes/font_size = 9
 text = "New game"
+
+[node name="CrownButton" type="Button" parent="HUD"]
+unique_name_in_owner = true
+offset_left = 76.0
+offset_top = 248.0
+offset_right = 236.0
+offset_bottom = 266.0
+tooltip_text = "Start a new castle with legacy. Each point of legacy makes everyone work 10% faster, for good."
+focus_mode = 0
+theme_override_font_sizes/font_size = 9
+text = "Pass the crown"
 
 [node name="OfflineLabel" type="Label" parent="HUD"]
 unique_name_in_owner = true
