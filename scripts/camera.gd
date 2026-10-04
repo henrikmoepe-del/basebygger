@@ -1,18 +1,25 @@
 extends Camera2D
 ## Lets the player look around the world, which is wider than the screen:
-## drag with the mouse, or hold A/D or the arrow keys.
+## drag with the mouse, or hold A/D or the arrow keys. The mouse wheel zooms.
 
 const KEY_SPEED := 300.0
 const SCREEN_SIZE := Vector2(640, 360)
+## The ground line's height on screen stays put while zooming.
+const GROUND_Y := 270.0
+## Zoom steps, from closest to furthest out.
+const ZOOM_LEVELS := [1.0, 0.75, 0.5]
 
 ## The left and right edges of the world.
 @export var world_left := -400.0
 @export var world_right := 640.0
 
+var _zoom_index := 0
+
 
 func _ready() -> void:
 	# Start on the castle side, showing what the screen showed before the world grew.
-	position = Vector2(world_right - SCREEN_SIZE.x / 2, SCREEN_SIZE.y / 2)
+	position.x = world_right - SCREEN_SIZE.x / 2
+	_apply_zoom()
 
 
 func _process(delta: float) -> void:
@@ -28,9 +35,28 @@ func _process(delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	# Dragging anywhere that isn't a button slides the view.
 	if event is InputEventMouseMotion and event.button_mask != 0:
-		_move(-event.relative.x)
+		_move(-event.relative.x / zoom.x)
+	elif event is InputEventMouseButton and event.pressed:
+		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			_zoom_index = mini(_zoom_index + 1, ZOOM_LEVELS.size() - 1)
+			_apply_zoom()
+		elif event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			_zoom_index = maxi(_zoom_index - 1, 0)
+			_apply_zoom()
+
+
+func _apply_zoom() -> void:
+	var level: float = ZOOM_LEVELS[_zoom_index]
+	zoom = Vector2(level, level)
+	# Keep the ground three quarters of the way down the screen at every zoom.
+	position.y = GROUND_Y - SCREEN_SIZE.y / level / 4.0
+	_move(0.0)
 
 
 func _move(amount: float) -> void:
-	var half := SCREEN_SIZE.x / 2
-	position.x = clampf(position.x + amount, world_left + half, world_right - half)
+	var half := SCREEN_SIZE.x / zoom.x / 2
+	if half * 2 >= world_right - world_left:
+		# Zoomed out past the whole world: keep it centred.
+		position.x = (world_left + world_right) / 2
+	else:
+		position.x = clampf(position.x + amount, world_left + half, world_right - half)

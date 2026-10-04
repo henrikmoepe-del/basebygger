@@ -630,6 +630,30 @@ func hammer_rate() -> float:
 	return (1.0 + skill_total("hammer")) * work_mult()
 
 
+# --- Developer tools ---
+
+## Jumps the game forward for testing (see dev_tools.gd). It is an estimate,
+## not a real simulation: gatherers bring in what they currently earn per
+## second, the days tick over (with meals), and the building job finishes.
+func dev_skip(seconds: float) -> void:
+	for type: String in income_rate:
+		resources[type] += int(income_rate[type] * seconds)
+	var total := day_time + seconds
+	var days_passed := int(total / DAY_LENGTH)
+	day_time = fmod(total, DAY_LENGTH)
+	for i in days_passed:
+		day += 1
+		_eat()
+	if job_part != "":
+		job_hauled = job_units
+		job_claimed = job_units
+		job_work = job_work_total
+		_finish_job()
+	resources_changed.emit()
+	job_progress_changed.emit()
+	announced.emit("DEV: skipped %d minutes" % roundi(seconds / 60))
+
+
 # --- Save and load ---
 
 func save_game() -> void:
