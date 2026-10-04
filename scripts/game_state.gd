@@ -25,6 +25,7 @@ signal announced(text: String)
 const CastleData = preload("res://scripts/castle_data.gd")
 const SkillData = preload("res://scripts/skill_data.gd")
 const JobData = preload("res://scripts/job_data.gd")
+const BuildPlan = preload("res://scripts/build_plan.gd")
 const QuestData = preload("res://scripts/quest_data.gd")
 
 const START_JOBS := {"wood": 1, "stone": 1, "hunter": 0, "build": 1, "cook": 0, "soldier": 0, "iron": 0, "forester": 0}
@@ -118,8 +119,9 @@ const PLANT_BASE_TIME := 8.0
 const PLANT_TIME_GROWTH := 1.35
 ## How much each forester speeds up regrowth by tending the grove.
 const FORESTER_TEND_BONUS := 0.15
-## How many units of material a builder carries per trip.
-const BUILDER_BASE_LOAD := 30
+## How many pieces (a block of stone, a bundle of poles, a fitting) a builder
+## brings from the stockhouse per trip: a barrow load.
+const BUILDER_BASE_LOAD := 3
 ## Renown pays for skills. It is earned by building the castle.
 const RENOWN_PER_RANK := 3
 
@@ -174,17 +176,20 @@ var siege_active := false
 var skills := {}
 
 ## The building job: the one part being raised a level right now ("" = none).
-## Its materials are paid for when ordered, then builders haul them from the
-## stockhouse to the foot of the site, pull them up to the top of the scaffold
-## by rope, and can only hammer in what has been lifted. Parts without a
-## scaffold are built from the ground: what arrives counts as lifted.
+## Its materials are paid for when ordered. The job is then a list of pieces
+## (job_plan, see build_plan.gd), and each piece goes through the same steps
+## in the same order: a builder fetches it from the stockhouse, it is shaped
+## at the bench at the foot of the site, pulled up by the rope, picked up at
+## the top and put in place. Each counter says how many pieces, counted from
+## the first, have got that far; pieces skip the steps they don't need.
 var job_part := ""
-var job_units := 0        ## Material units the job needs in total.
-var job_claimed := 0      ## Units builders have picked up so far.
-var job_hauled := 0       ## Units that have arrived at the site.
-var job_lifted := 0       ## Units that have been pulled up to the builders.
-var job_work := 0.0       ## Seconds of hammering done.
-var job_work_total := 0.0
+var job_plan := {}
+var job_claimed := 0      ## Pieces builders have set off from the stockhouse with.
+var job_hauled := 0       ## Pieces that have arrived at the foot of the site.
+var job_formed := 0       ## Pieces shaped at the bench.
+var job_lifted := 0       ## Pieces pulled up to the top.
+var job_taken := 0        ## Pieces a builder has picked up to put in place.
+var job_placed := 0       ## Pieces in place.
 
 ## Measured resources per second brought in by peasants. Used for offline progress.
 var income_rate := {"wood": 0.0, "stone": 0.0, "food": 0.0, "iron": 0.0}
@@ -646,10 +651,9 @@ func part_cost(id: String) -> Dictionary:
 	return cost
 
 
-## Seconds of hammering for the part's next level.
-func part_work(id: String) -> float:
-	var discount := 1.0 - skill_total("work_discount")
-	return CastleData.PARTS[id].work * pow(CastleData.WORK_GROWTH, part_levels[id]) * discount
+## How much longer or shorter than usual shaping and placing a piece takes.
+func build_time_mult() -> float:
+	return 1.0 - skill_total("work_discount")
 
 
 ## Why the part can't be ordered right now (apart from cost), or "" if it can.
@@ -693,81 +697,120 @@ func _scaled_cost(base: Dictionary, growth: float, level: int) -> Dictionary:
 func order_part(id: String) -> bool:
 	if part_block_reason(id) != "":
 		return false
-	var cost := part_cost(id)
-	if not spend(cost):
+	if not spend(part_cost(id)):
 		return false
 	job_part = id
-	job_units = 0
-	for type: String in cost:
-		job_units += cost[type]
+	job_plan = BuildPlan.make(id, part_levels[id])
 	job_claimed = 0
 	job_hauled = 0
+	job_formed = 0
 	job_lifted = 0
-	job_work = 0.0
-	job_work_total = part_work(id)
+	job_taken = 0
+	job_placed = 0
+	if job_size() == 0:
+		# Nothing to see changes at this level, so there is nothing to place.
+		_finish_job()
+		return true
 	castle_changed.emit()
 	return true
 
 
-## A builder at the stockhouse picks up to max_units for the job.
+## The pieces of the job, in the order they are placed.
+func job_pieces() -> Array:
+	return job_plan.get("pieces", [])
+
+
+func job_size() -> int:
+	return job_pieces().size()
+
+
+## A builder at the stockhouse picks up to max_pieces for the job.
 ## Returns how many they got (0 = nothing left to carry).
-func job_take_load(max_units: int) -> int:
-	var units := mini(max_units, job_units - job_claimed)
-	job_claimed += units
-	return units
+func job_take_load(max_pieces: int) -> int:
+	var pieces := mini(max_pieces, job_size() - job_claimed)
+	job_claimed += pieces
+	return pieces
 
 
 ## A builder was reassigned mid-trip: their load goes back to the stockhouse.
-func job_return_load(units: int) -> void:
-	job_claimed = maxi(job_claimed - units, job_hauled)
+func job_return_load(pieces: int) -> void:
+	job_claimed = maxi(job_claimed - pieces, job_hauled)
 
 
-func job_deliver(units: int) -> void:
-	job_hauled += units
-	if CastleData.sections(job_part, part_levels[job_part] + 1).is_empty():
-		job_lifted = job_hauled
+## A builder dropped pieces at the foot of the site.
+func job_deliver(pieces: int) -> void:
+	job_hauled += pieces
+	_job_advance()
 	job_delivered.emit()
 	job_progress_changed.emit()
 
 
-## How many delivered units are waiting at the foot of the hoist.
-func job_waiting() -> int:
-	return job_hauled - job_lifted
+## Pieces at the foot of the site waiting to be shaped at the bench.
+func job_rough() -> int:
+	return job_hauled - job_formed
 
 
-## A builder at the top pulls up to max_units from the pile below.
-## Returns how many came up.
-func job_lift(max_units: int) -> int:
-	var units := mini(max_units, job_waiting())
-	if units > 0:
-		job_lifted += units
-		job_progress_changed.emit()
-	return units
+## The piece on the bench has been shaped.
+func job_form() -> void:
+	job_formed += 1
+	_job_advance()
+	job_progress_changed.emit()
 
 
-## True if there is lifted material that hasn't been hammered in yet.
-func job_can_hammer() -> bool:
-	return job_part != "" and job_work < _job_work_allowed()
+## Shaped pieces waiting at the foot of the rope.
+func job_ready() -> int:
+	return job_formed - job_lifted
 
 
-func job_add_work(seconds: float) -> void:
-	job_work = minf(job_work + seconds, _job_work_allowed())
-	if job_lifted >= job_units and job_work >= job_work_total:
+## A piece has been pulled up to the top.
+func job_lift() -> void:
+	job_lifted += 1
+	_job_advance()
+	job_progress_changed.emit()
+
+
+## Pieces waiting for a builder to pick them up and put them in place.
+func job_landed() -> int:
+	return job_lifted - job_taken
+
+
+## A builder picks up the next piece to place. Returns which one it is
+## (its place in job_pieces()), or -1 if none is waiting.
+func job_take_piece() -> int:
+	if job_landed() <= 0:
+		return -1
+	job_taken += 1
+	job_progress_changed.emit()
+	return job_taken - 1
+
+
+## A builder was reassigned while carrying a piece to its place: it goes back.
+func job_untake() -> void:
+	job_taken = maxi(job_taken - 1, job_placed)
+
+
+## A piece has been put in place. The last one finishes the job.
+func job_place() -> void:
+	job_placed += 1
+	if job_placed >= job_size():
 		_finish_job()
 	job_progress_changed.emit()
 
 
 ## How far along the job is, from 0 to 1.
 func job_fraction() -> float:
-	if job_part == "":
+	if job_size() == 0:
 		return 0.0
-	return clampf(job_work / job_work_total, 0.0, 1.0)
+	return clampf(float(job_placed) / job_size(), 0.0, 1.0)
 
 
-func _job_work_allowed() -> float:
-	if job_lifted >= job_units:
-		return job_work_total
-	return job_work_total * job_lifted / job_units
+## Pieces that need no shaping or no lifting pass those steps by themselves.
+func _job_advance() -> void:
+	var pieces := job_pieces()
+	while job_formed < job_hauled and not pieces[job_formed].form:
+		job_formed += 1
+	while job_lifted < job_formed and not pieces[job_lifted].lift:
+		job_lifted += 1
 
 
 func _finish_job() -> void:
@@ -778,6 +821,7 @@ func _finish_job() -> void:
 		renown += RENOWN_PER_RANK + int(skill_total("rank_renown"))
 		announced.emit("Castle rank %d! Parts can now reach level %d" % [castle_rank(), level_cap()])
 	job_part = ""
+	job_plan = {}
 	castle_changed.emit()
 	skills_changed.emit()
 
@@ -854,7 +898,7 @@ func tree_bonus_wood() -> int:
 	return int(skill_total("tree_wood"))
 
 
-## How many units of material a builder carries per trip.
+## How many pieces a builder carries per trip.
 func builder_load() -> int:
 	return BUILDER_BASE_LOAD + int(skill_total("builder_load"))
 
@@ -883,10 +927,6 @@ func dev_skip(seconds: float) -> void:
 		day += 1
 		_eat()
 	if job_part != "":
-		job_hauled = job_units
-		job_claimed = job_units
-		job_lifted = job_units
-		job_work = job_work_total
 		_finish_job()
 	resources_changed.emit()
 	job_progress_changed.emit()
@@ -917,8 +957,8 @@ func save_game() -> void:
 		"skills": skills,
 		"income_rate": income_rate,
 		"job": {
-			"part": job_part, "units": job_units, "hauled": job_hauled, "lifted": job_lifted,
-			"work": job_work, "work_total": job_work_total,
+			"part": job_part, "hauled": job_hauled, "formed": job_formed,
+			"lifted": job_lifted, "placed": job_placed,
 		},
 	}
 	var file := FileAccess.open(save_path, FileAccess.WRITE)
@@ -973,6 +1013,7 @@ func _start_over() -> void:
 	quest_index = 0
 	raid_incoming = false
 	job_part = ""
+	job_plan = {}
 	for type: String in income_rate:
 		income_rate[type] = 0.0
 		_window_income[type] = 0
@@ -1027,15 +1068,19 @@ func load_game() -> void:
 				skills[id] = clampi(int(saved_skills[id]), 0, SkillData.SKILLS[id].max_level)
 
 	var job: Variant = data.get("job")
-	if job is Dictionary and part_levels.has(job.get("part", "")) and float(job.get("work_total", 0.0)) > 0.0:
+	if job is Dictionary and part_levels.has(job.get("part", "")):
 		job_part = job.part
-		job_units = maxi(int(job.get("units", 1)), 1)
-		job_hauled = clampi(int(job.get("hauled", 0)), 0, job_units)
-		# Loads that were being carried when the game closed go back to the stockhouse.
+		job_plan = BuildPlan.make(job_part, part_levels[job_part])
+		job_hauled = clampi(int(job.get("hauled", 0)), 0, job_size())
+		job_formed = clampi(int(job.get("formed", 0)), 0, job_hauled)
+		job_lifted = clampi(int(job.get("lifted", 0)), 0, job_formed)
+		job_placed = clampi(int(job.get("placed", 0)), 0, job_lifted)
+		# Pieces that were being carried when the game closed go back to where they were picked up.
 		job_claimed = job_hauled
-		job_lifted = clampi(int(job.get("lifted", job_hauled)), 0, job_hauled)
-		job_work_total = float(job.work_total)
-		job_work = clampf(float(job.get("work", 0.0)), 0.0, _job_work_allowed())
+		job_taken = job_placed
+		if job_placed >= job_size():
+			job_part = ""
+			job_plan = {}
 
 	var now := Time.get_unix_time_from_system()
 	_grant_offline_progress(now - float(data.get("saved_at", now)))

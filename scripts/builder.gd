@@ -1,146 +1,164 @@
 extends "res://scripts/worker.gd"
-## A peasant who builds. Materials are carried from the stockhouse to the foot
-## of the site, pulled up to the top by rope, and put in place up there piece
-## by piece (castle.gd decides which piece is next and where to stand for it). Builders share the work out: some carry, one pulls the rope, and
-## the rest lay stone. A lone builder does each in turn.
-## Parts without a scaffold are built from the ground, with no rope.
+## A peasant who builds. Nothing appears out of thin air: every piece of a
+## job (a block of stone, a bundle of scaffold poles, a window) is handled by
+## a builder at each step:
+##   1. carried from the stockhouse to the yard at the foot of the site
+##   2. shaped at the bench there (stone is dressed, fittings are put together)
+##   3. pulled up to the top by the rope
+##   4. picked up at the top, carried to its place and set in
+## Builders share the steps out: each takes whatever is waiting, and a lone
+## builder does them all in turn. GameState counts how far each piece has
+## got; castle.gd says where to stand.
 
-enum State { IDLE, TO_STOCK, TO_FOOT, HOIST, HAMMER }
+enum State { IDLE, TO_STOCK, TO_YARD, FORM, HOIST, TO_PIECE, PLACE }
 
-## Seconds to pull one load up the rope.
+## Seconds to shape one piece at the bench, pull one up the rope, and set one in place.
+const FORM_TIME := 2.5
 const HOIST_TIME := 1.2
-## The rope lifts this many builder's loads at once.
-const HOIST_LOADS := 2
-## A lone builder carries this many loads to the site before climbing up.
-const SOLO_PILE_LOADS := 3
-## A builder this close to the piece being placed can work on it from where they stand.
-const WORK_REACH := 40.0
-## Following the work along the top is quicker than walking with a load.
-const SHUFFLE_SPEED := 2.0
+const PLACE_TIME := 1.5
+## Builders go up to work at the top once this many pieces are waiting there
+## for each builder already up, so nobody climbs the ladder for one block.
+const BATCH := 4
+const SKIN := Color(0.93, 0.76, 0.62)
+const TOOL := Color(0.30, 0.30, 0.34)
 
 var _state := State.IDLE
+## How many pieces are being carried from the stockhouse, and their colour.
 var _carrying := 0
-var _offset := randf_range(-8.0, 8.0)
-## Where along the top this builder works, from 0 to 1.
-var _along := randf()
+var _carry_color := Color.WHITE
+## The piece being carried to its place (its number in the plan), or -1.
+var _piece := -1
+var _offset := randf_range(-6.0, 6.0)
+## Seconds spent on the step in hand.
+var _timer := 0.0
 var _swing := randf() * TAU
 var _hammering := false
 var _pulling := false
-var _pull_time := 0.0
 
 
 func _work(delta: float) -> void:
 	_hammering = false
 	_pulling = false
-	_hurry = 1.0
 	if GameState.job_part == "":
 		# No job: put down anything carried and wait by the castle.
 		_carrying = 0
+		_piece = -1
 		_state = State.IDLE
 		_walk_to(home_x, delta)
 		return
 
 	var castle: Node2D = world.castle
+	var before := _state
 	match _state:
 		State.IDLE:
 			_state = _choose_task()
 		State.TO_STOCK:
 			if _walk_to(world.stock_x + _offset, delta):
+				_carry_color = castle.item_color(GameState.job_claimed)
 				_carrying = GameState.job_take_load(int(GameState.builder_load() * _skill()))
-				_state = State.TO_FOOT if _carrying > 0 else State.IDLE
-		State.TO_FOOT:
-			if _walk_to(castle.hoist_x() + 10.0 + _offset, delta):
+				_state = State.TO_YARD if _carrying > 0 else State.IDLE
+		State.TO_YARD:
+			if _walk_to(castle.yard_x() + _offset, delta):
 				GameState.job_deliver(_carrying)
 				_carrying = 0
 				_state = State.IDLE
+		State.FORM:
+			if GameState.job_rough() <= 0:
+				_state = State.IDLE
+			elif _walk_to(castle.bench_x(), delta) and _toil(delta, FORM_TIME, "mine"):
+				GameState.job_form()
+				_state = State.IDLE
 		State.HOIST:
-			if GameState.job_waiting() <= 0:
+			if GameState.job_ready() <= 0:
 				_state = State.IDLE
 			elif _go_to(castle.hoist_spot(), delta):
-				# Hand over hand: the load is at the top when the pull is done.
+				# Hand over hand: the piece is at the top when the pull is done.
 				_pulling = true
-				if _pull_time <= 0.0:
+				if _timer <= 0.0:
 					castle.show_hoist()
-				_pull_time += delta
+				_timer += delta
 				_swing += delta * 10.0
-				if _pull_time >= HOIST_TIME:
-					_pull_time = 0.0
-					GameState.job_lift(int(GameState.builder_load() * _skill()) * HOIST_LOADS)
+				if _timer >= HOIST_TIME:
+					GameState.job_lift()
 					_state = State.IDLE
-		State.HAMMER:
-			var spot: Vector2 = castle.work_spot(_along)
-			var level := absf(position.y - spot.y) < 0.5
-			if absf(position.y - spot.y) <= castle.FLOOR_SNAP:
-				_hurry = SHUFFLE_SPEED
-			if (level and absf(position.x - spot.x) <= WORK_REACH) or _go_to(spot, delta):
-				if GameState.job_can_hammer():
-					_hammering = true
-					# One clink each time the hammer comes down.
-					if int((_swing + delta * 10.0) / PI) != int(_swing / PI):
-						get_tree().call_group("sfx", "play", "hammer")
-					_swing += delta * 10.0
-					GameState.job_add_work(GameState.hammer_rate() * _skill() * delta)
-				else:
-					_state = State.IDLE
-	if _state != State.HOIST:
-		_pull_time = 0.0
+		State.TO_PIECE:
+			if GameState.job_landed() <= 0:
+				_state = State.IDLE
+			elif _go_to(castle.pickup_spot(), delta):
+				_piece = GameState.job_take_piece()
+				_state = State.PLACE if _piece >= 0 else State.IDLE
+		State.PLACE:
+			if _go_to(castle.stand_spot(_piece), delta) and _toil(delta, PLACE_TIME, "hammer"):
+				_piece = -1
+				GameState.job_place()
+				_state = State.IDLE
+	if _state != before:
+		_timer = 0.0
 
 
 func _exit_tree() -> void:
-	# Reassigned while carrying: the load goes back to the stockhouse.
-	if _carrying > 0 and GameState.job_part != "":
+	# Reassigned while carrying: what is carried goes back where it came from.
+	if GameState.job_part == "":
+		return
+	if _carrying > 0:
 		GameState.job_return_load(_carrying)
+	if _piece >= 0:
+		GameState.job_untake()
 
 
 ## True while this builder is one of those working at the top.
 func is_top_crew() -> bool:
-	return _state == State.HOIST or _state == State.HAMMER
+	return _state == State.HOIST or _state == State.TO_PIECE or _state == State.PLACE
 
 
 func is_hoisting() -> bool:
 	return _state == State.HOIST
 
 
-func is_carrying() -> bool:
-	return _state == State.TO_STOCK or _state == State.TO_FOOT
+func is_forming() -> bool:
+	return _state == State.FORM
 
 
+## Hammers away at the step in hand. Returns true when it is done.
+func _toil(delta: float, seconds: float, sound: String) -> bool:
+	_hammering = true
+	# One clink each time the hammer comes down.
+	if int((_swing + delta * 10.0) / PI) != int(_swing / PI):
+		get_tree().call_group("sfx", "play", sound)
+	_swing += delta * 10.0
+	_timer += delta * GameState.hammer_rate() * _skill()
+	return _timer >= seconds * GameState.build_time_mult()
+
+
+## Picks the next step to do. A builder already at the top keeps working
+## there while there is anything to do; one on the ground places what can be
+## placed from the ground, goes up when enough is waiting above, and
+## otherwise shapes pieces at the bench or fetches more.
 func _choose_task() -> State:
-	var to_fetch := GameState.job_claimed < GameState.job_units
-	if not world.castle.job_has_scaffold():
-		# Built from the ground: hammer in what has arrived, else fetch more.
-		if GameState.job_can_hammer() or not to_fetch:
-			return State.HAMMER
-		return State.TO_STOCK
+	var pieces: Array = GameState.job_pieces()
+	var can_place := GameState.job_landed() > 0
+	var place_above: bool = can_place and pieces[GameState.job_taken].lift
+	var can_hoist: bool = GameState.job_ready() > 0 and not world.hoist_manned(self)
+	var can_form: bool = GameState.job_rough() > 0 and not world.bench_manned(self)
+	var to_fetch := GameState.job_claimed < GameState.job_size()
 	if position.y < -0.5:
-		# Up on the scaffold already: do what there is to do up here.
-		if _can_hoist():
+		if can_place:
+			return State.TO_PIECE
+		if can_hoist:
 			return State.HOIST
-		if GameState.job_can_hammer():
-			return State.HAMMER
-		# Nothing to lay: go for more, unless someone else is carrying.
-		if to_fetch and world.builders_carrying(self) == 0:
-			return State.TO_STOCK
-		return State.HAMMER
-	# On the ground: carry, unless more hands are needed at the top.
-	var work_above := GameState.job_can_hammer() or GameState.job_waiting() > 0
-	if to_fetch and not (work_above and world.builders_aloft(self) < _crew_wanted()):
+	if can_place and not place_above:
+		return State.TO_PIECE
+	# Work waiting at the top, or to go up: is it worth the climb yet?
+	var above := GameState.job_ready() + (GameState.job_landed() if place_above else 0)
+	var go_up := State.TO_PIECE if place_above else (State.HOIST if can_hoist else State.IDLE)
+	if go_up != State.IDLE and above >= BATCH * (world.builders_aloft(self) + 1):
+		return go_up
+	if can_form:
+		return State.FORM
+	if to_fetch:
 		return State.TO_STOCK
-	return State.HOIST if _can_hoist() else State.HAMMER
-
-
-## True if there is a load to pull up and nobody else is at the rope.
-func _can_hoist() -> bool:
-	return GameState.job_waiting() > 0 and not world.hoist_manned(self)
-
-
-## How many builders should be working at the top while there is still
-## carrying to do: half of them, or a lone builder once a pile has built up.
-func _crew_wanted() -> int:
-	var builders: int = GameState.jobs.build
-	if builders <= 1:
-		return 1 if GameState.job_waiting() >= GameState.builder_load() * SOLO_PILE_LOADS else 0
-	return builders / 2
+	# Nothing left to do on the ground.
+	return go_up
 
 
 func _pace() -> float:
@@ -155,12 +173,14 @@ func _bob() -> float:
 
 func _draw_extra(bob_y: float) -> void:
 	if _carrying > 0:
-		draw_rect(Rect2(-4, -20, 8, 5), Color(0.62, 0.62, 0.66))
+		draw_rect(Rect2(-4, -20, 8, 5), _carry_color)
+	elif _piece >= 0 and not _hammering:
+		draw_rect(Rect2(-4, -20, 8, 5), world.castle.item_color(_piece))
 	elif _hammering:
 		# Hammer swings forward and back.
 		var reach := 4.0 + absf(sin(_swing)) * 3.0
-		draw_rect(Rect2(reach, bob_y - 12, 4, 3), Color(0.30, 0.30, 0.34))
+		draw_rect(Rect2(reach, bob_y - 12, 4, 3), TOOL)
 		draw_rect(Rect2(3, bob_y - 10, reach - 2, 1), Color(0.48, 0.32, 0.20))
 	elif _pulling:
 		# Arms out over the edge, hauling on the rope.
-		draw_rect(Rect2(3, bob_y - 9, 5, 2), Color(0.93, 0.76, 0.62))
+		draw_rect(Rect2(3, bob_y - 9, 5, 2), SKIN)

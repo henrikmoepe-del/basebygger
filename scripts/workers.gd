@@ -188,14 +188,14 @@ func bed_x(x: float) -> float:
 	return nearest
 
 
-## How many builders other than this one are working at the top of the scaffold.
+## How many builders other than this one are working at the top of the site.
 func builders_aloft(except: Node) -> int:
 	return _builders(except).filter(func(b: Node) -> bool: return b.is_top_crew()).size()
 
 
-## How many builders other than this one are carrying materials to the site.
-func builders_carrying(except: Node) -> int:
-	return _builders(except).filter(func(b: Node) -> bool: return b.is_carrying()).size()
+## True if a builder other than this one is shaping a piece at the bench.
+func bench_manned(except: Node) -> bool:
+	return _builders(except).any(func(b: Node) -> bool: return b.is_forming())
 
 
 ## True if a builder other than this one is at the rope.

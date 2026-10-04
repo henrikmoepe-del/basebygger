@@ -69,11 +69,17 @@
   - Cows (Cattle skill) wait with carts at gathering sites and haul loads home
   - Build mode: B (or the Build button) shows a circle per part; pointing at one shows a card with
     a round preview, cost, benefit and drawback; click to order. Nothing can be ordered outside it.
-  - Building: builders carry materials to the foot of the site, one pulls them up by rope, and
-    they put the part together piece by piece where they stand (`builder.gd` shares out the roles).
-    `castle.gd` `_make_plan` lists the pieces of a job: scaffold bays, then stone blocks a course at
-    a time, then each fitting (window, door, battlement, roof step). Pieces placed = work done.
+  - Building: nothing appears out of thin air. `build_plan.gd` turns a job into a list of pieces
+    (scaffold bays, then stone blocks a course at a time, then each fitting: window, door,
+    battlement, roof step). Every piece is carried from the stockhouse to the yard at the foot of
+    the site, shaped at the bench there, pulled up by the rope, picked up at the top, carried to its
+    place and set in. `GameState` counts how far the pieces have got (`job_hauled`, `job_formed`,
+    `job_lifted`, `job_taken`, `job_placed`); `builder.gd` picks which step to do; `castle.gd` draws
+    the yard, piles and hoist and says where to stand. One bench and one rope per site.
     No preview outline. Parts without sections (palisade, watchtower, village) are built from the ground.
+  - Wanted next for building (Henrik): pieces that must be made first, e.g. a window made at a
+    workstation from gathered materials and then carried to the site. The hook is `BuildPlan.ITEMS`
+    ("item" per piece kind): give an item a recipe and have builders fetch it from the workstation.
   - Walkable castle: `CastleData.floors()` lists floors and stairs per part; `castle.gd` finds the way
     (`route`), and `worker.gd` `_go_to` walks it. Soldiers patrol the wall walk, tower tops and roofs;
     idle peasants stroll around the castle; at night everyone sleeps behind the nearest door.
@@ -87,9 +93,12 @@
 - Henrik's list from the last round is built. Wanted later: more minerals than iron, better food
   from trained cooks, buildings only trained builders can raise, individual peasant traits
 - Known balance issues: iron piles up late (costs are low); food is now tight in the mid game;
-  since the castle grew, parts far from the stockhouse (keep, court) take longer to build
-  (builders carry 30 per trip to make up for it, which makes the builder-load skills weak).
-  Costs were not changed for the bigger castle. The scaffold vanishes at once when a job is done.
+  building is slow on purpose and NOT balanced yet (Henrik: balance later, the game is meant to take
+  hours): the first wall level takes one builder about 27 daytime minutes, six builders a few
+  minutes per level. Knobs: `BUILDER_BASE_LOAD` (3 pieces per trip), `CastleData.BLOCK_WIDTH`,
+  the times in `builder.gd`. "work" in `castle_data.gd` and the Masonry-style work skills that
+  scaled it are unused or weak now; costs were not changed for the bigger castle.
+  The scaffold vanishes at once when a job is done.
 - Next for the castle: rooms inside it (kitchen, smithy, stores) so more jobs happen within the walls;
   lit windows at night; the two towers as separate parts.
 - Design notes:

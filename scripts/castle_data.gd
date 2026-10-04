@@ -15,8 +15,9 @@ extends RefCounted
 ## the part. The drawbacks are real: see DRAWBACKS below and where GameState
 ## uses them.
 ##
-## "cost" and "work" are for level 1; each further level multiplies them by
-## COST_GROWTH and WORK_GROWTH. "work" is seconds of hammering for one builder.
+## "cost" is for level 1; each further level multiplies it by COST_GROWTH.
+## How long a level takes to build comes from how many pieces it is made of
+## (see build_plan.gd), so "work" and WORK_GROWTH are not used at the moment.
 ## "site_x" is where the part's circle floats in build mode, and where builders
 ## work on parts that need no scaffolding. All positions are relative to the
 ## castle's ground-centre point.
@@ -183,7 +184,7 @@ const BODY_MIN_SIZE := 12.0
 ## posts, flags. Builders put each one in place whole.
 const FITTING_MAX_WIDTH := 40.0
 ## Stone is laid in blocks this wide.
-const BLOCK_WIDTH := 16.0
+const BLOCK_WIDTH := 24.0
 
 
 ## The towers that stand at a level, each {"x", "w", "h", "kind"}: the two
@@ -212,7 +213,7 @@ static func height(part: String, level: int) -> float:
 	var v := mini(level, MAX_VISUAL_LEVEL)
 	match part:
 		"walls":
-			return 40.0 + 10.0 * v
+			return 20.0 + 10.0 * v
 		"gate":
 			return 34.0 + 4.0 * mini(v, 7) + (8.0 if level >= 2 else 0.0)
 		"keep":
@@ -247,7 +248,8 @@ static func course(part: String) -> float:
 static func sections(part: String, level: int) -> Array:
 	match part:
 		"walls":
-			return [[-WALL_HALF, WALL_HALF]]
+			# The east half first: it is nearer the stockhouse.
+			return [[0.0, WALL_HALF], [-WALL_HALF, 0.0]]
 		"towers":
 			var out := []
 			for tower: Dictionary in towers(level):
@@ -267,7 +269,8 @@ static func sections(part: String, level: int) -> Array:
 ## Where the rope hangs that lifts materials to the top of a section.
 static func hoist_x(part: String, section: Array) -> float:
 	if part == "walls":
-		return PARTS.walls.site_x
+		# In the open ground at the east end, and in front of the gate.
+		return PARTS.walls.site_x if section[1] > WALL_HALF / 2.0 else 8.0
 	return section[1] + 8.0
 
 

@@ -36,8 +36,6 @@ var _route_version := -1
 ## True while inside a building: on its stairs, or asleep.
 var _inside := false
 var _back := false
-## Jobs can raise this to move faster for a while.
-var _hurry := 1.0
 ## The door this peasant sleeps behind tonight (NAN during the day).
 var _bed_x := NAN
 ## Where an idle peasant is strolling to, and how long they stay there.
@@ -137,7 +135,7 @@ func _go_to(target: Vector2, delta: float) -> bool:
 		_route_version = castle.version
 	var step: Dictionary = _route[0]
 	var climbing := is_equal_approx(step.pos.x, position.x)
-	position = position.move_toward(step.pos, speed * _pace() * _hurry * delta * (CLIMB_SPEED if climbing else 1.0))
+	position = position.move_toward(step.pos, speed * _pace() * delta * (CLIMB_SPEED if climbing else 1.0))
 	_inside = step.hidden
 	_back = step.back
 	if position.is_equal_approx(step.pos):
