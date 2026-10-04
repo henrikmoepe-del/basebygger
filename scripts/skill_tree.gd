@@ -23,6 +23,7 @@ const TEXT := Color(0.92, 0.93, 0.96)
 const TEXT_DIM := Color(0.55, 0.58, 0.66)
 const CARD_FILL := Color(0.08, 0.10, 0.15, 0.97)
 const CARD_SIZE := Vector2(200, 104)
+const PULSE_TIME := 0.4
 
 @onready var renown_label: Label = %SkillRenownLabel
 @onready var close_button: Button = %SkillCloseButton
@@ -30,6 +31,9 @@ const CARD_SIZE := Vector2(200, 104)
 ## Where the centre of the map is on screen. Dragging changes it.
 var _origin := Vector2(320, 190)
 var _hovered := ""
+## The skill just bought, and seconds since: a ring spreads out from it.
+var _pulse := ""
+var _pulse_age := 0.0
 var _font: Font = ThemeDB.fallback_font
 
 
@@ -48,8 +52,18 @@ func _gui_input(event: InputEvent) -> void:
 		queue_redraw()
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		var id := _skill_at(event.position)
-		if id != "" and _is_revealed(id):
-			GameState.buy_skill(id)
+		if id != "" and _is_revealed(id) and GameState.buy_skill(id):
+			_pulse = id
+			_pulse_age = 0.0
+			get_tree().call_group("sfx", "play", "buy")
+
+
+func _process(delta: float) -> void:
+	if _pulse != "":
+		_pulse_age += delta
+		if _pulse_age >= PULSE_TIME:
+			_pulse = ""
+		queue_redraw()
 
 
 func _draw() -> void:
@@ -69,6 +83,10 @@ func _draw() -> void:
 	for id: String in SkillData.SKILLS:
 		if _is_shown(id):
 			_draw_node(id)
+	if _pulse != "":
+		var spread := NODE / 2 + 22.0 * _pulse_age / PULSE_TIME
+		var ring := Rect2(_center(_pulse) - Vector2(spread, spread), Vector2(spread, spread) * 2)
+		draw_rect(ring, Color(BORDER_OWNED, 1.0 - _pulse_age / PULSE_TIME), false, 2.0)
 	if _hovered != "" and _is_shown(_hovered):
 		_draw_card(_hovered)
 

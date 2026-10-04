@@ -6,6 +6,7 @@ extends Node2D
 const JobData = preload("res://scripts/job_data.gd")
 const LEGS := Color(0.30, 0.24, 0.20)
 const LEG_HEIGHT := 2.0
+const HOP_TIME := 0.35
 
 ## The job id from JobData.JOBS, or "" for idle.
 var job := ""
@@ -17,6 +18,8 @@ var speed := 50.0
 var world: Node2D
 
 var _walking := false
+## Seconds since this peasant appeared; they hop once as they arrive.
+var _age := 0.0
 var _last_x := 0.0
 
 
@@ -28,6 +31,7 @@ func _process(delta: float) -> void:
 	else:
 		show()
 		_work(delta)
+	_age += delta
 	_walking = not is_equal_approx(position.x, _last_x)
 	_last_x = position.x
 	queue_redraw()
@@ -46,12 +50,14 @@ func _work(delta: float) -> void:
 func _draw() -> void:
 	var tunic: Color = JobData.JOBS[job].color if job != "" else JobData.IDLE_COLOR
 	var bob := _bob()
+	var hop := -sin(clampf(_age / HOP_TIME, 0.0, 1.0) * PI) * 7.0
+	draw_set_transform(Vector2(0, hop))
 	# Legs: while walking, they take turns stepping.
 	var step := int(Time.get_ticks_msec() / 140.0 + position.x) % 2 if _walking else -1
 	draw_rect(Rect2(-2, -3, 2, 2 if step == 0 else 3), LEGS)
 	draw_rect(Rect2(1, -3, 2, 2 if step == 1 else 3), LEGS)
 	# The body sits on top of the legs.
-	draw_set_transform(Vector2(0, -LEG_HEIGHT))
+	draw_set_transform(Vector2(0, hop - LEG_HEIGHT))
 	draw_rect(Rect2(-3, bob - 10, 6, 10), tunic)
 	draw_rect(Rect2(-2, bob - 14, 4, 4), Color(0.93, 0.76, 0.62))
 	if trained:

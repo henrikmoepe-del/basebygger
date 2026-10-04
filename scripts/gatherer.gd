@@ -11,6 +11,10 @@ const CARRY_COLORS := {
 }
 ## Digging iron out of the mine takes this many times longer than other gathering.
 const IRON_WORK_MULT := 3.0
+## Seconds between swings of the axe or pick while working.
+const SWING_TIME := 0.35
+## The sound each resource makes when it is worked (food is gathered quietly).
+const WORK_SOUNDS := {"wood": "chop", "stone": "mine", "iron": "mine"}
 const RETRY_TIME := 0.5
 const WORK_TIME := 1.0
 
@@ -20,6 +24,7 @@ var _spot: Node2D
 var _spot_offset := randf_range(-5.0, 5.0)
 var _carrying := 0
 var _resource := ""
+var _swing_timer := 0.0
 
 
 func _work(delta: float) -> void:
@@ -44,6 +49,10 @@ func _work(delta: float) -> void:
 					_timer *= IRON_WORK_MULT
 		State.WORKING:
 			_timer -= delta
+			_swing_timer -= delta
+			if _swing_timer <= 0.0:
+				_swing_timer = SWING_TIME
+				_swing()
 			if _timer <= 0.0:
 				# Take as much as the basket holds, or whatever is left.
 				while _carrying < GameState.carry_amount(job) * _skill() and _spot.take():
@@ -61,6 +70,16 @@ func _work(delta: float) -> void:
 				_carrying = 0
 				_state = State.IDLE
 				_timer = 0.0
+
+
+## One swing: chips fly, the tree shakes, and there is a thunk.
+func _swing() -> void:
+	if not WORK_SOUNDS.has(_resource):
+		return
+	get_tree().call_group("effects", "burst", _spot.global_position + Vector2(_spot_offset, -8.0), CARRY_COLORS[_resource], 3)
+	get_tree().call_group("sfx", "play", WORK_SOUNDS[_resource])
+	if _spot.has_method("shake"):
+		_spot.shake()
 
 
 func _bob() -> float:

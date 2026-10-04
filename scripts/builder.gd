@@ -36,6 +36,9 @@ func _work(delta: float) -> void:
 			if _walk_to(world.site_x() + _offset, delta):
 				if GameState.job_can_hammer():
 					_hammering = true
+					# One clink each time the hammer comes down.
+					if int((_swing + delta * 10.0) / PI) != int(_swing / PI):
+						get_tree().call_group("sfx", "play", "hammer")
 					_swing += delta * 10.0
 					GameState.job_add_work(GameState.hammer_rate() * _skill() * delta)
 				else:

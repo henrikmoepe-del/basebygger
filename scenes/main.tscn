@@ -13,6 +13,8 @@
 [ext_resource type="Script" path="res://scripts/build_hover.gd" id="12_hover"]
 [ext_resource type="Script" path="res://scripts/quarry.gd" id="13_quarry"]
 [ext_resource type="Script" path="res://scripts/backdrop.gd" id="14_backdrop"]
+[ext_resource type="Script" path="res://scripts/effects.gd" id="15_effects"]
+[ext_resource type="Script" path="res://scripts/sfx.gd" id="16_sfx"]
 
 [node name="Main" type="Node2D"]
 
@@ -81,6 +83,12 @@ rock = NodePath("../Rock")
 wilds = NodePath("../Wilds")
 mine = NodePath("../MineSpot")
 castle = NodePath("../Castle")
+
+[node name="Effects" type="Node2D" parent="."]
+script = ExtResource("15_effects")
+
+[node name="Sfx" type="Node" parent="."]
+script = ExtResource("16_sfx")
 
 [node name="Raiders" type="Node2D" parent="."]
 position = Vector2(0, 270)

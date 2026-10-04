@@ -12,18 +12,49 @@ const PLANK_SPACING := 18.0
 const HOIST_TIME := 1.2
 ## The most stones shown waiting in the pile at the site.
 const MAX_PILE := 6
+const FLASH_TIME := 0.5
+const DUST := Color(0.85, 0.82, 0.72)
 
 ## One entry per stone on its way up: seconds since it left the ground.
 var _hoists: Array[float] = []
+## The part that just gained a level, and seconds since it did.
+var _flash_part := ""
+var _flash_age := 0.0
+var _known_levels := {}
 
 
 func _ready() -> void:
-	GameState.castle_changed.connect(queue_redraw)
+	_known_levels = GameState.part_levels.duplicate()
+	GameState.castle_changed.connect(_on_castle_changed)
 	GameState.job_progress_changed.connect(queue_redraw)
 	GameState.job_delivered.connect(_on_job_delivered)
 
 
+## When a part gains a level it flashes white, dust flies from its base,
+## the screen shakes a little and a fanfare plays.
+func _on_castle_changed() -> void:
+	for part: String in GameState.part_levels:
+		if GameState.part_levels[part] > _known_levels.get(part, 0):
+			_flash_part = part
+			_flash_age = 0.0
+			for shape: Array in CastleData.shapes(part, GameState.part_levels[part]):
+				var area: Rect2 = shape[0]
+				if area.get_area() >= 300.0:
+					var base := to_global(Vector2(area.get_center().x, 0))
+					get_tree().call_group("effects", "burst", base + Vector2(-area.size.x * 0.4, -2), DUST, 5)
+					get_tree().call_group("effects", "burst", base + Vector2(area.size.x * 0.4, -2), DUST, 5)
+			get_tree().call_group("camera", "shake", 3.0)
+			get_tree().call_group("sfx", "play", "built")
+	_known_levels = GameState.part_levels.duplicate()
+	queue_redraw()
+
+
 func _process(delta: float) -> void:
+	if _flash_part != "":
+		_flash_age += delta
+		if _flash_age >= FLASH_TIME:
+			_flash_part = ""
+		queue_redraw()
 	if _hoists.is_empty():
 		return
 	for i in _hoists.size():
@@ -36,6 +67,10 @@ func _draw() -> void:
 	for part: String in CastleData.DRAW_ORDER:
 		var level: int = GameState.part_levels[part]
 		_draw_shapes(CastleData.shapes(part, level), 1.0, -INF)
+		if part == _flash_part:
+			var glow := 0.8 * (1.0 - _flash_age / FLASH_TIME)
+			for shape: Array in CastleData.shapes(part, level):
+				draw_rect(shape[0], Color(1, 1, 1, glow))
 		if part == GameState.job_part:
 			var next := CastleData.shapes(part, level + 1)
 			_draw_shapes(next, PREVIEW_ALPHA, -INF)

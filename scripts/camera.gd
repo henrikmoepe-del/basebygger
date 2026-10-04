@@ -8,6 +8,8 @@ const SCREEN_SIZE := Vector2(640, 360)
 const GROUND_Y := 270.0
 ## Zoom steps, from closest to furthest out.
 const ZOOM_LEVELS := [1.0, 0.75, 0.5]
+## Pixels of shake lost per second.
+const SHAKE_FADE := 14.0
 
 ## The left and right edges of the world.
 @export var world_left := -480.0
@@ -16,14 +18,26 @@ const ZOOM_LEVELS := [1.0, 0.75, 0.5]
 @export var start_x := 150.0
 
 var _zoom_index := 0
+## How hard the view is shaking right now, in pixels. It dies away quickly.
+var _shake := 0.0
 
 
 func _ready() -> void:
+	add_to_group("camera")
 	position.x = start_x
 	_apply_zoom()
 
 
+## Anything can shake the view with
+##     get_tree().call_group("camera", "shake", pixels)
+func shake(pixels: float) -> void:
+	_shake = maxf(_shake, pixels)
+
+
 func _process(delta: float) -> void:
+	if _shake > 0.0:
+		_shake = maxf(_shake - SHAKE_FADE * delta, 0.0)
+		offset = Vector2(randf_range(-_shake, _shake), randf_range(-_shake, _shake)).round()
 	var direction := Input.get_axis("ui_left", "ui_right")
 	if Input.is_physical_key_pressed(KEY_A):
 		direction -= 1.0

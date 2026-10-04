@@ -13,6 +13,7 @@
 - godot@ai-game-dev-plugin: project setup, engine and code
 - game-design@gamedev-claude-plugins: mechanics, levels, balance
 - thinking@gamedev-claude-plugins: brainstorming and planning
+- juice@gamedev-claude-plugins: game feel and polish (audits, recipes)
 - github@claude-plugins-official: version control
 
 ## Adding plugins when needed
@@ -55,6 +56,9 @@
   - Goals: a chain of objectives in `scripts/quest_data.gd`, one at a time, each paying renown
   - Stone and food come from sites that refill over time (faster with Quarry and Farm levels)
   - Scenery: parallax hills, clouds, grass; peasants' legs move; numbers float up at the stockhouse
+  - Game feel: chips fly and trees shake when worked, the stockhouse bumps and shows log and stone
+    piles, finished castle parts flash with dust and a small screen shake, messages pop in
+  - Sound: placeholder effects generated in code (`scripts/sfx.gd`), M to mute. No music yet.
   - Cows (Cattle skill) wait with carts at gathering sites and haul loads home
   - Hover to build: point at a part or a signpost for a card (cost, benefit, drawback), click to order
   - Building: builders haul materials from the stockhouse and hammer them in; scaffolding and rope hoist

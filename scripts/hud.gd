@@ -9,6 +9,7 @@ const TOAST_TIME := 7.0
 const RESET_CONFIRM_TIME := 3.0
 const TEXT_COLOR := Color(0.2, 0.2, 0.25)
 const HUNGRY_COLOR := Color(0.75, 0.15, 0.15)
+const GOOD_NEWS_COLOR := Color(0.55, 0.36, 0.05)
 const OUTLINE_COLOR := Color(0.96, 0.95, 0.85)
 
 @onready var resources_label: Label = %ResourcesLabel
@@ -47,6 +48,11 @@ func _ready() -> void:
 	]:
 		changed.connect(_refresh)
 	hire_button.pressed.connect(GameState.hire_peasant)
+	# A click sound whenever something is bought, and a shake when a raid is lost.
+	GameState.peasants_changed.connect(func() -> void: get_tree().call_group("sfx", "play", "buy"))
+	GameState.raid_resolved.connect(func(won: bool) -> void:
+		if not won:
+			get_tree().call_group("camera", "shake", 6.0))
 	cow_button.pressed.connect(GameState.buy_cow)
 	defend_button.pressed.connect(GameState.start_siege)
 	GameState.raid_started.connect(_refresh)
@@ -110,9 +116,15 @@ func _show_toast(text: String) -> void:
 	toast_label.text = text
 	toast_label.modulate.a = 1.0
 	toast_label.show()
+	# Good news is gold; everything pops in a little too big and settles.
+	var good := text.begins_with("Goal") or text.begins_with("Raid repelled") or text.begins_with("Castle rank")
+	toast_label.add_theme_color_override("font_color", GOOD_NEWS_COLOR if good else TEXT_COLOR)
+	toast_label.pivot_offset = Vector2(0, toast_label.size.y / 2)
+	toast_label.scale = Vector2(1.25, 1.25)
 	if _toast_tween:
 		_toast_tween.kill()
 	_toast_tween = create_tween()
+	_toast_tween.tween_property(toast_label, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_toast_tween.tween_interval(TOAST_TIME)
 	_toast_tween.tween_property(toast_label, "modulate:a", 0.0, 1.0)
 

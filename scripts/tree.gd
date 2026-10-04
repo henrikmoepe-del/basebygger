@@ -8,6 +8,8 @@ const GROW_TIME := 12.0
 var wood_left := BASE_WOOD
 ## 0 = just planted (or chopped down), 1 = fully grown.
 var growth := 1.0
+## Seconds of shaking left after an axe blow.
+var _shake := 0.0
 
 
 func _init() -> void:
@@ -38,7 +40,14 @@ func take() -> bool:
 	return true
 
 
+func shake() -> void:
+	_shake = 0.18
+
+
 func _process(delta: float) -> void:
+	if _shake > 0.0:
+		_shake -= delta
+		queue_redraw()
 	if growth < 1.0:
 		growth = minf(growth + delta * GameState.tree_grow_mult() / GROW_TIME, 1.0)
 		if growth >= 1.0:
@@ -56,9 +65,13 @@ func _draw() -> void:
 	var shade := 0.06 * sin(position.x * 0.7)
 	var leaf := Color(0.45, 0.70, 0.40) if growth < 1.0 else Color(0.22 + shade, 0.50 + shade, 0.30)
 	var crown := w * fullness
+	# After an axe blow the crown shivers from side to side.
+	if _shake > 0.0:
+		draw_set_transform(Vector2(sin(_shake * 80.0) * 1.5, 0))
 	draw_rect(Rect2(-maxf(1.0, 1.5 * s), -h * 0.45, maxf(2.0, 3.0 * s), h * 0.45), Color(0.42, 0.28, 0.17))
 	# A rounded crown from three stacked blocks, with a darker underside.
 	draw_rect(Rect2(-crown * 0.5, -h * 0.72, crown, h * 0.34), leaf.darkened(0.18))
 	draw_rect(Rect2(-crown * 0.5, -h * 0.80, crown, h * 0.30), leaf)
 	draw_rect(Rect2(-crown * 0.36, -h * 0.94, crown * 0.72, h * 0.18), leaf)
 	draw_rect(Rect2(-crown * 0.2, -h, crown * 0.4, h * 0.1), leaf.lightened(0.12))
+	draw_set_transform(Vector2.ZERO)

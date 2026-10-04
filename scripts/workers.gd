@@ -12,6 +12,10 @@ const Cook = preload("res://scripts/cook.gd")
 const Soldier = preload("res://scripts/soldier.gd")
 const Cow = preload("res://scripts/cow.gd")
 ## Which script runs each job ("" = idle).
+const BUMP_TIME := 0.15
+## One piece appears in a pile for every PILE_UNIT, then 4x, 9x, 16x that...
+const PILE_UNIT := 6.0
+const MAX_PILE_PIECES := 6
 const FLOAT_TIME := 1.2
 const MAX_FLOATS := 12
 const FLOAT_COLORS := {
@@ -34,19 +38,25 @@ const JOB_SCRIPTS := {
 ## each is {"text": String, "color": Color, "age": float, "x": float}.
 var _floats: Array[Dictionary] = []
 var _font: Font = ThemeDB.fallback_font
+## Seconds left of the stockhouse's little bump when a load arrives.
+var _bump := 0.0
 
 
 func _ready() -> void:
 	GameState.castle_changed.connect(_sync)
 	GameState.peasants_changed.connect(_sync)
 	GameState.income_delivered.connect(_on_income_delivered)
+	GameState.resources_changed.connect(queue_redraw)
 	_sync()
 
 
 func _draw() -> void:
-	# The stockhouse: everything gathered is stored here.
-	draw_rect(Rect2(stock_x - 14, -18, 28, 18), Color(0.48, 0.32, 0.20))
-	draw_rect(Rect2(stock_x - 17, -24, 34, 7), Color(0.33, 0.21, 0.13))
+	_draw_piles()
+	# The stockhouse: everything gathered is stored here. It swells for a
+	# moment each time a load comes in.
+	var swell := 2.0 * maxf(_bump, 0.0) / BUMP_TIME
+	draw_rect(Rect2(stock_x - 14 - swell, -18 - swell, 28 + swell * 2, 18 + swell), Color(0.48, 0.32, 0.20))
+	draw_rect(Rect2(stock_x - 17 - swell, -24 - swell, 34 + swell * 2, 7), Color(0.33, 0.21, 0.13))
 	draw_rect(Rect2(stock_x - 4, -11, 8, 11), Color(0.20, 0.13, 0.08))
 	for number in _floats:
 		var fade: float = 1.0 - number.age / FLOAT_TIME
@@ -60,6 +70,9 @@ func _draw() -> void:
 
 
 func _process(delta: float) -> void:
+	if _bump > 0.0:
+		_bump -= delta
+		queue_redraw()
 	if _floats.is_empty():
 		return
 	for number in _floats:
@@ -71,8 +84,33 @@ func _process(delta: float) -> void:
 func _on_income_delivered(type: String, amount: int) -> void:
 	if amount <= 0 or _floats.size() >= MAX_FLOATS:
 		return
+	_bump = BUMP_TIME
 	_floats.append({"text": "+%d" % amount, "color": FLOAT_COLORS[type], "age": 0.0, "x": stock_x + randf_range(-10.0, 4.0)})
 	queue_redraw()
+
+
+## Logs and stone blocks stacked beside the stockhouse, so the stores can be
+## seen at a glance. The piles grow slowly: each row needs more than the last.
+func _draw_piles() -> void:
+	_draw_pile(stock_x + 20.0, GameState.resources.wood, Vector2(7, 3), Color(0.52, 0.36, 0.22))
+	_draw_pile(stock_x - 34.0, GameState.resources.stone, Vector2(5, 4), Color(0.66, 0.66, 0.70))
+
+
+func _draw_pile(left: float, amount: int, piece: Vector2, color: Color) -> void:
+	var pieces := mini(int(sqrt(amount / PILE_UNIT)), MAX_PILE_PIECES)
+	var row := 0
+	var in_row := 0
+	var row_size := 3
+	for i in pieces:
+		var x := left + in_row * (piece.x + 1) + row * (piece.x + 1) * 0.5
+		var y := -(row + 1) * piece.y
+		draw_rect(Rect2(x, y, piece.x, piece.y - 1), color if (i + row) % 2 == 0 else color.darkened(0.12))
+		in_row += 1
+		if in_row >= row_size - row:
+			in_row = 0
+			row += 1
+			if row >= row_size:
+				break
 
 
 ## Where a gatherer should go for this resource right now (null = nowhere).
