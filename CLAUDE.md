@@ -91,6 +91,11 @@ What this means for the design now (Claude's notes):
     a castle rank caps levels; castle levels 4+ need iron. Village: houses, well, tavern, quarry, mine
   - Goals: a chain of objectives in `scripts/quest_data.gd`, one at a time, each paying renown
   - Stone and food come from sites that refill over time (faster with Quarry and Farm levels)
+  - Planks: a resource of their own, on top of wood. The Sawmill (village) gives the "Saw planks"
+    job, 2 sawyers per level (`sawyer.gd`): they carry logs from the wood stack, saw them, and
+    stack planks in the stockyard; one log makes one plank. Basic building costs only wood;
+    from level 3 every part also costs planks, and the finer buildings (`CastleData.FINE`: court,
+    tavern) from level 2 and twice as many (`GameState.part_cost`). Bricks are not started.
   - Stockyard (just east of the castle, drawn by `workers.gd`, see `STORES`): a shed with a store
     for each resource beside it. Each store is a stack that grows with the amount, with the number
     above it. Gatherers deliver to the right store and builders fetch from it (`store_x`).
@@ -217,8 +222,8 @@ What this means for the design now (Claude's notes):
   screenshots at steps through it (plans inside the file; `--plan=<name> --out=<folder>`), then
   closes the window. Henrik allows this window when it helps; always let it close. Use it after
   any change to how building or peasants look. `tests/snapshot.gd` does a rougher version headless.
-- Tests: `tests/test_build.gd` (builds every part and checks no builder is ever in the air) and
-  `tests/test_raid.gd` (a defended and an undefended raid). Run with
+- Tests: `tests/test_build.gd` (builds every part and checks no builder is ever in the air),
+  `tests/test_raid.gd` (a defended and an undefended raid) and `tests/test_sawmill.gd`. Run with
   `godot --headless --path . -s tests/<name>.gd -- --save=user://test_save.json`.
 - Testing: run Godot with `--headless` and `-- --save=user://test_save.json` so tests
   open no window and never touch the real save (`user://save.json`). After changing

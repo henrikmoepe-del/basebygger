@@ -81,7 +81,8 @@ func play(sound: String) -> void:
 
 ## How close the camera is to the world: 1 zoomed right in, 0 too far to hear.
 func _nearness() -> float:
-	var camera := get_viewport().get_camera_2d()
+	# (There is no viewport for a moment while the game is closing.)
+	var camera := get_viewport().get_camera_2d() if is_inside_tree() else null
 	if camera == null:
 		return 1.0
 	return clampf((camera.zoom.x - SILENT_ZOOM) / (1.0 - SILENT_ZOOM), 0.0, 1.0)

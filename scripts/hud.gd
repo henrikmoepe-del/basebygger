@@ -114,7 +114,7 @@ func _ready() -> void:
 ## One chip per resource in the top bar: a square in the resource's colour
 ## and its amount. Hovering a chip says what it is and what it earns.
 func _make_chips() -> void:
-	for type: String in ["wood", "stone", "food", "iron", "renown", "legacy"]:
+	for type: String in ["wood", "planks", "stone", "food", "iron", "renown", "legacy"]:
 		var chip := HBoxContainer.new()
 		chip.add_theme_constant_override("separation", 3)
 		chip.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -276,8 +276,8 @@ func _refresh_top_bar() -> void:
 				label.text = str(GameState.legacy)
 				chip.tooltip_text = "Legacy: everyone works %d%% faster, for good." % roundi(GameState.legacy * GameState.LEGACY_WORK_BONUS * 100)
 			_:
-				# Iron only matters once there is a mine.
-				chip.visible = type != "iron" or GameState.part_levels.mine > 0
+				# Iron only matters once there is a mine, planks once there is a sawmill.
+				chip.visible = (type != "iron" or GameState.part_levels.mine > 0) and (type != "planks" or GameState.part_levels.sawmill > 0)
 				label.text = str(GameState.resources[type])
 				chip.tooltip_text = "%s: +%.1f a second (averaged over a day)" % [type.capitalize(), GameState.income_rate[type]]
 

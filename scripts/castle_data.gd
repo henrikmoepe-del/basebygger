@@ -42,6 +42,12 @@ const MINER_EXTRA_FOOD := 1.0       ## A miner eats this many extra shares.
 ## Castle parts need iron from this level on, this much more per level.
 const IRON_FROM_LEVEL := 4
 const IRON_PER_LEVEL := 10
+## Basic building needs only wood. Later levels need planks as well, this
+## many more per level. The FINE buildings need them a level sooner, and twice as many.
+const PLANKS_FROM_LEVEL := 3
+const PLANKS_PER_LEVEL := 6
+const FINE := ["court", "tavern"]
+const SAWYERS_PER_LEVEL := 2
 
 const STONE := Color(0.64, 0.64, 0.68)
 const STONE_LIGHT := Color(0.70, 0.70, 0.74)
@@ -85,19 +91,26 @@ const PARTS := {
 	"quarry": {
 		"benefit": "Stone appears 0.7 a second faster, and 10 more can pile up, per level", "drawback": "Dust: everyone works 2% slower per level",
 		"name": "Quarry", "defence": 0, "renown": 1, "cost": {"wood": 24, "stone": 6}, "work": 10.0,
-		"site_x": 700.0, "village": true, "max_level": 10,
+		"site_x": 740.0, "village": true, "max_level": 10,
 	},
 	# The farm's fields add to what the hunting grounds give (see GameState.site_rate).
 	"farm": {
 		"benefit": "Food appears 0.3 a second faster, and 12 more can wait, per level", "drawback": "",
 		"name": "Farm", "defence": 0, "renown": 1, "cost": {"wood": 20, "stone": 4}, "work": 8.0,
-		"site_x": 890.0, "village": true, "max_level": 10,
+		"site_x": 930.0, "village": true, "max_level": 10,
 	},
 	# The mine goes underground for iron, which high castle levels need.
 	"mine": {
 		"benefit": "Lets peasants mine iron: room for 2 miners per level", "drawback": "Each miner eats double",
 		"name": "Mine", "defence": 0, "renown": 2, "cost": {"wood": 40, "stone": 40}, "work": 20.0,
-		"site_x": 1008.0, "village": true, "max_level": 8,
+		"site_x": 1048.0, "village": true, "max_level": 8,
+	},
+	# The sawmill turns logs into planks, which finer buildings and later
+	# levels need on top of wood (see GameState.part_cost).
+	"sawmill": {
+		"benefit": "Lets peasants saw wood into planks: room for 2 sawyers per level", "drawback": "",
+		"name": "Sawmill", "defence": 0, "renown": 1, "cost": {"wood": 30, "stone": 10}, "work": 10.0,
+		"site_x": 1125.0, "village": true, "max_level": 6,
 	},
 	# Outer defences: cheap wooden works that raiders meet first.
 	"palisade": {
@@ -128,34 +141,35 @@ const PARTS := {
 	"houses": {
 		"benefit": "Room for 4 more peasants per level", "drawback": "",
 		"name": "Houses", "defence": 0, "renown": 0, "cost": {"wood": 12, "stone": 4}, "work": 6.0,
-		"site_x": 1178.0, "village": true, "max_level": 12,
+		"site_x": 1278.0, "village": true, "max_level": 12,
 	},
 	# The well and the tavern keep peasants content, which makes them work
 	# faster (see GameState.morale_bonus). Each level serves more peasants.
 	"well": {
 		"benefit": "Up to +15% work speed; each level serves 8 peasants", "drawback": "",
 		"name": "Well", "defence": 0, "renown": 1, "cost": {"stone": 16, "wood": 4}, "work": 8.0,
-		"site_x": 1090.0, "village": true, "max_level": 10,
+		"site_x": 1190.0, "village": true, "max_level": 10,
 	},
 	"tavern": {
 		"benefit": "Up to +15% work speed; each level serves 10 peasants", "drawback": "Peasants eat 3% more per level",
 		"name": "Tavern", "defence": 0, "renown": 1, "cost": {"wood": 24, "stone": 8}, "work": 10.0,
-		"site_x": 1136.0, "village": true, "max_level": 10,
+		"site_x": 1236.0, "village": true, "max_level": 10,
 	},
 }
 ## Back to front.
-const DRAW_ORDER := ["houses", "tavern", "well", "mine", "farm", "quarry", "watchtower", "palisade", "walls", "gate", "court", "garrison", "keep", "towers"]
+const DRAW_ORDER := ["houses", "tavern", "well", "sawmill", "mine", "farm", "quarry", "watchtower", "palisade", "walls", "gate", "court", "garrison", "keep", "towers"]
 ## The parts that stand in the courtyard, in front of the curtain wall. A
 ## peasant up on the wall walks behind them.
 const FRONT := ["court", "garrison", "keep", "towers"]
 
 ## Where the village stands, relative to the castle's ground-centre point.
-const QUARRY_X := 676.0
-const FARM_X := 912.0
-const MINE_X := 1026.0
-const WELL_X := 1090.0
-const TAVERN_X := 1136.0
-const FIRST_HOUSE_X := 1192.0
+const QUARRY_X := 716.0
+const FARM_X := 952.0
+const MINE_X := 1066.0
+const SAWMILL_X := 1125.0
+const WELL_X := 1190.0
+const TAVERN_X := 1236.0
+const FIRST_HOUSE_X := 1292.0
 const HOUSE_SPACING := 26.0
 ## The outer defences, west of the castle.
 const PALISADE_X := -520.0
@@ -537,6 +551,19 @@ static func shapes(part: String, level: int) -> Array:
 			# The sign.
 			out.append([Rect2(TAVERN_X + 20, -h + 2, 6, 1), WOOD_DARK])
 			out.append([Rect2(TAVERN_X + 22, -h + 3, 5, 5), BANNER])
+		"sawmill":
+			# An open shed over a saw bench, with a stack of sawn planks beside it.
+			h = 18.0 + 2.0 * mini(v, 4)
+			out.append([Rect2(SAWMILL_X - 18, -h, 3, h), WOOD_DARK])
+			out.append([Rect2(SAWMILL_X + 15, -h, 3, h), WOOD_DARK])
+			out.append([Rect2(SAWMILL_X - 23, -h - 6, 46, 6), THATCH])
+			out.append([Rect2(SAWMILL_X - 9, -8, 18, 2), WOOD])
+			out.append([Rect2(SAWMILL_X - 8, -6, 2, 6), WOOD_DARK])
+			out.append([Rect2(SAWMILL_X + 6, -6, 2, 6), WOOD_DARK])
+			# A log on the bench, waiting for the saw.
+			out.append([Rect2(SAWMILL_X - 7, -11, 14, 3), WOOD])
+			for i in mini(level, 4):
+				out.append([Rect2(SAWMILL_X + 22, -3 - i * 3, 14, 2), Color(0.78, 0.60, 0.36)])
 		"quarry":
 			# A stepped rock face that is cut deeper and wider with each level.
 			h = 12.0 + 3.0 * v

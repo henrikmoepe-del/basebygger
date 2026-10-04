@@ -30,8 +30,8 @@ const JobData = preload("res://scripts/job_data.gd")
 const BuildPlan = preload("res://scripts/build_plan.gd")
 const QuestData = preload("res://scripts/quest_data.gd")
 
-const START_JOBS := {"wood": 1, "stone": 1, "hunter": 0, "build": 1, "cook": 0, "soldier": 0, "iron": 0, "forester": 0}
-const NO_JOBS := {"wood": 0, "stone": 0, "hunter": 0, "build": 0, "cook": 0, "soldier": 0, "iron": 0, "forester": 0}
+const START_JOBS := {"wood": 1, "stone": 1, "hunter": 0, "build": 1, "cook": 0, "soldier": 0, "iron": 0, "sawyer": 0, "forester": 0}
+const NO_JOBS := {"wood": 0, "stone": 0, "hunter": 0, "build": 0, "cook": 0, "soldier": 0, "iron": 0, "sawyer": 0, "forester": 0}
 const START_PEASANTS := 3
 ## How much better a trained peasant does their job.
 const TRAINED_MULT := 2.0
@@ -147,12 +147,12 @@ const MIN_OFFLINE_SECONDS := 60
 const INCOME_WINDOW := DAY_LENGTH
 
 ## What is in the stockhouse.
-var resources := {"wood": 0, "stone": 0, "food": START_FOOD, "iron": 0}
+var resources := {"wood": 0, "stone": 0, "food": START_FOOD, "iron": 0, "planks": 0}
 var cows := 0
 var part_levels := {
 	"walls": 0, "towers": 0, "gate": 0, "keep": 0, "garrison": 0, "court": 0,
 	"palisade": 0, "watchtower": 0,
-	"houses": 0, "well": 0, "tavern": 0, "quarry": 0, "farm": 0, "mine": 0,
+	"houses": 0, "well": 0, "tavern": 0, "quarry": 0, "farm": 0, "mine": 0, "sawmill": 0,
 }
 var peasants := START_PEASANTS
 ## How many peasants are assigned to each job. The rest are idle.
@@ -207,13 +207,13 @@ var job_taken := 0        ## Pieces a builder has picked up to put in place.
 var job_placed := 0       ## Pieces in place.
 
 ## Measured resources per second brought in by peasants. Used for offline progress.
-var income_rate := {"wood": 0.0, "stone": 0.0, "food": 0.0, "iron": 0.0}
+var income_rate := {"wood": 0.0, "stone": 0.0, "food": 0.0, "iron": 0.0, "planks": 0.0}
 ## Filled in by load_game() when time away earned something:
 ## {"seconds": int, plus the amount gained of each resource}. Empty otherwise.
 var offline_report := {}
 var save_path := "user://save.json"
 
-var _window_income := {"wood": 0, "stone": 0, "food": 0, "iron": 0}
+var _window_income := {"wood": 0, "stone": 0, "food": 0, "iron": 0, "planks": 0}
 var _was_night := false
 var _quest_timer := 0.0
 var _window_time := 0.0
@@ -268,6 +268,15 @@ func _notification(what: int) -> void:
 
 
 # --- Resources ---
+
+## A sawyer takes up to this many logs from the wood stack. Returns how many they got.
+func take_wood(logs: int) -> int:
+	var taken := mini(logs, resources.wood)
+	resources.wood -= taken
+	if taken > 0:
+		resources_changed.emit()
+	return taken
+
 
 ## Peasants deliver to the stockhouse through this, so income can be measured.
 func add_income(type: String, amount: int) -> void:
@@ -524,6 +533,8 @@ func job_limit(job: String) -> int:
 		return part_levels.garrison * (SOLDIERS_PER_GARRISON_LEVEL + int(skill_total("soldier_room")))
 	if job == "iron":
 		return part_levels.mine * MINERS_PER_MINE_LEVEL
+	if job == "sawyer":
+		return part_levels.sawmill * CastleData.SAWYERS_PER_LEVEL
 	return -1
 
 
@@ -682,6 +693,12 @@ func part_cost(id: String) -> Dictionary:
 	var next_level: int = part_levels[id] + 1
 	if not is_village(id) and next_level >= CastleData.IRON_FROM_LEVEL:
 		cost["iron"] = CastleData.IRON_PER_LEVEL * (next_level - CastleData.IRON_FROM_LEVEL + 1)
+	# Basic building needs only wood; later levels, and the finer buildings
+	# sooner, need sawn planks as well.
+	var fine: bool = id in CastleData.FINE
+	var planks_from: int = CastleData.PLANKS_FROM_LEVEL - (1 if fine else 0)
+	if next_level >= planks_from and id != "sawmill":
+		cost["planks"] = CastleData.PLANKS_PER_LEVEL * (next_level - planks_from + 1) * (2 if fine else 1)
 	return cost
 
 
@@ -1056,7 +1073,7 @@ func reset_game() -> void:
 
 func _start_over() -> void:
 	var start_stock := LEGACY_START_STOCK * legacy
-	resources = {"wood": start_stock, "stone": start_stock, "food": START_FOOD, "iron": 0}
+	resources = {"wood": start_stock, "stone": start_stock, "food": START_FOOD, "iron": 0, "planks": 0}
 	cows = 0
 	for id: String in part_levels:
 		part_levels[id] = 0

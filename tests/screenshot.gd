@@ -18,8 +18,14 @@ const PLANS := {
 	"tavern": {"levels": {"walls": 1}, "part": "tavern", "camera": [1170, -45, 2.0], "shots": 5},
 	"inside": {"levels": {"walls": 3, "keep": 5, "towers": 4, "garrison": 3, "court": 2}, "part": "", "camera": [20, 20, 1.0], "shots": 4, "open": true, "soldiers": 8},
 	"inside_build": {"levels": {"walls": 2}, "part": "keep", "camera": [-100, 0, 1.5], "shots": 6, "open": true},
+	"sawmill": {"levels": {"walls": 1, "sawmill": 2}, "part": "", "camera": [1125, -45, 2.0], "shots": 3, "jobs": {"sawyer": 3}},
+	"stockyard": {"levels": {"walls": 1, "sawmill": 2, "mine": 1}, "part": "", "camera": [570, -45, 2.0], "shots": 2, "jobs": {"sawyer": 3}},
 	"idle": {"levels": {"walls": 3, "keep": 3, "towers": 3, "garrison": 2, "court": 2, "tavern": 1, "houses": 3}, "part": "", "camera": [100, 0, 0.75], "shots": 5},
 }
+
+## The far-out view saved with every picture: the whole castle and the stockyard.
+const WIDE_ZOOM := 0.5
+const WIDE_X := 60.0
 
 var gs: Node
 
@@ -59,6 +65,10 @@ func _run() -> void:
 	camera.position = Vector2(plan.camera[0], 270.0 - 90.0 / plan.camera[2] - plan.camera[1])
 	if plan.get("open", false):
 		current_scene.get_node("Castle").toggle_all_open()
+	for job: String in plan.get("jobs", {}):
+		gs.peasants += plan.jobs[job]
+		gs.jobs[job] = plan.jobs[job]
+		gs.peasants_changed.emit()
 	if plan.has("soldiers"):
 		gs.peasants += plan.soldiers
 		gs.jobs.soldier = plan.soldiers
@@ -89,6 +99,18 @@ func _run() -> void:
 	quit()
 
 
+## Saves two pictures: the close-up the plan asks for, and the whole castle
+## from far out (<name>_wide.png), so nothing outside the close-up is missed.
 func _shoot(path: String) -> void:
 	await RenderingServer.frame_post_draw
 	root.get_texture().get_image().save_png(path)
+	var camera: Camera2D = current_scene.get_node("Camera")
+	var zoom := camera.zoom
+	var position := camera.position
+	camera.zoom = Vector2(WIDE_ZOOM, WIDE_ZOOM)
+	camera.position = Vector2(WIDE_X, 270.0 - 90.0 / WIDE_ZOOM)
+	await process_frame
+	await RenderingServer.frame_post_draw
+	root.get_texture().get_image().save_png(path.replace(".png", "_wide.png"))
+	camera.zoom = zoom
+	camera.position = position

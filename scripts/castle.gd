@@ -323,7 +323,11 @@ func light_run(index: int, most: int) -> int:
 
 ## Which store of the stockyard a piece's material comes from.
 func item_store(index: int) -> String:
-	return BuildPlan.store_for(_plan[clampi(index, 0, _plan.size() - 1)].item)
+	var item: String = _plan[clampi(index, 0, _plan.size() - 1)].item
+	# Once there is a sawmill, planks come sawn from the plank stack.
+	if item == "plank" and GameState.part_levels.sawmill > 0:
+		return "planks"
+	return BuildPlan.store_for(item)
 
 
 ## True if a piece must wait until every piece before it is in place:

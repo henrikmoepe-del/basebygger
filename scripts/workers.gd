@@ -13,6 +13,7 @@ const Builder = preload("res://scripts/builder.gd")
 const Forester = preload("res://scripts/forester.gd")
 const Cook = preload("res://scripts/cook.gd")
 const Soldier = preload("res://scripts/soldier.gd")
+const Sawyer = preload("res://scripts/sawyer.gd")
 const Cow = preload("res://scripts/cow.gd")
 ## Which script runs each job ("" = idle).
 const BUMP_TIME := 0.15
@@ -26,6 +27,7 @@ const STORES := {
 	"stone": {"x": -52.0, "piece": Vector2(5, 4), "per_row": 6, "rows": 9, "color": Color(0.66, 0.66, 0.70)},
 	"wood": {"x": 20.0, "piece": Vector2(7, 3), "per_row": 5, "rows": 12, "color": Color(0.52, 0.36, 0.22)},
 	"food": {"x": 66.0, "piece": Vector2(4, 5), "per_row": 5, "rows": 5, "color": Color(0.82, 0.74, 0.52)},
+	"planks": {"x": 100.0, "piece": Vector2(13, 2), "per_row": 2, "rows": 16, "color": Color(0.78, 0.60, 0.36)},
 }
 const STACK_GROWTH := 1.5
 const POST := Color(0.33, 0.21, 0.13)
@@ -40,14 +42,15 @@ const LANDS_WEST := -680.0
 ## How many archers stand on each floor in a raid, and how many spearmen hold the line.
 const ARCHERS_PER_FLOOR := 3
 const SPEARMEN := 4
-const LANDS_EAST := 1400.0
+const LANDS_EAST := 1500.0
 const FLOAT_COLORS := {
 	"wood": Color(0.40, 0.26, 0.15), "stone": Color(0.36, 0.38, 0.46),
 	"food": Color(0.70, 0.20, 0.25), "iron": Color(0.20, 0.22, 0.30),
+	"planks": Color(0.55, 0.38, 0.18),
 }
 const JOB_SCRIPTS := {
 	"": Worker, "wood": Gatherer, "stone": Gatherer, "hunter": Gatherer, "iron": Gatherer,
-	"build": Builder, "forester": Forester, "cook": Cook, "soldier": Soldier,
+	"build": Builder, "forester": Forester, "cook": Cook, "soldier": Soldier, "sawyer": Sawyer,
 }
 
 @export var grove: Node2D
@@ -81,8 +84,8 @@ func _ready() -> void:
 
 func _draw() -> void:
 	for type: String in STORES:
-		# Iron only has a place once there is a mine.
-		if type != "iron" or GameState.part_levels.mine > 0:
+		# Iron only has a place once there is a mine, planks once there is a sawmill.
+		if (type != "iron" or GameState.part_levels.mine > 0) and (type != "planks" or GameState.part_levels.sawmill > 0):
 			_draw_store(type)
 	# The shed, for tools and everything small. It swells for a moment each
 	# time a load comes in.

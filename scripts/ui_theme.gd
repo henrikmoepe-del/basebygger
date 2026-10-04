@@ -23,6 +23,7 @@ const RESOURCE_COLORS := {
 	"wood": Color(0.62, 0.42, 0.24), "stone": Color(0.70, 0.70, 0.75),
 	"food": Color(0.82, 0.30, 0.34), "iron": Color(0.45, 0.50, 0.62),
 	"renown": Color(1.0, 0.82, 0.38), "legacy": Color(0.70, 0.55, 0.95),
+	"planks": Color(0.86, 0.68, 0.42),
 }
 
 
