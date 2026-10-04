@@ -17,7 +17,7 @@ extends RefCounted
 ##
 ## "cost" and "work" are for level 1; each further level multiplies them by
 ## COST_GROWTH and WORK_GROWTH. "work" is seconds of hammering for one builder.
-## "site_x" is where the signpost for an unbuilt part stands, and where builders
+## "site_x" is where the part's circle floats in build mode, and where builders
 ## work on parts that need no scaffolding. "scaffold" lists the left and right
 ## edge of each section that gets scaffolding while it is built: builders
 ## climb it and work from the top. "hoist_x" is where the rope hangs that
@@ -64,7 +64,7 @@ const PARTS := {
 	"walls": {
 		"benefit": "+10 defence per level", "drawback": "",
 		"name": "Walls", "defence": 10, "renown": 1, "cost": {"stone": 12, "wood": 4}, "work": 8.0,
-		"site_x": 0.0, "scaffold": [[-270.0, 270.0]], "hoist_x": 215.0,
+		"site_x": 205.0, "scaffold": [[-270.0, 270.0]], "hoist_x": 215.0,
 	},
 	"towers": {
 		"benefit": "+15 defence per level", "drawback": "",

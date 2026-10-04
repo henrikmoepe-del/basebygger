@@ -14,7 +14,7 @@ extends RefCounted
 ##   "cows"      at least "amount" cows
 
 const QUESTS := [
-	{"text": "Build the walls: point at the signpost by the castle and click", "kind": "part", "id": "walls", "amount": 1, "renown": 1},
+	{"text": "Build the walls: press B, then click the circle by the castle", "kind": "part", "id": "walls", "amount": 1, "renown": 1},
 	{"text": "Hire a fourth peasant and set them to find food", "kind": "job", "id": "hunter", "amount": 1, "renown": 1},
 	{"text": "Buy your first skill (the Skills button)", "kind": "skills", "amount": 1, "renown": 1},
 	{"text": "Raise the towers and a gate", "kind": "parts", "ids": ["towers", "gate"], "amount": 1, "renown": 2},

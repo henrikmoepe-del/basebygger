@@ -15,6 +15,11 @@ const OFFLINE_MESSAGE_TIME := 10.0
 const TOAST_TIME := 7.0
 ## How long the reset button waits for the confirming second press.
 const RESET_CONFIRM_TIME := 3.0
+## The round picture of a part on the build card.
+const PREVIEW_RADIUS := 34.0
+const PREVIEW_INSIDE := 44.0
+const PREVIEW_SKY := Color(0.62, 0.78, 0.86)
+const PREVIEW_GROUND := Color(0.45, 0.68, 0.38)
 
 @onready var resource_bar: HBoxContainer = %ResourceBar
 @onready var defence_label: Label = %DefenceLabel
@@ -31,6 +36,7 @@ const RESET_CONFIRM_TIME := 3.0
 @onready var build_hover: Node2D = %BuildHover
 @onready var build_card: Panel = %BuildCard
 @onready var build_card_label: Label = %BuildCardLabel
+@onready var build_button: Button = %BuildButton
 @onready var hire_button: Button = %HireButton
 @onready var cow_button: Button = %CowButton
 @onready var defend_button: Button = %DefendButton
@@ -48,6 +54,7 @@ var _job_rows := {}
 var _toast_tween: Tween
 var _reset_armed := false
 var _crown_armed := false
+var _preview := Control.new()
 
 
 func _ready() -> void:
@@ -62,6 +69,15 @@ func _ready() -> void:
 		GameState.daytime_changed, GameState.raid_started,
 	]:
 		changed.connect(_refresh)
+	_preview.position = Vector2(8, 8)
+	_preview.size = Vector2(PREVIEW_RADIUS, PREVIEW_RADIUS) * 2.0
+	_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_preview.draw.connect(_draw_preview)
+	build_card.add_child(_preview)
+	build_button.toggled.connect(build_hover.set_active)
+	build_hover.mode_changed.connect(func() -> void:
+		build_button.set_pressed_no_signal(build_hover.active)
+		build_button.text = "Building...\nB to stop" if build_hover.active else "Build (B)")
 	hire_button.pressed.connect(GameState.hire_peasant)
 	cow_button.pressed.connect(GameState.buy_cow)
 	defend_button.pressed.connect(GameState.start_siege)
@@ -86,7 +102,7 @@ func _ready() -> void:
 	_refresh()
 	_show_offline_report()
 	if GameState.day == 1 and GameState.total_levels() == 0:
-		_show_toast("Your three peasants do the work. Hire more and give them jobs with +. To build, point at a signpost by the castle and click.")
+		_show_toast("Your three peasants do the work. Hire more and give them jobs with +. To build, press B and click a circle.")
 
 
 # --- Building the interface ---
@@ -330,12 +346,43 @@ func _refresh_build_card() -> void:
 	else:
 		lines.append("Click to build")
 	build_card_label.text = "\n".join(lines)
+	_preview.queue_redraw()
 	# Keep the card beside the mouse, and on screen.
 	var mouse := build_card.get_viewport().get_mouse_position()
-	build_card.size.y = build_card_label.get_minimum_size().y + 12
+	build_card.size.y = maxf(build_card_label.get_minimum_size().y + 12, PREVIEW_RADIUS * 2.0 + 16)
 	build_card.position = Vector2(
-		clampf(mouse.x + 14, 4, 640 - build_card.size.x - 4),
+		clampf(mouse.x + 18, 4, 640 - build_card.size.x - 4),
 		clampf(mouse.y - build_card.size.y - 8, 40, 316 - build_card.size.y))
+
+
+## The round picture on the build card: the part as it will look at its next
+## level, shrunk to fit. Very wide parts show only a piece of themselves.
+func _draw_preview() -> void:
+	var id: String = build_hover.hovered
+	if id == "":
+		return
+	var centre := Vector2(PREVIEW_RADIUS, PREVIEW_RADIUS)
+	_preview.draw_circle(centre, PREVIEW_RADIUS, PREVIEW_SKY)
+	var shapes := CastleData.shapes(id, GameState.part_levels[id] + 1)
+	# Look at the first main body, so parts in several pieces show one of them.
+	var focus: Rect2 = shapes[0][0]
+	for shape: Array in shapes:
+		if CastleData.is_body(shape[0]):
+			focus = shape[0]
+			break
+	var tall := maxf(-CastleData.top_y(id, GameState.part_levels[id] + 1), 8.0)
+	var fit := minf(PREVIEW_INSIDE / maxf(tall, minf(focus.size.x, tall * 1.2)), 2.0)
+	var window := Rect2(centre - Vector2(PREVIEW_INSIDE, PREVIEW_INSIDE) / 2.0, Vector2(PREVIEW_INSIDE, PREVIEW_INSIDE))
+	var ground := window.end.y
+	_preview.draw_rect(Rect2(window.position.x, ground, window.size.x, 3), PREVIEW_GROUND)
+	for shape: Array in shapes:
+		var area: Rect2 = shape[0]
+		var drawn := Rect2(
+			centre.x + (area.position.x - focus.get_center().x) * fit, ground + area.position.y * fit,
+			maxf(area.size.x * fit, 1.0), maxf(area.size.y * fit, 1.0)).intersection(window)
+		if drawn.has_area():
+			_preview.draw_rect(drawn, shape[1])
+	_preview.draw_arc(centre, PREVIEW_RADIUS, 0.0, TAU, 40, UiTheme.GOLD, 2.0)
 
 
 ## Shows "title + cost" and greys the button out when it can't be afforded.

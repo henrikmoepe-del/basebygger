@@ -1,27 +1,39 @@
 extends Node2D
-## Lets the player build by pointing at the world. Hovering over a castle
-## part or village building (or the spot where one can go) outlines it and
-## tells the HUD, which shows a card with its cost, benefit and drawback.
-## A click orders it. Spots with nothing built yet show a small "+" sign.
+## Build mode. Pressing B (or the Build button) turns it on and off. While it
+## is on, a small circle marks every castle part and village building that
+## can be built or raised. Pointing at a circle tells the HUD, which shows a
+## round preview of the part with its cost, benefit and drawback; a click
+## orders it. Outside build mode nothing in the world can be ordered.
 ##
-## This node sits at the castle's ground-centre point, so the shapes in
+## This node sits at the castle's ground-centre point, so the positions in
 ## CastleData line up with it.
 
 signal hovered_changed(part: String)
+signal mode_changed
 
 const CastleData = preload("res://scripts/castle_data.gd")
-const OUTLINE := Color(1.0, 0.95, 0.60)
-const SIGN := Color(0.96, 0.95, 0.85)
-const SIGN_POST := Color(0.48, 0.32, 0.20)
+const CAN_BUILD := Color(1.0, 0.85, 0.40)
+const CANT_AFFORD := Color(0.75, 0.62, 0.40)
+const BLOCKED := Color(0.55, 0.55, 0.55)
+const SPOT_FILL := Color(0.16, 0.11, 0.08, 0.85)
 ## Moving the mouse further than this between press and release is a drag
 ## (which pans the camera), not a click.
 const CLICK_SLOP := 4.0
-## Outlines and signposts are drawn over the castle and the peasants on it.
+## Circles are drawn over the castle and the peasants on it.
 const OVERLAY_Z := 4
+## The size of a circle on screen, whatever the zoom, and how much it grows
+## when pointed at.
+const SPOT_RADIUS := 6.0
+const HOVER_GROW := 1.5
+## How high above the ground the circles float.
+const SPOT_HEIGHT := 18.0
 
-## The part under the mouse, or "".
+## True while build mode is on.
+var active := false
+## The part whose circle is under the mouse, or "".
 var hovered := ""
 var _press_position := Vector2.ZERO
+var _zoom := 1.0
 
 
 func _ready() -> void:
@@ -30,7 +42,33 @@ func _ready() -> void:
 	GameState.resources_changed.connect(queue_redraw)
 
 
+func set_active(on: bool) -> void:
+	active = on
+	_set_hovered("")
+	mode_changed.emit()
+	queue_redraw()
+
+
+func _process(_delta: float) -> void:
+	# The circles keep their size on screen, so they are redrawn when the zoom changes.
+	var camera := get_viewport().get_camera_2d()
+	if active and camera != null and camera.zoom.x != _zoom:
+		_zoom = camera.zoom.x
+		queue_redraw()
+
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if not event.pressed or event.echo:
+		return
+	if event.keycode == KEY_B:
+		set_active(not active)
+	elif event.keycode == KEY_ESCAPE and active:
+		set_active(false)
+
+
 func _unhandled_input(event: InputEvent) -> void:
+	if not active:
+		return
 	if event is InputEventMouseMotion:
 		_set_hovered(_part_at(make_input_local(event).position))
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
@@ -41,40 +79,44 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _draw() -> void:
+	if not active:
+		return
 	for part: String in CastleData.PARTS:
-		# A signpost marks every empty spot that could be built on right now.
-		if GameState.part_levels[part] == 0 and GameState.part_block_reason(part) == "":
-			# The sign stands where the builders would work.
-			var foot := Vector2(CastleData.PARTS[part].site_x, 0)
-			draw_rect(Rect2(foot.x, -12, 1, 12), SIGN_POST)
-			draw_rect(Rect2(foot.x - 4, -16, 9, 7), SIGN if GameState.can_afford(GameState.part_cost(part)) else SIGN.darkened(0.35))
-			draw_rect(Rect2(foot.x - 2, -13, 5, 1), SIGN_POST)
-			draw_rect(Rect2(foot.x, -15, 1, 5), SIGN_POST)
-	if hovered != "":
-		for area in zones(hovered):
-			# Outline the main bodies only, not every window and battlement.
-			if CastleData.is_body(area):
-				draw_rect(area, OUTLINE, false, 1.0)
+		if not _has_spot(part):
+			continue
+		var radius := SPOT_RADIUS / _zoom * (HOVER_GROW if part == hovered else 1.0)
+		var color := BLOCKED
+		if GameState.part_block_reason(part) == "":
+			color = CAN_BUILD if GameState.can_afford(GameState.part_cost(part)) else CANT_AFFORD
+		var centre := spot(part)
+		draw_circle(centre, radius, SPOT_FILL)
+		draw_arc(centre, radius, 0.0, TAU, 24, color, 1.5 / _zoom)
+		# A plus sign in the middle.
+		var arm := radius * 0.5
+		draw_line(centre - Vector2(arm, 0), centre + Vector2(arm, 0), color, 1.5 / _zoom)
+		draw_line(centre - Vector2(0, arm), centre + Vector2(0, arm), color, 1.5 / _zoom)
 
 
-## The areas a part takes up, including the room its next level needs.
-## (A part can be in several pieces: the two towers, the row of houses.)
-func zones(part: String) -> Array[Rect2]:
-	var level: int = GameState.part_levels[part]
-	var areas: Array[Rect2] = []
-	for shape: Array in CastleData.shapes(part, level + 1):
-		areas.append(shape[0].grow(3))
-	return areas
+## Where a part's circle floats.
+func spot(part: String) -> Vector2:
+	return Vector2(CastleData.PARTS[part].site_x, -SPOT_HEIGHT)
 
 
-## The part at a point, checking the ones drawn in front first.
+## Parts that can never be raised again have no circle.
+func _has_spot(part: String) -> bool:
+	return GameState.part_block_reason(part) != "Fully built"
+
+
+## The part whose circle is at a point, or "".
 func _part_at(point: Vector2) -> String:
-	for i in range(CastleData.DRAW_ORDER.size() - 1, -1, -1):
-		var part: String = CastleData.DRAW_ORDER[i]
-		for area in zones(part):
-			if area.has_point(point):
-				return part
-	return ""
+	var reach := SPOT_RADIUS * HOVER_GROW / _zoom
+	var found := ""
+	for part: String in CastleData.PARTS:
+		var distance := spot(part).distance_to(point)
+		if _has_spot(part) and distance <= reach:
+			reach = distance
+			found = part
+	return found
 
 
 func _set_hovered(part: String) -> void:

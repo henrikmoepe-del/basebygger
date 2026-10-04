@@ -259,7 +259,7 @@ theme_override_constants/separation = 3
 unique_name_in_owner = true
 offset_left = 0.0
 offset_top = 0.0
-offset_right = 236.0
+offset_right = 300.0
 offset_bottom = 90.0
 visible = false
 mouse_filter = 2
@@ -267,9 +267,9 @@ mouse_filter = 2
 [node name="BuildCardLabel" type="Label" parent="HUD/BuildCard"]
 unique_name_in_owner = true
 layout_mode = 0
-offset_left = 8.0
+offset_left = 84.0
 offset_top = 5.0
-offset_right = 228.0
+offset_right = 292.0
 offset_bottom = 85.0
 mouse_filter = 2
 theme_override_font_sizes/font_size = 10
@@ -289,6 +289,16 @@ offset_top = 4.0
 offset_right = 634.0
 offset_bottom = 34.0
 theme_override_constants/separation = 6
+
+[node name="BuildButton" type="Button" parent="HUD/BottomBar/Actions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+tooltip_text = "Build mode (B): circles show what can be built. Point at one to see it, click to order it."
+focus_mode = 0
+toggle_mode = true
+theme_override_font_sizes/font_size = 10
+text = "Build (B)"
 
 [node name="HireButton" type="Button" parent="HUD/BottomBar/Actions"]
 unique_name_in_owner = true
