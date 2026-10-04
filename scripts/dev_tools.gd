@@ -21,7 +21,6 @@ func _ready() -> void:
 	if not OS.is_debug_build():
 		queue_free()
 		return
-	layer = 10
 	_label.position = Vector2(8, 232)
 	_label.add_theme_font_size_override("font_size", 9)
 	_label.add_theme_color_override("font_color", Color(0.75, 0.15, 0.15))

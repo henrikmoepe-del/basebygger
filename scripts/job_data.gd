@@ -11,7 +11,7 @@ const JOBS := {
 	"hunter": {"name": "Hunters", "color": Color(0.62, 0.30, 0.26), "gathers": "food"},
 	"build": {"name": "Builders", "color": Color(0.80, 0.52, 0.20)},
 	"soldier": {"name": "Soldiers", "color": Color(0.55, 0.14, 0.16), "requires_part": "garrison"},
-	"forester": {"name": "Foresters", "color": Color(0.55, 0.72, 0.30), "requires_skill": "v_forester"},
-	"cook": {"name": "Cooks", "color": Color(0.92, 0.90, 0.84), "requires_skill": "v_cook"},
+	"forester": {"name": "Foresters", "color": Color(0.55, 0.72, 0.30), "requires_skill": "forester"},
+	"cook": {"name": "Cooks", "color": Color(0.92, 0.90, 0.84), "requires_skill": "cook"},
 }
 const IDLE_COLOR := Color(0.78, 0.74, 0.62)

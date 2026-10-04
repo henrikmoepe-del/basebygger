@@ -98,7 +98,7 @@ const LEVELS_PER_RANK := 5
 const FIRST_RANK_UP := 18
 const RANK_UP_STEP := 24
 
-const SAVE_VERSION := 7
+const SAVE_VERSION := 8
 const AUTOSAVE_INTERVAL := 10.0
 const MAX_OFFLINE_SECONDS := 8 * 3600
 ## Offline progress is only granted (and reported) after this long away.
@@ -130,8 +130,8 @@ var raids_won := 0
 var legacy := 0
 ## True while raiders are marching on the castle.
 var raid_incoming := false
-## Ids of the skills the player owns.
-var skills: Array[String] = []
+## How many levels of each skill the player owns (skills not bought are left out).
+var skills := {}
 
 ## The building job: the one part being raised a level right now ("" = none).
 ## Its materials are paid for when ordered, then builders haul them from the
@@ -352,7 +352,7 @@ func job_unlocked(job: String) -> bool:
 	var info: Dictionary = JobData.JOBS[job]
 	if info.has("requires_part") and part_levels[info.requires_part] == 0:
 		return false
-	return not info.has("requires_skill") or info.requires_skill in skills
+	return not info.has("requires_skill") or skill_level(info.requires_skill) > 0
 
 
 ## The most peasants a job can hold, or -1 for no limit.
@@ -558,34 +558,46 @@ func _finish_job() -> void:
 
 # --- Skills ---
 
-## Why the skill can't be bought right now, or "" if it can.
+func skill_level(id: String) -> int:
+	return skills.get(id, 0)
+
+
+## Renown for the skill's next level.
+func skill_cost(id: String) -> int:
+	var skill: Dictionary = SkillData.SKILLS[id]
+	return skill.cost + skill.cost_step * skill_level(id)
+
+
+## Why the skill's next level can't be bought right now, or "" if it can.
 func skill_block_reason(id: String) -> String:
 	var skill: Dictionary = SkillData.SKILLS[id]
-	if id in skills:
-		return "Owned"
-	if skill.requires != "" and not skill.requires in skills:
+	if skill_level(id) >= skill.max_level:
+		return "Fully learned"
+	if skill.requires != "" and skill_level(skill.requires) == 0:
 		return "Needs %s" % SkillData.SKILLS[skill.requires].name
-	if renown < skill.cost:
+	if renown < skill_cost(id):
 		return "Not enough renown"
 	return ""
 
 
+## Buys one level of the skill.
 func buy_skill(id: String) -> bool:
 	if skill_block_reason(id) != "":
 		return false
-	renown -= SkillData.SKILLS[id].cost
-	skills.append(id)
+	renown -= skill_cost(id)
+	skills[id] = skill_level(id) + 1
 	skills_changed.emit()
 	# Skills change costs and speeds, so everything on screen refreshes.
 	resources_changed.emit()
+	peasants_changed.emit()
 	return true
 
 
-## Adds up one effect across all owned skills.
+## Adds up one effect across all owned skill levels.
 func skill_total(effect: String) -> float:
 	var total := 0.0
-	for id in skills:
-		total += SkillData.SKILLS[id].effects.get(effect, 0.0)
+	for id: String in skills:
+		total += SkillData.SKILLS[id].effects.get(effect, 0.0) * skills[id]
 	return total
 
 
@@ -770,11 +782,11 @@ func load_game() -> void:
 	_was_night = is_night()
 	skills.clear()
 	var saved_skills: Variant = data.get("skills")
-	if saved_skills is Array:
-		for id: Variant in saved_skills:
+	if saved_skills is Dictionary:
+		for id: String in saved_skills:
 			# Skip anything that is no longer in the skill tree.
-			if id is String and SkillData.SKILLS.has(id) and not id in skills:
-				skills.append(id)
+			if SkillData.SKILLS.has(id):
+				skills[id] = clampi(int(saved_skills[id]), 0, SkillData.SKILLS[id].max_level)
 
 	var job: Variant = data.get("job")
 	if job is Dictionary and part_levels.has(job.get("part", "")) and float(job.get("work_total", 0.0)) > 0.0:
