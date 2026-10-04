@@ -70,6 +70,8 @@ const CastleData = preload("res://scripts/castle_data.gd")
 ## Items that are shaped at the bench before they go up: stone is dressed,
 ## planks are sawn, fittings are put together.
 const FORMED := ["stone", "plank", "fitting"]
+## Items too long or heavy for one: two builders carry them from the stockyard.
+const HEAVY := ["ladder", "hoist", "bench"]
 const SCAFFOLD_COLOR := Color(0.48, 0.32, 0.20)
 ## Scaffolding goes up in bays about this wide and lifts this high. A builder
 ## can reach this high from where they stand.
@@ -177,7 +179,7 @@ static func make(part: String, level: int) -> Dictionary:
 		if piece.removed_by == TO_REMOVE:
 			piece.removed_by = plan.pieces.size()
 			plan.pieces.append({
-				"kind": Kind.REMOVE, "item": "poles", "rect": piece.rect, "color": SCAFFOLD_COLOR,
+				"kind": Kind.REMOVE, "item": piece.item, "rect": piece.rect, "color": piece.color,
 				"section": piece.section, "stand": piece.stand, "top": piece.top, "floor": plan.tops[piece.section],
 				"form": false, "lift": false, "line": -FAR, "partial": Rect2(), "end": false,
 				"removed_by": -1, "target": i,

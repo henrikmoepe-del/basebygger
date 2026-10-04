@@ -41,6 +41,10 @@ const FLOOR_SNAP := 16.0
 ## Chips fly from this many pieces at most when several land at once.
 const MAX_BURSTS := 3
 const FAR := 100000.0
+## Stairs inside a building: how much each flight rises, and how far it runs
+## to either side of the middle.
+const STAIR_FLIGHT := 22.0
+const STAIR_HALF := 9.0
 
 ## Goes up whenever the floors change, so peasants know to find their way again.
 var version := 0
@@ -226,6 +230,25 @@ func item_color(index: int) -> Color:
 	return _plan[clampi(index, 0, _plan.size() - 1)].color
 
 
+## What a builder carrying a piece holds: "stone", "plank", "ladder"...
+func item_name(index: int) -> String:
+	return _plan[clampi(index, 0, _plan.size() - 1)].item
+
+
+## True if a piece takes two to carry.
+func is_heavy(index: int) -> bool:
+	return item_name(index) in BuildPlan.HEAVY
+
+
+## How many pieces one builder can take in a trip, starting with a piece:
+## up to most, but stopping before anything that takes two to carry.
+func light_run(index: int, most: int) -> int:
+	var count := 0
+	while count < most and index + count < GameState.job_fetch() and not is_heavy(index + count):
+		count += 1
+	return maxi(count, 1)
+
+
 ## Which store of the stockyard a piece's material comes from.
 func item_store(index: int) -> String:
 	return BuildPlan.store_for(_plan[clampi(index, 0, _plan.size() - 1)].item)
@@ -371,6 +394,26 @@ func job_floors() -> Array:
 ## walked inside a building. A point with no floor under it can't be
 ## reached: the way then ends on the ground below it.
 func route(from: Vector2, to: Vector2) -> Array:
+	var out := []
+	var at := from
+	for step: Dictionary in _plain_route(from, to):
+		if step.hidden and absf(step.pos.x - at.x) < 0.01:
+			# Stairs inside a building go up in flights, back and forth.
+			var rise: float = step.pos.y - at.y
+			var flights := maxi(int(absf(rise) / STAIR_FLIGHT), 1)
+			var side := 1.0
+			for i in range(1, flights):
+				out.append({"pos": Vector2(at.x + side * STAIR_HALF, at.y + rise * i / flights), "hidden": true, "back": step.back, "stair": true})
+				side = -side
+			out.append({"pos": step.pos, "hidden": true, "back": step.back, "stair": true})
+		else:
+			out.append(step)
+		at = step.pos
+	return out
+
+
+## The way as straight steps: route() turns the ones inside buildings into flights of stairs.
+func _plain_route(from: Vector2, to: Vector2) -> Array:
 	var all := floors()
 	var start := _floor_at(all, from)
 	var goal := _floor_at(all, to)
@@ -563,11 +606,14 @@ func _draw_scaffold(canvas: CanvasItem) -> void:
 	if plan.scaffolded and _placed < plan.fetch:
 		for i in _plan_sections.size():
 			var y := _deck_y(i)
-			if plan.access[i].hidden and y < -0.5 and y > plan.tops[i] + 0.5:
+			if plan.access[i].hidden and y < -0.5:
+				# An open trapdoor: its frame in the deck and its lid standing up.
+				# The stair door is built over it at the end.
 				var x: float = plan.access[i].x
-				canvas.draw_rect(Rect2(x - 4, y - 1, 8, 2), HATCH)
-				canvas.draw_rect(Rect2(x - 3, y - 7, 1, 6), HATCH)
-				canvas.draw_rect(Rect2(x + 2, y - 7, 1, 6), HATCH)
+				canvas.draw_rect(Rect2(x - 6, y - 2, 12, 2), HATCH)
+				canvas.draw_rect(Rect2(x - 4, y - 1, 8, 1), CastleData.SHADOW)
+				canvas.draw_rect(Rect2(x + 5, y - 10, 2, 8), HATCH)
+				canvas.draw_rect(Rect2(x + 4, y - 10, 1, 8), CastleData.WOOD)
 	for i in mini(_placed, GameState.job_fetch()):
 		var piece: Dictionary = _plan[i]
 		if piece.removed_by < 0 or piece.removed_by < _placed:
@@ -615,17 +661,23 @@ func _draw_pile(canvas: CanvasItem, foot: Vector2, first: int, count: int) -> vo
 		canvas.draw_rect(Rect2(foot.x + (i % 3) * 6 + (i / 3) * 3, foot.y - 4 - (i / 3) * 4, 5, 3), item_color(first + i))
 
 
-## The hoist, once it has been set up on the deck: a beam sticking out above
-## the builders, with pieces rising on its rope.
+## Every hoist that is set up and not yet taken away: a beam sticking out
+## over the edge of its deck. On the one in use, pieces rise on the rope.
 func _draw_hoists(canvas: CanvasItem) -> void:
-	if not hoist_ready():
+	if not _plan_scaffolded:
 		return
-	var x := hoist_x()
-	var top: float = _deck_y(_next_piece().section) - HOIST_RISE
-	canvas.draw_rect(Rect2(x - 10, top, 16, 2), SCAFFOLD_COLOR)
-	canvas.draw_rect(Rect2(x - 10, top, 2, HOIST_RISE), SCAFFOLD_COLOR)
-	canvas.draw_rect(Rect2(x + 2, top + 2, 1, 4), ROPE_COLOR)
-	for age in _hoists:
-		var y := lerpf(-4.0, top + 8.0, age / HOIST_TIME)
-		canvas.draw_rect(Rect2(x + 2, top + 2, 1, y - top - 2), ROPE_COLOR)
-		canvas.draw_rect(Rect2(x - 1, y, 7, 5), CastleData.STONE_LIGHT)
+	var active: int = _next_piece().section if _placed < GameState.job_fetch() else -1
+	for i in mini(_placed, GameState.job_fetch()):
+		var piece: Dictionary = _plan[i]
+		if piece.kind != BuildPlan.Kind.HOIST or piece.removed_by < _placed:
+			continue
+		var x := CastleData.hoist_x(GameState.job_part, _plan_sections[piece.section])
+		var top: float = _deck_y(piece.section) - HOIST_RISE
+		canvas.draw_rect(Rect2(x - 10, top, 16, 2), SCAFFOLD_COLOR)
+		canvas.draw_rect(Rect2(x - 10, top, 2, HOIST_RISE), SCAFFOLD_COLOR)
+		canvas.draw_rect(Rect2(x + 2, top + 2, 1, 4), ROPE_COLOR)
+		if piece.section == active:
+			for age in _hoists:
+				var y := lerpf(-4.0, top + 8.0, age / HOIST_TIME)
+				canvas.draw_rect(Rect2(x + 2, top + 2, 1, y - top - 2), ROPE_COLOR)
+				canvas.draw_rect(Rect2(x - 1, y, 7, 5), CastleData.STONE_LIGHT)

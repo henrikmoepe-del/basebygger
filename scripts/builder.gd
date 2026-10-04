@@ -6,13 +6,16 @@ extends "res://scripts/worker.gd"
 ##   2. shaped at the bench there (stone is dressed, fittings are put together)
 ##   3. pulled up to the top by the rope
 ##   4. picked up at the top, carried to its place and set in
-## Scaffolding and ladders are pieces like any other, and when the part
-## stands they are taken down again and carried back to the stockhouse.
+## Scaffolding, ladders, benches and the hoist are pieces like any other, and
+## when the part stands they are taken down again and carried back.
+## Long and heavy things (a ladder, a bench, the hoist) take two to carry
+## from the stockyard: the one who picks it up waits for a helper, and they
+## walk it over together. A builder with nobody to help drags it, slowly.
 ## Builders share the steps out: each takes whatever is waiting, and a lone
 ## builder does them all in turn. GameState counts how far each piece has
 ## got; castle.gd says where to stand.
 
-enum State { IDLE, TO_STOCK, TO_YARD, FORM, HOIST, TO_PIECE, PLACE, RETURN }
+enum State { IDLE, TO_STOCK, TO_YARD, FORM, HOIST, TO_PIECE, PLACE, RETURN, HELP }
 
 ## Seconds to shape one piece at the bench, pull one up the rope, and set one in place.
 const FORM_TIME := 2.5
@@ -23,6 +26,11 @@ const PLACE_TIME := 1.5
 const BATCH := 4
 ## Builders waiting for work stay within this distance of the yard.
 const LEISURE_REACH := 70.0
+## How long a builder with a heavy load waits for a helper before dragging it alone.
+const HELP_WAIT := 15.0
+## The helper walks this far behind, carrying the other end.
+const HELP_GAP := 15.0
+const DRAG_SPEED := 0.5
 const SKIN := Color(0.93, 0.76, 0.62)
 const TOOL := Color(0.30, 0.30, 0.34)
 
@@ -30,6 +38,13 @@ var _state := State.IDLE
 ## How many pieces are being carried from the stockhouse, and their colour.
 var _carrying := 0
 var _carry_color := Color.WHITE
+var _carry_item := ""
+## True if the load takes two; the builder helping to carry it; and, for a
+## helper, the builder being helped.
+var _heavy := false
+var _helper: Node2D
+var _lead: Node2D
+var _help_wait := 0.0
 ## The piece being carried to its place (its number in the plan), or -1.
 var _piece := -1
 var _offset := randf_range(-14.0, 14.0)
@@ -66,14 +81,32 @@ func _work(delta: float) -> void:
 		State.TO_STOCK:
 			# Stone from the stone stack, timber from the wood stack, the rest from the shed.
 			if _walk_to(world.store_x(castle.item_store(GameState.job_claimed)) + _offset, delta):
-				_carry_color = castle.item_color(GameState.job_claimed)
-				_carrying = GameState.job_take_load(int(GameState.builder_load() * _skill()))
+				var next: int = GameState.job_claimed
+				_carry_color = castle.item_color(next)
+				_carry_item = castle.item_name(next)
+				_heavy = castle.is_heavy(next)
+				_helper = null
+				_help_wait = 0.0
+				_carrying = GameState.job_take_load(castle.light_run(next, int(GameState.builder_load() * _skill())))
 				_state = State.TO_YARD if _carrying > 0 else State.IDLE
 		State.TO_YARD:
-			if _walk_to(castle.yard_x() + _offset, delta):
+			if _heavy and not _has_helper() and GameState.jobs.build > 1 and _help_wait < HELP_WAIT:
+				# Too much for one: wait for a second pair of hands.
+				_help_wait += delta
+			elif _has_helper() and absf(_helper.position.x - position.x) > HELP_GAP + 8.0:
+				# Wait for the helper to take the other end.
+				pass
+			elif _walk_to(castle.yard_x() + _offset, delta):
 				GameState.job_deliver(_carrying)
 				_carrying = 0
+				_heavy = false
+				_helper = null
 				_state = State.IDLE
+		State.HELP:
+			if not is_instance_valid(_lead) or _lead._helper != self:
+				_state = State.IDLE
+			else:
+				_walk_to(_lead.position.x + HELP_GAP, delta)
 		State.FORM:
 			if GameState.job_rough() <= 0:
 				_state = State.IDLE
@@ -104,6 +137,8 @@ func _work(delta: float) -> void:
 				# Scaffolding that was taken down is carried back to the stockhouse.
 				var taken_down: bool = castle.is_removal(_piece)
 				_carry_color = castle.item_color(_piece)
+				_carry_item = castle.item_name(_piece)
+				_heavy = false
 				_piece = -1
 				GameState.job_place()
 				_carrying = 1 if taken_down else 0
@@ -143,6 +178,20 @@ func is_picking() -> bool:
 	return _state == State.TO_PIECE
 
 
+## True if this builder is standing with a heavy load, waiting for a helper.
+func wants_help() -> bool:
+	return _state == State.TO_YARD and _heavy and not _has_helper()
+
+
+## Another builder comes to carry the other end.
+func join(helper: Node2D) -> void:
+	_helper = helper
+
+
+func _has_helper() -> bool:
+	return is_instance_valid(_helper) and _helper._lead == self and _helper._state == State.HELP
+
+
 ## Hammers away at the step in hand. Returns true when it is done.
 func _toil(delta: float, seconds: float, sound: String) -> bool:
 	_hammering = true
@@ -174,6 +223,13 @@ func _choose_task() -> State:
 	var can_form: bool = GameState.job_rough() > forming and forming < world.castle.benches_ready()
 	_bench = forming
 	var to_fetch := GameState.job_claimed < GameState.job_fetch()
+	if position.y > -0.5:
+		# Someone is standing with a load too heavy for one: lend a hand first.
+		var lead: Node2D = world.heavy_carrier(self)
+		if lead != null:
+			_lead = lead
+			lead.join(self)
+			return State.HELP
 	if position.y < -0.5:
 		if can_place:
 			return State.TO_PIECE
@@ -194,8 +250,53 @@ func _choose_task() -> State:
 	return go_up
 
 
+## What is being carried, on the shoulder: each kind of thing has its own
+## shape. A heavy load with a helper reaches from one builder to the other.
+func _draw_item(item: String, color: Color) -> void:
+	if _heavy and _has_helper():
+		var gap: float = _helper.position.x - position.x
+		draw_rect(Rect2(minf(gap, 0.0) - 2.0, -20, absf(gap) + 4.0, 2), color)
+		if item == "ladder":
+			draw_rect(Rect2(minf(gap, 0.0) - 2.0, -17, absf(gap) + 4.0, 1), color)
+		return
+	match item:
+		"plank":
+			draw_rect(Rect2(-8, -19, 16, 2), color)
+		"poles":
+			draw_rect(Rect2(-10, -20, 20, 1), color)
+			draw_rect(Rect2(-9, -18, 20, 1), color.darkened(0.15))
+		"ladder":
+			draw_rect(Rect2(-11, -21, 22, 1), color)
+			draw_rect(Rect2(-11, -18, 22, 1), color)
+			for rung in 5:
+				draw_rect(Rect2(-9 + rung * 4, -20, 1, 2), color.lightened(0.15))
+		"hoist":
+			draw_rect(Rect2(-10, -20, 20, 2), color)
+			draw_rect(Rect2(6, -18, 3, 3), Color(0.75, 0.68, 0.50))
+		"bench":
+			draw_rect(Rect2(-6, -21, 12, 2), color)
+			draw_rect(Rect2(-5, -19, 2, 3), color)
+			draw_rect(Rect2(3, -19, 2, 3), color)
+		"thatch":
+			draw_rect(Rect2(-4, -22, 8, 6), color)
+			draw_rect(Rect2(-5, -20, 10, 2), color.darkened(0.15))
+		"tile":
+			draw_rect(Rect2(-3, -21, 6, 2), color)
+			draw_rect(Rect2(-3, -18, 6, 2), color.darkened(0.12))
+		"daub":
+			# A bucket in the hand.
+			draw_rect(Rect2(3, -9, 5, 4), Color(0.40, 0.27, 0.17))
+			draw_rect(Rect2(4, -10, 3, 1), color)
+		"fitting":
+			draw_rect(Rect2(-3, -22, 7, 7), color.lightened(0.2))
+			draw_rect(Rect2(-2, -21, 5, 5), color)
+		_:
+			draw_rect(Rect2(-4, -20, 8, 5), color)
+
+
 func _pace() -> float:
-	return GameState.builder_speed_mult()
+	var dragging := _state == State.TO_YARD and _heavy and not _has_helper()
+	return GameState.builder_speed_mult() * (DRAG_SPEED if dragging else 1.0)
 
 
 func _bob() -> float:
@@ -206,9 +307,9 @@ func _bob() -> float:
 
 func _draw_extra(bob_y: float) -> void:
 	if _carrying > 0:
-		draw_rect(Rect2(-4, -20, 8, 5), _carry_color)
+		_draw_item(_carry_item, _carry_color)
 	elif _piece >= 0 and not _hammering:
-		draw_rect(Rect2(-4, -20, 8, 5), world.castle.item_color(_piece))
+		_draw_item(world.castle.item_name(_piece), world.castle.item_color(_piece))
 	elif _hammering:
 		# Hammer swings forward and back.
 		var reach := 4.0 + absf(sin(_swing)) * 3.0

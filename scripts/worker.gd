@@ -13,8 +13,9 @@ const CastleData = preload("res://scripts/castle_data.gd")
 const LEGS := Color(0.30, 0.24, 0.20)
 const LEG_HEIGHT := 2.0
 const HOP_TIME := 0.35
-## Climbing is slower than walking.
+## Climbing a ladder is slower than walking; stairs are in between.
 const CLIMB_SPEED := 0.6
+const STAIR_SPEED := 0.85
 ## Peasants on the curtain wall are drawn behind the courtyard buildings
 ## (castle.gd draws those at z 2), everyone else in front of them.
 const BACK_Z := 1
@@ -47,6 +48,8 @@ var _route_to := Vector2.INF
 var _route_version := -1
 ## True while inside a building: on its stairs, or asleep.
 var _inside := false
+## True while on a flight of stairs: the peasant finishes it before going anywhere else.
+var _on_stair := false
 var _back := false
 ## The door this peasant sleeps behind tonight (NAN during the day).
 var _bed_x := NAN
@@ -64,7 +67,8 @@ var _met_frame := -10
 
 
 func _process(delta: float) -> void:
-	_inside = false
+	# Still inside for as long as they are on the stairs, whatever else they decide.
+	_inside = _on_stair
 	if GameState.is_night() and _sleeps():
 		# Everyone goes in at the nearest door and sleeps inside until dawn.
 		if is_nan(_bed_x):
@@ -262,15 +266,20 @@ func _go_to(target: Vector2, delta: float) -> bool:
 	if absf(position.x - target.x) < 0.01 and absf(position.y - target.y) < 0.5:
 		_route.clear()
 		return true
-	if _route.is_empty() or _route_version != castle.version or not target.is_equal_approx(_route_to):
+	if _route.is_empty() or (not _on_stair and (_route_version != castle.version or not target.is_equal_approx(_route_to))):
 		_route = castle.route(position, target)
 		_route_to = target
 		_route_version = castle.version
 	var step: Dictionary = _route[0]
 	var pace := speed * _pace() * delta
 	var there := false
-	if absf(step.pos.x - position.x) < 0.01:
-		# Up or down a stair.
+	_on_stair = step.get("stair", false)
+	if _on_stair:
+		# A flight of stairs inside a building.
+		position = position.move_toward(step.pos, pace * STAIR_SPEED)
+		there = position.is_equal_approx(step.pos)
+	elif absf(step.pos.x - position.x) < 0.01:
+		# Up or down a ladder.
 		position.y = move_toward(position.y, step.pos.y, pace * CLIMB_SPEED)
 		there = is_equal_approx(position.y, step.pos.y)
 	else:
@@ -283,5 +292,6 @@ func _go_to(target: Vector2, delta: float) -> bool:
 	_back = step.back
 	if there:
 		_route.pop_front()
+		_on_stair = not _route.is_empty() and _route[0].get("stair", false)
 	# The way can end short of the target, if there is nothing to stand on there.
 	return _route.is_empty()

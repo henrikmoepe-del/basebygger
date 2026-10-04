@@ -37,7 +37,7 @@ func _build(part: String, limit: float) -> bool:
 		for w in workers.get_children():
 			if w.get("job") == "build":
 				max_up = minf(max_up, w.position.y)
-				if w.position.y < -0.5 and not _supported(flats, w.position):
+				if w.visible and w.position.y < -0.5 and not _supported(flats, w.position):
 					air += 1
 					if air <= 3:
 						print("     in the air: ", w.position, " state ", w._state, " placed ", gs.job_placed, "/", gs.job_size())

@@ -251,6 +251,14 @@ func builders_aloft(except: Node) -> int:
 	return _builders(except).filter(func(b: Node) -> bool: return b.is_top_crew()).size()
 
 
+## A builder other than this one who is waiting for help with a heavy load, or null.
+func heavy_carrier(except: Node) -> Node2D:
+	for builder: Node2D in _builders(except):
+		if builder.wants_help():
+			return builder
+	return null
+
+
 ## How many builders other than this one are up off the ground.
 func builders_above(except: Node) -> int:
 	return _builders(except).filter(func(b: Node) -> bool: return b.position.y < -0.5).size()
