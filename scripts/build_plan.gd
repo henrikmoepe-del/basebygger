@@ -24,8 +24,9 @@ extends RefCounted
 ##   "sections"    the stretches that are built one after another, [left, right]
 ##   "scaffolded"  true if builders climb to work (false: built from the ground)
 ##   "old"         what is drawn of the old level while the job lasts
-##   "gone"        old fittings the new level doesn't have, each [rect, color,
-##                 section]: they stay until new stone is laid over them
+##   "gone"        what must come off the old level before the new one can go
+##                 up (battlements, turrets, roofs, flags), in chunks, each
+##                 [rect, color, piece]: it stays until that piece is done
 ##   "same"        fittings of the new level that the old one already had
 ##   "solid"       per section: the new level's walls and roofs
 ##   "tops"        per section: the height of its deck when finished
@@ -43,6 +44,7 @@ extends RefCounted
 ##              Kind.BENCH     a bench in the yard, where pieces are shaped
 ##              Kind.HOIST     the beam and rope on the deck that lifts pieces up
 ##              Kind.REMOVE    taking a bay or ladder down again
+##              Kind.DISMANTLE knocking a piece of the old level down
 ##   "item"     what is carried for it: see FORMED and item_for()
 ##   "rect", "color"   what appears when it is placed
 ##   "section"  which section it belongs to
@@ -50,6 +52,8 @@ extends RefCounted
 ##   "top"      true if it is placed from the section's deck (stand.y is then
 ##              the deck's height when this piece's turn comes)
 ##   "floor"    how high the section's deck is when this piece's turn comes
+##   "fetch"    true if it is carried from the stockyard (false for what is
+##              taken down)
 ##   "form"     true if it must be shaped at the bench before it can go up
 ##   "lift"     true if it must be pulled up to the deck by the rope
 ##   "line", "partial"  how much of its section is laid just before it:
@@ -64,7 +68,7 @@ extends RefCounted
 ## the glazier, say): have builders fetch it from there instead of from the
 ## stockyard.
 
-enum Kind { BLOCK, FITTING, SCAFFOLD, LADDER, BENCH, HOIST, REMOVE }
+enum Kind { BLOCK, FITTING, SCAFFOLD, LADDER, BENCH, HOIST, REMOVE, DISMANTLE }
 
 const CastleData = preload("res://scripts/castle_data.gd")
 ## Items that are shaped at the bench before they go up: stone is dressed,
@@ -140,6 +144,9 @@ static func make(part: String, level: int) -> Dictionary:
 	# The rest (battlements, flags, overhangs that will sit higher) stays
 	# only until new stone is laid over it.
 	plan["old"] = []
+	var gone := []
+	for i in plan.sections.size():
+		gone.append([])
 	for shape: Array in old:
 		var kept: bool = fresh_rects.has(shape[0])
 		if not kept and not CastleData.is_fitting(shape[0]):
@@ -150,7 +157,7 @@ static func make(part: String, level: int) -> Dictionary:
 		if kept:
 			plan.old.append(shape)
 		else:
-			plan.gone.append([shape[0], shape[1], _nearest_section(plan.sections, shape[0].get_center().x)])
+			gone[_nearest_section(plan.sections, shape[0].get_center().x)].append(shape)
 	var bands := _bands(plan.sections)
 	var fittings := []
 	for i in plan.sections.size():
@@ -170,7 +177,7 @@ static func make(part: String, level: int) -> Dictionary:
 
 	var floors := CastleData.floors(part, level + 1)
 	for i in plan.sections.size():
-		_plan_section(plan, part, i, old_solid, fittings[i], floors)
+		_plan_section(plan, part, i, old_solid, fittings[i], floors, gone[i])
 
 	# Last of all, the scaffolding and the builders' ladders come down, from the top.
 	plan["fetch"] = plan.pieces.size()
@@ -181,7 +188,7 @@ static func make(part: String, level: int) -> Dictionary:
 			plan.pieces.append({
 				"kind": Kind.REMOVE, "item": piece.item, "rect": piece.rect, "color": piece.color,
 				"section": piece.section, "stand": piece.stand, "top": piece.top, "floor": plan.tops[piece.section],
-				"form": false, "lift": false, "line": -FAR, "partial": Rect2(), "end": false,
+				"fetch": false, "form": false, "lift": false, "line": -FAR, "partial": Rect2(), "end": false,
 				"removed_by": -1, "target": i,
 			})
 	# A platform can be stood on from when its last bay is up until its first bay comes down.
@@ -200,7 +207,7 @@ static func ladder_x(section: Array, hoist: float) -> float:
 
 
 ## One section: see the top of this file.
-static func _plan_section(plan: Dictionary, part: String, index: int, old_solid: Array[Rect2], fittings: Array, floors: Array) -> void:
+static func _plan_section(plan: Dictionary, part: String, index: int, old_solid: Array[Rect2], fittings: Array, floors: Array, gone: Array) -> void:
 	var course := CastleData.course(part)
 	var block := CastleData.block_width(part)
 	var section: Array = plan.sections[index]
@@ -296,7 +303,7 @@ static func _plan_section(plan: Dictionary, part: String, index: int, old_solid:
 		"floor": 0.0, "ladder": own_stair and access.hidden, "hoist": false, "line": 0.0,
 		"permanent": own_stair, "deck": deck_x,
 	}
-	var any_work := not fittings.is_empty()
+	var any_work := not fittings.is_empty() or not gone.is_empty()
 	for cells: Array in new_cells:
 		any_work = any_work or not cells.is_empty()
 	if not any_work:
@@ -307,6 +314,32 @@ static func _plan_section(plan: Dictionary, part: String, index: int, old_solid:
 		_add(plan, Kind.BENCH, "bench", Rect2(at - 6.0, -7.0, 12.0, 7.0), BENCH_COLOR, index, Vector2(at, 0.0), false, state, Rect2())
 		plan.pieces[-1].stand = Vector2(at - 7.0, 0.0)
 		plan.pieces[-1].removed_by = TO_REMOVE
+	# Then whatever must come off the old level is knocked down, from the top,
+	# by builders standing on the old wall.
+	if not gone.is_empty():
+		state.floor = old_body.position.y if plan.scaffolded else 0.0
+		_rise(plan, part, index, state, deck)
+		var chunks := []
+		for shape: Array in gone:
+			var area: Rect2 = shape[0]
+			if CastleData.is_fitting(area):
+				chunks.append([area, shape[1]])
+				continue
+			# Walls and roofs come down a block at a time.
+			var chunk_y := area.position.y
+			while chunk_y < area.end.y - 0.01:
+				var chunk_x := area.position.x
+				while chunk_x < area.end.x - 0.01:
+					chunks.append([Rect2(chunk_x, chunk_y, minf(block, area.end.x - chunk_x), minf(course, area.end.y - chunk_y)), shape[1]])
+					chunk_x += block
+				chunk_y += course
+		chunks.sort_custom(func(a: Array, b: Array) -> bool:
+			return a[0].position.y < b[0].position.y or (a[0].position.y == b[0].position.y and a[0].position.x < b[0].position.x))
+		for chunk: Array in chunks:
+			_add(plan, Kind.DISMANTLE, "rubble", chunk[0], chunk[1], index, Vector2(chunk[0].get_center().x, state.floor), plan.scaffolded, state, Rect2())
+			plan.pieces[-1].fetch = false
+			plan.pieces[-1].lift = false
+			plan.gone.append([chunk[0], chunk[1], plan.pieces.size() - 1])
 	var cursor: float = access.x
 	for row in courses.size():
 		var row_top: float = courses[row][0]
@@ -422,7 +455,7 @@ static func _add(plan: Dictionary, kind: Kind, item: String, rect: Rect2, color:
 	var spot := Vector2(clampf(stand.x, within[0] + 3.0, within[1] - 3.0), stand.y)
 	plan.pieces.append({
 		"kind": kind, "item": item, "rect": rect, "color": color, "section": index,
-		"stand": spot, "top": top, "floor": state.floor, "form": item in FORMED, "lift": top and spot.y < -0.5,
+		"stand": spot, "top": top, "floor": state.floor, "fetch": true, "form": item in FORMED, "lift": top and spot.y < -0.5,
 		"line": state.line, "partial": partial, "end": false, "removed_by": -1, "target": -1,
 	})
 

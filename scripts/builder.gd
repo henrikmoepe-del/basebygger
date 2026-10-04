@@ -135,6 +135,9 @@ func _work(delta: float) -> void:
 		State.PLACE:
 			if _go_to(castle.stand_spot(_piece), delta) and _toil(delta, PLACE_TIME, "hammer"):
 				# Scaffolding that was taken down is carried back to the stockhouse.
+				if castle.is_dismantle(_piece):
+					# Knocked loose: it falls to the ground.
+					castle.drop(_piece)
 				var taken_down: bool = castle.is_removal(_piece)
 				_carry_color = castle.item_color(_piece)
 				_carry_item = castle.item_name(_piece)
@@ -222,7 +225,7 @@ func _choose_task() -> State:
 	var forming: int = world.builders_forming(self)
 	var can_form: bool = GameState.job_rough() > forming and forming < world.castle.benches_ready()
 	_bench = forming
-	var to_fetch := GameState.job_claimed < GameState.job_fetch()
+	var to_fetch: bool = GameState.job_can_fetch()
 	if position.y > -0.5:
 		# Someone is standing with a load too heavy for one: lend a hand first.
 		var lead: Node2D = world.heavy_carrier(self)
@@ -308,7 +311,7 @@ func _bob() -> float:
 func _draw_extra(bob_y: float) -> void:
 	if _carrying > 0:
 		_draw_item(_carry_item, _carry_color)
-	elif _piece >= 0 and not _hammering:
+	elif _piece >= 0 and not _hammering and not world.castle.is_dismantle(_piece) and not world.castle.is_removal(_piece):
 		_draw_item(world.castle.item_name(_piece), world.castle.item_color(_piece))
 	elif _hammering:
 		# Hammer swings forward and back.

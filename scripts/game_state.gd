@@ -744,6 +744,7 @@ func order_part(id: String) -> bool:
 		# Nothing to see changes at this level, so there is nothing to place.
 		_finish_job()
 		return true
+	_job_advance()
 	castle_changed.emit()
 	return true
 
@@ -757,16 +758,21 @@ func job_size() -> int:
 	return job_pieces().size()
 
 
-## How many of the pieces are fetched from the stockhouse. The rest, at the
-## end, are the scaffolding being taken down again.
+## How many pieces it takes to build the part. The rest, at the end, are
+## the scaffolding and the builders' gear being taken away again.
 func job_fetch() -> int:
 	return job_plan.get("fetch", 0)
+
+
+## True if the next piece is one a builder can go and fetch from the stockyard.
+func job_can_fetch() -> bool:
+	return job_claimed < job_size() and job_pieces()[job_claimed].fetch
 
 
 ## A builder at the stockhouse picks up to max_pieces for the job.
 ## Returns how many they got (0 = nothing left to carry).
 func job_take_load(max_pieces: int) -> int:
-	var pieces := mini(max_pieces, job_fetch() - job_claimed)
+	var pieces := mini(max_pieces, job_size() - job_claimed)
 	job_claimed += pieces
 	return pieces
 
@@ -846,10 +852,11 @@ func job_fraction() -> float:
 ## Pieces that need no shaping or no lifting pass those steps by themselves.
 func _job_advance() -> void:
 	var pieces := job_pieces()
-	if job_hauled >= job_fetch():
-		# Everything has arrived: what is left is taking the scaffolding down.
-		job_hauled = job_size()
-		job_claimed = job_size()
+	# Pieces that are not fetched (old work to knock down, scaffolding to
+	# take away) are there already, once everything before them has arrived.
+	while job_hauled == job_claimed and job_claimed < pieces.size() and not pieces[job_claimed].fetch:
+		job_claimed += 1
+		job_hauled += 1
 	while job_formed < job_hauled and not pieces[job_formed].form:
 		job_formed += 1
 	while job_lifted < job_formed and not pieces[job_lifted].lift:

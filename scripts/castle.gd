@@ -41,6 +41,7 @@ const FLOOR_SNAP := 16.0
 ## Chips fly from this many pieces at most when several land at once.
 const MAX_BURSTS := 3
 const FAR := 100000.0
+const FALL_GRAVITY := 420.0
 ## Stairs inside a building: how much each flight rises, and how far it runs
 ## to either side of the middle.
 const STAIR_FLIGHT := 22.0
@@ -51,6 +52,9 @@ var version := 0
 
 ## One entry per stone on its way up: seconds since it left the ground.
 var _hoists: Array[float] = []
+## Pieces knocked off the old level, on their way to the ground:
+## {"rect": Rect2, "color": Color, "speed": float}.
+var _falling: Array[Dictionary] = []
 ## The part that just gained a level, and seconds since it did.
 var _flash_part := ""
 var _flash_age := 0.0
@@ -130,6 +134,14 @@ func _process(delta: float) -> void:
 		if _flash_age >= FLASH_TIME:
 			_flash_part = ""
 		_redraw()
+	if not _falling.is_empty():
+		for piece in _falling:
+			piece.speed += FALL_GRAVITY * delta
+			piece.rect.position.y += piece.speed * delta
+			if piece.rect.end.y >= 0.0:
+				get_tree().call_group("effects", "burst", to_global(Vector2(piece.rect.get_center().x, -2)), DUST, 4)
+		_falling = _falling.filter(func(piece: Dictionary) -> bool: return piece.rect.end.y < 0.0)
+		_redraw()
 	if _hoists.is_empty():
 		return
 	for i in _hoists.size():
@@ -148,7 +160,7 @@ func _draw() -> void:
 
 
 ## Draws the back layer onto this node, or the front layer onto its child.
-func _draw_layer(canvas: CanvasItem, front: bool) -> void:
+func _draw_layer(canvas, front: bool) -> void:
 	for part: String in CastleData.DRAW_ORDER:
 		if (part in CastleData.FRONT) != front:
 			continue
@@ -165,6 +177,9 @@ func _draw_layer(canvas: CanvasItem, front: bool) -> void:
 			if not flat.hidden:
 				for x: float in flat.stairs:
 					_draw_ladder(canvas, x, flat.y)
+	if front:
+		for piece in _falling:
+			canvas.draw_rect(piece.rect, piece.color)
 	if not _plan.is_empty() and (GameState.job_part in CastleData.FRONT) == front:
 		_draw_scaffold(canvas)
 		_draw_yard(canvas)
@@ -244,7 +259,7 @@ func is_heavy(index: int) -> bool:
 ## up to most, but stopping before anything that takes two to carry.
 func light_run(index: int, most: int) -> int:
 	var count := 0
-	while count < most and index + count < GameState.job_fetch() and not is_heavy(index + count):
+	while count < most and index + count < _plan.size() and _plan[index + count].fetch and not is_heavy(index + count):
 		count += 1
 	return maxi(count, 1)
 
@@ -264,6 +279,17 @@ func needs_turn(index: int) -> bool:
 	if piece.kind in [BuildPlan.Kind.SCAFFOLD, BuildPlan.Kind.LADDER, BuildPlan.Kind.HOIST, BuildPlan.Kind.REMOVE]:
 		return true
 	return not piece.top and piece.stand.y < -0.5
+
+
+## True if the piece is part of the old level being knocked down.
+func is_dismantle(index: int) -> bool:
+	return _plan[index].kind == BuildPlan.Kind.DISMANTLE
+
+
+## A piece knocked loose falls to the ground.
+func drop(index: int) -> void:
+	var piece: Dictionary = _plan[index]
+	_falling.append({"rect": piece.rect, "color": piece.color, "speed": 0.0})
 
 
 ## True if the piece is scaffolding being taken down.
@@ -530,13 +556,13 @@ func _rebuild_floors() -> void:
 
 # --- Drawing ---
 
-func _draw_shapes(canvas: CanvasItem, shapes: Array) -> void:
+func _draw_shapes(canvas, shapes: Array) -> void:
 	for shape: Array in shapes:
 		canvas.draw_rect(shape[0], shape[1])
 
 
 ## Draws the piece of a shape inside an area.
-func _draw_clipped(canvas: CanvasItem, shape: Array, area: Rect2) -> void:
+func _draw_clipped(canvas, shape: Array, area: Rect2) -> void:
 	var piece: Rect2 = shape[0].intersection(area)
 	if piece.has_area():
 		canvas.draw_rect(piece, shape[1])
@@ -544,33 +570,17 @@ func _draw_clipped(canvas: CanvasItem, shape: Array, area: Rect2) -> void:
 
 ## The part being built: the old level, then what is laid of the new one so
 ## far, then the fittings in place.
-func _draw_job(canvas: CanvasItem) -> void:
+func _draw_job(canvas) -> void:
 	var plan: Dictionary = GameState.job_plan
 	_draw_shapes(canvas, plan.old)
 	# Once only the scaffolding is left to take down, everything stands.
 	var built := mini(_placed, plan.fetch)
 	var done: bool = built >= plan.fetch
 	var piece := _next_piece()
-	# The old battlements, turrets and flags stay until new stone is laid
-	# over them. Whatever stands on something that has gone, goes with it.
-	if not done:
-		var standing: Array = plan.gone.filter(func(shape: Array) -> bool:
-			var covered: bool = piece.line < shape[0].position.y - 0.01 or shape[0].intersects(piece.partial)
-			return shape[2] > piece.section or (shape[2] == piece.section and not covered))
-		var fallen: Array = plan.gone.filter(func(shape: Array) -> bool: return not shape in standing)
-		var changed := true
-		while changed:
-			changed = false
-			for shape: Array in standing:
-				# Resting on, hanging from or set into a piece that has gone.
-				var reach: Rect2 = shape[0].grow(1.5)
-				if fallen.any(func(lost: Array) -> bool: return lost[2] == shape[2] and reach.intersects(lost[0])):
-					standing.erase(shape)
-					fallen.append(shape)
-					changed = true
-					break
-		for shape: Array in standing:
-			canvas.draw_rect(shape[0], shape[1])
+	# What must come off the old level stays until a builder knocks it down.
+	for chunk: Array in plan.gone:
+		if chunk[2] >= _placed:
+			canvas.draw_rect(chunk[0], chunk[1])
 	for i in _plan_sections.size():
 		if done or i < piece.section:
 			_draw_shapes(canvas, plan.solid[i])
@@ -588,7 +598,7 @@ func _draw_job(canvas: CanvasItem) -> void:
 
 
 ## A ladder from bottom up to top.
-func _draw_ladder(canvas: CanvasItem, x: float, top: float, bottom := 0.0) -> void:
+func _draw_ladder(canvas, x: float, top: float, bottom := 0.0) -> void:
 	canvas.draw_rect(Rect2(x - 3, top, 1, bottom - top), CastleData.WOOD_DARK)
 	canvas.draw_rect(Rect2(x + 2, top, 1, bottom - top), CastleData.WOOD_DARK)
 	var y := bottom - RUNG_SPACING
@@ -600,7 +610,7 @@ func _draw_ladder(canvas: CanvasItem, x: float, top: float, bottom := 0.0) -> vo
 ## Everything the builders have set up for the job and not yet taken away
 ## again: scaffolding, their ladders, the benches. A bay of scaffolding is a
 ## pole at its side and the planks the builders stand on.
-func _draw_scaffold(canvas: CanvasItem) -> void:
+func _draw_scaffold(canvas) -> void:
 	# Where builders come up from the stairs inside, there is a hatch in the deck.
 	var plan: Dictionary = GameState.job_plan
 	if plan.scaffolded and _placed < plan.fetch:
@@ -640,7 +650,7 @@ func _draw_scaffold(canvas: CanvasItem) -> void:
 ## The piles in the yard at the foot of the site: the rough pile where
 ## carriers drop their loads, the piece on the bench, and the shaped pieces
 ## waiting by the rope. Lifted pieces wait at the top beside the hoist.
-func _draw_yard(canvas: CanvasItem) -> void:
+func _draw_yard(canvas) -> void:
 	if _placed >= GameState.job_fetch():
 		return
 	var x := hoist_x()
@@ -656,14 +666,14 @@ func _draw_yard(canvas: CanvasItem) -> void:
 
 ## A small stack of pieces standing at foot: count of them, starting with
 ## piece number first of the plan (each in its material's colour).
-func _draw_pile(canvas: CanvasItem, foot: Vector2, first: int, count: int) -> void:
+func _draw_pile(canvas, foot: Vector2, first: int, count: int) -> void:
 	for i in mini(count, MAX_PILE):
 		canvas.draw_rect(Rect2(foot.x + (i % 3) * 6 + (i / 3) * 3, foot.y - 4 - (i / 3) * 4, 5, 3), item_color(first + i))
 
 
 ## Every hoist that is set up and not yet taken away: a beam sticking out
 ## over the edge of its deck. On the one in use, pieces rise on the rope.
-func _draw_hoists(canvas: CanvasItem) -> void:
+func _draw_hoists(canvas) -> void:
 	if not _plan_scaffolded:
 		return
 	var active: int = _next_piece().section if _placed < GameState.job_fetch() else -1
