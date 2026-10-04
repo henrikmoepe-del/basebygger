@@ -12,6 +12,7 @@
 [ext_resource type="Script" path="res://scripts/dev_tools.gd" id="11_dev"]
 [ext_resource type="Script" path="res://scripts/build_hover.gd" id="12_hover"]
 [ext_resource type="Script" path="res://scripts/quarry.gd" id="13_quarry"]
+[ext_resource type="Script" path="res://scripts/backdrop.gd" id="14_backdrop"]
 
 [node name="Main" type="Node2D"]
 
@@ -30,6 +31,9 @@ mouse_filter = 2
 color = Color(0.93, 0.92, 0.66, 1)
 script = ExtResource("8_sky")
 world_tint = NodePath("../../WorldTint")
+
+[node name="Backdrop" type="Node2D" parent="."]
+script = ExtResource("14_backdrop")
 
 [node name="Ground" type="ColorRect" parent="."]
 offset_left = -1800.0

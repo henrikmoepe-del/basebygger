@@ -12,6 +12,12 @@ const Cook = preload("res://scripts/cook.gd")
 const Soldier = preload("res://scripts/soldier.gd")
 const Cow = preload("res://scripts/cow.gd")
 ## Which script runs each job ("" = idle).
+const FLOAT_TIME := 1.2
+const MAX_FLOATS := 12
+const FLOAT_COLORS := {
+	"wood": Color(0.40, 0.26, 0.15), "stone": Color(0.36, 0.38, 0.46),
+	"food": Color(0.70, 0.20, 0.25), "iron": Color(0.20, 0.22, 0.30),
+}
 const JOB_SCRIPTS := {
 	"": Worker, "wood": Gatherer, "stone": Gatherer, "hunter": Gatherer, "iron": Gatherer,
 	"build": Builder, "forester": Forester, "cook": Cook, "soldier": Soldier,
@@ -24,10 +30,16 @@ const JOB_SCRIPTS := {
 @export var castle: Node2D
 @export var stock_x := 170.0
 
+## Numbers floating up from the stockhouse as loads arrive:
+## each is {"text": String, "color": Color, "age": float, "x": float}.
+var _floats: Array[Dictionary] = []
+var _font: Font = ThemeDB.fallback_font
+
 
 func _ready() -> void:
 	GameState.castle_changed.connect(_sync)
 	GameState.peasants_changed.connect(_sync)
+	GameState.income_delivered.connect(_on_income_delivered)
 	_sync()
 
 
@@ -36,11 +48,31 @@ func _draw() -> void:
 	draw_rect(Rect2(stock_x - 14, -18, 28, 18), Color(0.48, 0.32, 0.20))
 	draw_rect(Rect2(stock_x - 17, -24, 34, 7), Color(0.33, 0.21, 0.13))
 	draw_rect(Rect2(stock_x - 4, -11, 8, 11), Color(0.20, 0.13, 0.08))
+	for number in _floats:
+		var fade: float = 1.0 - number.age / FLOAT_TIME
+		draw_string(_font, Vector2(number.x, -28.0 - number.age * 14.0), number.text,
+				HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(number.color, fade))
 	if GameState.jobs.cook > 0:
 		# The cooking pot over a fire.
 		var x := kitchen_x()
 		draw_rect(Rect2(x - 4, -8, 8, 5), Color(0.22, 0.23, 0.27))
 		draw_rect(Rect2(x - 3, -3, 6, 3), Color(0.95, 0.55, 0.15))
+
+
+func _process(delta: float) -> void:
+	if _floats.is_empty():
+		return
+	for number in _floats:
+		number.age += delta
+	_floats = _floats.filter(func(number: Dictionary) -> bool: return number.age < FLOAT_TIME)
+	queue_redraw()
+
+
+func _on_income_delivered(type: String, amount: int) -> void:
+	if amount <= 0 or _floats.size() >= MAX_FLOATS:
+		return
+	_floats.append({"text": "+%d" % amount, "color": FLOAT_COLORS[type], "age": 0.0, "x": stock_x + randf_range(-10.0, 4.0)})
+	queue_redraw()
 
 
 ## Where a gatherer should go for this resource right now (null = nowhere).

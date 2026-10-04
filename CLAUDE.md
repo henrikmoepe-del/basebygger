@@ -39,7 +39,9 @@
 - If you believe a tool/program/pluggen would be of good use, for example to create pixel 2d art, to create sound, etc, then say so 
 
 ## Current status
-- Stage: 2D builder is feature-rich; Milestone 2 (3D wave defence) has a first prototype. Placeholder art.
+- Stage: working on the 2D builder (make it better, more realistic, more fun). The 3D wave
+  defence has a first prototype but is PARKED at Henrik's request until he says otherwise.
+  Placeholder art.
 - The player never clicks to gather. Peasants do all the work; the player hires them, gives
   them jobs, trains them, points at the world to build, and buys skills.
 - World layout: the castle is in the middle (x = 0). Defence is to the west, where raiders come
@@ -50,7 +52,9 @@
   - Trades: big skill-tree unlocks that let peasants in a job be trained (twice as good, wear a hat)
   - Castle: eight parts (walls, towers, gate, keep, garrison, court, palisade, watchtower);
     a castle rank caps levels; castle levels 4+ need iron. Village: houses, well, tavern, quarry, mine
-  - Stone comes from a quarry site that refills over time (faster with Quarry levels)
+  - Goals: a chain of objectives in `scripts/quest_data.gd`, one at a time, each paying renown
+  - Stone and food come from sites that refill over time (faster with Quarry and Farm levels)
+  - Scenery: parallax hills, clouds, grass; peasants' legs move; numbers float up at the stockhouse
   - Cows (Cattle skill) wait with carts at gathering sites and haul loads home
   - Hover to build: point at a part or a signpost for a card (cost, benefit, drawback), click to order
   - Building: builders haul materials from the stockhouse and hammer them in; scaffolding and rope hoist
@@ -61,8 +65,7 @@
   - Dev shortcuts (editor runs only): F2 speed, F3 skip 10 min, F4 resources, F6 peasants, F1 hide
 - Henrik's list from the last round is built. Wanted later: more minerals than iron, better food
   from trained cooks, buildings only trained builders can raise, individual peasant traits
-- Known balance issues: food and iron pile up late (cows make hunting very effective; iron costs
-  are low); the grove draws as one green block when full
+- Known balance issues: iron piles up late (costs are low); food is now tight in the mid game
 - Design notes:
   - Castle parts and soldiers are defences. `GameState.total_defence()` and the part levels are
     what the later 3D wave defence will read; raids are the 2D stand-in for it.
@@ -72,7 +75,7 @@
     (see the drawback constants in `castle_data.gd`).
   - Henrik's design ideas are starting points: explore and expand on them, then explain the choices.
 - 3D siege prototype (`scenes/siege.tscn`, `scripts/siege.gd`): when raiders approach, a
-  "Defend the walls!" button opens a 3D fight built from the castle's part levels (boxes for now).
+  "Defend the walls!" button (currently hidden in `hud.gd`) opens a 3D fight built from the castle's part levels (boxes for now).
   Archers on towers, walls and the watchtower shoot automatically; raiders break the palisade, then
   the gate. Survive 5 waves to win the raid. Without the button the raid resolves as before (number check).
   Dev key F7 starts a siege at any time.

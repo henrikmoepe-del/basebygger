@@ -47,11 +47,18 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
-	# The tree is drawn smaller while it grows; the canopy thins as wood is taken.
+	# The tree is drawn smaller while it grows; the crown thins as wood is taken.
 	var s := lerpf(0.25, 1.0, growth)
 	var w := size.x * s
 	var h := size.y * s
-	var fullness := 1.0 if growth < 1.0 else lerpf(0.55, 1.0, float(wood_left) / max_wood())
-	var canopy := Color(0.45, 0.70, 0.40) if growth < 1.0 else Color(0.20, 0.50, 0.30)
-	draw_rect(Rect2(-maxf(1.0, 2.0 * s), -h * 0.45, maxf(2.0, 4.0 * s), h * 0.45), Color(0.45, 0.30, 0.18))
-	draw_rect(Rect2(-w * fullness / 2, -h, w * fullness, h * 0.7), canopy)
+	var fullness := 1.0 if growth < 1.0 else lerpf(0.6, 1.0, float(wood_left) / max_wood())
+	# Each tree is a slightly different green, decided by where it stands.
+	var shade := 0.06 * sin(position.x * 0.7)
+	var leaf := Color(0.45, 0.70, 0.40) if growth < 1.0 else Color(0.22 + shade, 0.50 + shade, 0.30)
+	var crown := w * fullness
+	draw_rect(Rect2(-maxf(1.0, 1.5 * s), -h * 0.45, maxf(2.0, 3.0 * s), h * 0.45), Color(0.42, 0.28, 0.17))
+	# A rounded crown from three stacked blocks, with a darker underside.
+	draw_rect(Rect2(-crown * 0.5, -h * 0.72, crown, h * 0.34), leaf.darkened(0.18))
+	draw_rect(Rect2(-crown * 0.5, -h * 0.80, crown, h * 0.30), leaf)
+	draw_rect(Rect2(-crown * 0.36, -h * 0.94, crown * 0.72, h * 0.18), leaf)
+	draw_rect(Rect2(-crown * 0.2, -h, crown * 0.4, h * 0.1), leaf.lightened(0.12))

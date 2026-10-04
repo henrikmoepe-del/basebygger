@@ -4,6 +4,8 @@ extends Node2D
 ## Placeholder shapes until we have real art.
 
 const JobData = preload("res://scripts/job_data.gd")
+const LEGS := Color(0.30, 0.24, 0.20)
+const LEG_HEIGHT := 2.0
 
 ## The job id from JobData.JOBS, or "" for idle.
 var job := ""
@@ -14,6 +16,9 @@ var speed := 50.0
 ## The Workers node, which knows where things are in the world.
 var world: Node2D
 
+var _walking := false
+var _last_x := 0.0
+
 
 func _process(delta: float) -> void:
 	if GameState.is_night() and _sleeps():
@@ -23,6 +28,8 @@ func _process(delta: float) -> void:
 	else:
 		show()
 		_work(delta)
+	_walking = not is_equal_approx(position.x, _last_x)
+	_last_x = position.x
 	queue_redraw()
 
 
@@ -39,11 +46,18 @@ func _work(delta: float) -> void:
 func _draw() -> void:
 	var tunic: Color = JobData.JOBS[job].color if job != "" else JobData.IDLE_COLOR
 	var bob := _bob()
+	# Legs: while walking, they take turns stepping.
+	var step := int(Time.get_ticks_msec() / 140.0 + position.x) % 2 if _walking else -1
+	draw_rect(Rect2(-2, -3, 2, 2 if step == 0 else 3), LEGS)
+	draw_rect(Rect2(1, -3, 2, 2 if step == 1 else 3), LEGS)
+	# The body sits on top of the legs.
+	draw_set_transform(Vector2(0, -LEG_HEIGHT))
 	draw_rect(Rect2(-3, bob - 10, 6, 10), tunic)
 	draw_rect(Rect2(-2, bob - 14, 4, 4), Color(0.93, 0.76, 0.62))
 	if trained:
 		draw_rect(Rect2(-3, bob - 16, 6, 2), JobData.TRAINED_HAT)
 	_draw_extra(bob)
+	draw_set_transform(Vector2.ZERO)
 
 
 ## How far the body is lifted this frame (negative = up), for work animations.

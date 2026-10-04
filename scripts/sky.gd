@@ -11,6 +11,7 @@ const MOON_COLOR := Color(0.88, 0.90, 0.98)
 ## How much of the day the fade into night takes.
 const DUSK_LENGTH := 0.06
 const DAWN_LENGTH := 0.03
+const CLOUDS := 5
 
 @export var world_tint: CanvasModulate
 
@@ -23,12 +24,26 @@ func _process(_delta: float) -> void:
 
 
 func _draw() -> void:
+	_draw_clouds()
 	var now := GameState.day_fraction()
 	var night_start := GameState.night_start()
 	if now < night_start:
 		_draw_disc(now / night_start, SUN_COLOR, 9.0)
 	else:
 		_draw_disc((now - night_start) / (1.0 - night_start), MOON_COLOR, 6.0)
+
+
+## A few clouds drifting slowly across, each at its own height and speed.
+## They fade out as night falls.
+func _draw_clouds() -> void:
+	var seconds := Time.get_ticks_msec() / 1000.0
+	var cloud := Color(1.0, 1.0, 0.96, 0.75 * (1.0 - _darkness()))
+	for i in CLOUDS:
+		var x := fmod(i * 173.0 + seconds * (3.0 + i * 0.8), size.x + 160.0) - 80.0
+		var y := 34.0 + (i * 37) % 80
+		draw_rect(Rect2(x, y, 44, 8), cloud)
+		draw_rect(Rect2(x + 8, y - 6, 22, 6), cloud)
+		draw_rect(Rect2(x + 20, y + 8, 18, 4), cloud)
 
 
 ## 0 in daylight, 1 in the middle of the night, fading in between.

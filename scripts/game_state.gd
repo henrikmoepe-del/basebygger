@@ -3,6 +3,8 @@ extends Node
 ## so the 2D builder and the later 3D mode can share the same state.
 
 signal resources_changed
+## A load arrived at the stockhouse.
+signal income_delivered(type: String, amount: int)
 ## A castle part was ordered or finished.
 signal castle_changed
 signal job_progress_changed
@@ -248,6 +250,7 @@ func add_income(type: String, amount: int) -> void:
 	_window_income[type] += amount
 	resources[type] += amount
 	resources_changed.emit()
+	income_delivered.emit(type, amount)
 
 
 func can_afford(cost: Dictionary) -> bool:
