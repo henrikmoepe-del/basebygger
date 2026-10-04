@@ -327,6 +327,15 @@ focus_mode = 0
 theme_override_font_sizes/font_size = 10
 text = "Defend the walls!"
 
+[node name="InsideButton" type="Button" parent="HUD/BottomBar/Actions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+tooltip_text = "Make every building see-through, to watch what goes on inside (X). Pointing at one building does the same for just that one."
+focus_mode = 0
+theme_override_font_sizes/font_size = 10
+text = "Inside (X)"
+
 [node name="SkillsButton" type="Button" parent="HUD/BottomBar/Actions"]
 unique_name_in_owner = true
 layout_mode = 2

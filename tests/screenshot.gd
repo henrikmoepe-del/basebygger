@@ -16,6 +16,8 @@ const PLANS := {
 	"court": {"levels": {"walls": 2}, "part": "court", "camera": [-290, -30, 2.0], "shots": 6},
 	"gate": {"levels": {"walls": 2}, "part": "gate", "camera": [30, -40, 2.0], "shots": 5},
 	"tavern": {"levels": {"walls": 1}, "part": "tavern", "camera": [1170, -45, 2.0], "shots": 5},
+	"inside": {"levels": {"walls": 3, "keep": 5, "towers": 4, "garrison": 3, "court": 2}, "part": "", "camera": [20, 20, 1.0], "shots": 4, "open": true, "soldiers": 8},
+	"inside_build": {"levels": {"walls": 2}, "part": "keep", "camera": [-100, 0, 1.5], "shots": 6, "open": true},
 	"idle": {"levels": {"walls": 3, "keep": 3, "towers": 3, "garrison": 2, "court": 2, "tavern": 1, "houses": 3}, "part": "", "camera": [100, 0, 0.75], "shots": 5},
 }
 
@@ -55,6 +57,12 @@ func _run() -> void:
 	camera.set_process_unhandled_input(false)
 	camera.zoom = Vector2(plan.camera[2], plan.camera[2])
 	camera.position = Vector2(plan.camera[0], 270.0 - 90.0 / plan.camera[2] - plan.camera[1])
+	if plan.get("open", false):
+		current_scene.get_node("Castle").toggle_all_open()
+	if plan.has("soldiers"):
+		gs.peasants += plan.soldiers
+		gs.jobs.soldier = plan.soldiers
+		gs.peasants_changed.emit()
 
 	if plan.part == "":
 		# Nothing to build: just watch the peasants for a while.

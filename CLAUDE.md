@@ -148,6 +148,10 @@ What this means for the design now (Claude's notes):
   - Ideas Henrik wants next (not started): materials made in their own buildings (bricks from a
     brickworks, planks from a sawmill) and carried to the site; rooms inside the keep, with walls
     that turn see-through when hovered or by a button.
+  - Looking inside: pointing at a building with stairs inside (towers, keep, garrison, also while
+    it is being built) makes its front see-through, showing the back wall, the landings, the
+    flights of stairs and the peasants on them; X or the Inside button does it for all of them
+    (`castle.interiors`, `_draw_interior`, `_paint`). Rooms to build inside are not started.
   - Stairs inside buildings go up in flights, back and forth (`castle.route` turns hidden steps
     into flights); a peasant finishes a flight before changing their mind. Until the stair door is
     built there is an open trapdoor in the deck.

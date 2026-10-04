@@ -151,7 +151,7 @@ func _draw_store(type: String) -> void:
 func _draw_inside() -> void:
 	var windows: Array[Rect2] = castle.windows()
 	for worker in get_children():
-		if not worker.has_method("is_inside") or not worker.is_inside() or worker.position.y > -0.5:
+		if not worker.has_method("is_inside") or not worker.is_inside() or worker.visible or worker.position.y > -0.5:
 			continue
 		var at: Vector2 = worker.position
 		for window in windows:

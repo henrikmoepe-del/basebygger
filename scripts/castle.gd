@@ -41,6 +41,11 @@ const FLOOR_SNAP := 16.0
 ## Chips fly from this many pieces at most when several land at once.
 const MAX_BURSTS := 3
 const FAR := 100000.0
+## How much of a building's front is left to see while it is being looked into.
+const OPEN_ALPHA := 0.22
+const INSIDE_WALL := Color(0.27, 0.25, 0.27)
+const INSIDE_FLOOR := Color(0.48, 0.32, 0.20)
+const INSIDE_STAIR := Color(0.62, 0.45, 0.28)
 const FALL_GRAVITY := 420.0
 ## Stairs inside a building: how much each flight rises, and how far it runs
 ## to either side of the middle.
@@ -62,6 +67,12 @@ var _known_levels := {}
 var _front := Node2D.new()
 ## The floors of everything that is built (see floors()).
 var _floors: Array = []
+## The buildings being looked into right now, each {"rect": Rect2, "stair":
+## float}: the one under the mouse, or all of them (see interiors()).
+var _open: Array = []
+## True while every building is see-through (the X key).
+var _all_open := false
+var _painting_front := false
 ## The windows of the courtyard buildings: peasants on the stairs inside
 ## can be seen through them.
 var _windows: Array[Rect2] = []
@@ -85,6 +96,7 @@ var _seen_placed := 0
 
 
 func _ready() -> void:
+	add_to_group("castle")
 	_front.z_index = FRONT_Z
 	add_child(_front)
 	_front.draw.connect(_draw_layer.bind(_front, true))
@@ -128,7 +140,47 @@ func _on_progress() -> void:
 	_redraw()
 
 
+## Makes every building with an inside see-through, or solid again.
+func toggle_all_open() -> void:
+	_all_open = not _all_open
+
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if event.pressed and not event.echo and event.keycode == KEY_X:
+		toggle_all_open()
+
+
+## The buildings that have an inside to look into, each {"rect", "stair"}:
+## everything with stairs inside, and what is being built with such stairs,
+## as high as it has got.
+func interiors() -> Array:
+	var out := []
+	for flat: Dictionary in built_floors():
+		if flat.hidden:
+			out.append({"rect": Rect2(flat.x0 - 3.0, flat.y, flat.x1 - flat.x0 + 6.0, -flat.y), "stair": flat.stairs[0]})
+	if job_has_scaffold():
+		var plan: Dictionary = GameState.job_plan
+		for i in _plan_sections.size():
+			var y := _deck_y(i)
+			if plan.access[i].hidden and y < -0.5:
+				var section: Array = _plan_sections[i]
+				out.append({"rect": Rect2(section[0], y, section[1] - section[0], -y), "stair": plan.access[i].x})
+	return out
+
+
+## True if a peasant inside a building at this point can be seen, because
+## the building is being looked into.
+func shows_inside(point: Vector2) -> bool:
+	return _is_open(point.x)
+
+
 func _process(delta: float) -> void:
+	# The building under the mouse turns see-through; X does it for all of them.
+	var mouse := get_local_mouse_position()
+	var open := interiors().filter(func(inside: Dictionary) -> bool: return _all_open or inside.rect.grow(4.0).has_point(mouse))
+	if open != _open:
+		_open = open
+		_redraw()
 	if _flash_part != "":
 		_flash_age += delta
 		if _flash_age >= FLASH_TIME:
@@ -161,6 +213,10 @@ func _draw() -> void:
 
 ## Draws the back layer onto this node, or the front layer onto its child.
 func _draw_layer(canvas, front: bool) -> void:
+	_painting_front = front
+	if front:
+		for inside: Dictionary in _open:
+			_draw_interior(canvas, inside)
 	for part: String in CastleData.DRAW_ORDER:
 		if (part in CastleData.FRONT) != front:
 			continue
@@ -576,14 +632,50 @@ func _rebuild_floors() -> void:
 
 func _draw_shapes(canvas, shapes: Array) -> void:
 	for shape: Array in shapes:
-		canvas.draw_rect(shape[0], shape[1])
+		_paint(canvas, shape[0], shape[1])
 
 
 ## Draws the piece of a shape inside an area.
 func _draw_clipped(canvas, shape: Array, area: Rect2) -> void:
 	var piece: Rect2 = shape[0].intersection(area)
 	if piece.has_area():
-		canvas.draw_rect(piece, shape[1])
+		_paint(canvas, piece, shape[1])
+
+
+## Draws one rectangle of the castle: faintly, if it belongs to a building
+## that is being looked into.
+func _paint(canvas, area: Rect2, color: Color) -> void:
+	if _painting_front and _is_open(area.get_center().x):
+		color.a *= OPEN_ALPHA
+	canvas.draw_rect(area, color)
+
+
+## True if x is within a building that is being looked into.
+func _is_open(x: float) -> bool:
+	for inside: Dictionary in _open:
+		if x >= inside.rect.position.x - 6.0 and x <= inside.rect.end.x + 6.0:
+			return true
+	return false
+
+
+## The inside of a building, behind its see-through front: the back wall, the
+## landings, and the flights of stairs the peasants climb.
+func _draw_interior(canvas, inside: Dictionary) -> void:
+	var area: Rect2 = inside.rect
+	canvas.draw_rect(area.grow(-2.0), INSIDE_WALL)
+	var flights := maxi(int(area.size.y / STAIR_FLIGHT), 1)
+	var from := Vector2(inside.stair, 0)
+	var side := 1.0
+	for i in range(1, flights + 1):
+		var y: float = -area.size.y * i / flights
+		var to := Vector2(inside.stair + side * STAIR_HALF, y) if i < flights else Vector2(inside.stair, y)
+		if i < flights:
+			# A landing right across, at the top of each flight.
+			canvas.draw_rect(Rect2(area.position.x + 2.0, y, area.size.x - 4.0, 1), INSIDE_FLOOR)
+		canvas.draw_line(from, to, INSIDE_STAIR, 1.0)
+		canvas.draw_line(from + Vector2(0, 1), to + Vector2(0, 1), INSIDE_STAIR, 1.0)
+		from = to
+		side = -side
 
 
 ## The part being built: the old level, then what is laid of the new one so
@@ -598,7 +690,7 @@ func _draw_job(canvas) -> void:
 	# What must come off the old level stays until a builder knocks it down.
 	for chunk: Array in plan.gone:
 		if chunk[2] >= _placed:
-			canvas.draw_rect(chunk[0], chunk[1])
+			_paint(canvas, chunk[0], chunk[1])
 	for i in _plan_sections.size():
 		if done or i < piece.section:
 			_draw_shapes(canvas, plan.solid[i])
@@ -610,7 +702,7 @@ func _draw_job(canvas) -> void:
 	for i in built:
 		var placed: Dictionary = _plan[i]
 		if placed.kind == BuildPlan.Kind.FITTING:
-			canvas.draw_rect(placed.rect, placed.color)
+			_paint(canvas, placed.rect, placed.color)
 		elif placed.kind == BuildPlan.Kind.LADDER and placed.removed_by == -1:
 			_draw_ladder(canvas, placed.rect.get_center().x, placed.rect.position.y, placed.rect.end.y)
 

@@ -38,6 +38,7 @@ const PREVIEW_GROUND := Color(0.45, 0.68, 0.38)
 @onready var build_card_label: Label = %BuildCardLabel
 @onready var build_button: Button = %BuildButton
 @onready var hire_button: Button = %HireButton
+@onready var inside_button: Button = %InsideButton
 @onready var cow_button: Button = %CowButton
 @onready var defend_button: Button = %DefendButton
 @onready var skills_button: Button = %SkillsButton
@@ -80,6 +81,7 @@ func _ready() -> void:
 		build_button.set_pressed_no_signal(build_hover.active)
 		build_button.text = "Building...\nB to stop" if build_hover.active else "Build (B)")
 	hire_button.pressed.connect(GameState.hire_peasant)
+	inside_button.pressed.connect(func() -> void: get_tree().call_group("castle", "toggle_all_open"))
 	cow_button.pressed.connect(GameState.buy_cow)
 	defend_button.pressed.connect(GameState.start_siege)
 	skills_button.pressed.connect(skill_tree.show)

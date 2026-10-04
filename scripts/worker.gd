@@ -78,7 +78,8 @@ func _process(delta: float) -> void:
 	else:
 		_bed_x = NAN
 		_work(delta)
-	visible = not _inside
+	# Out of sight inside a building, unless the player is looking into it.
+	visible = not _inside or world.castle.shows_inside(position)
 	z_index = BACK_Z if _back else FRONT_Z
 	_age += delta
 	_walking = not position.is_equal_approx(_last_position)
