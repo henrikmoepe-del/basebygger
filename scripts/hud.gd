@@ -65,7 +65,7 @@ func _ready() -> void:
 	_refresh()
 	_show_offline_report()
 	if GameState.day == 1 and GameState.total_levels() == 0:
-		_show_toast("Your peasants do the work. Hire more, give them jobs, and order castle parts below. Drag or press A/D to look west to the village.")
+		_show_toast("Your three peasants do the work. Hire more and give them jobs with + before the food runs out. Order castle parts below.")
 
 
 ## One button per castle part, made from the data in CastleData.PARTS,
@@ -97,11 +97,16 @@ func _make_job_rows() -> void:
 		plus.text = "+"
 		plus.custom_minimum_size = Vector2(22, 0)
 		plus.pressed.connect(GameState.assign.bind(id, 1))
+		var train := _new_button(9)
+		train.text = "Train"
+		train.custom_minimum_size = Vector2(34, 0)
+		train.pressed.connect(GameState.train.bind(id))
 		row.add_child(label)
 		row.add_child(minus)
 		row.add_child(plus)
+		row.add_child(train)
 		jobs_box.add_child(row)
-		_job_rows[id] = {"row": row, "label": label, "minus": minus, "plus": plus}
+		_job_rows[id] = {"row": row, "label": label, "minus": minus, "plus": plus, "train": train}
 
 
 func _new_button(font_size: int) -> Button:
@@ -209,6 +214,13 @@ func _refresh() -> void:
 		row.label.text = "%s: %d" % [JobData.JOBS[id].name, GameState.jobs[id]]
 		if limit >= 0:
 			row.label.text += "/%d" % limit
+		if GameState.trained[id] > 0:
+			row.label.text += " (%d trained)" % GameState.trained[id]
+		# The Train button appears once the trade is unlocked in the skill tree.
+		var train_reason := GameState.train_block_reason(id)
+		row.train.visible = GameState.trade_unlocked(id) and id != "forester"
+		row.train.disabled = train_reason != "" or not GameState.can_afford(GameState.train_cost())
+		row.train.tooltip_text = "Train one as a %s: %s" % [JobData.JOBS[id].trade, _cost_text(GameState.train_cost())]
 		row.minus.disabled = GameState.jobs[id] <= 0
 		row.plus.disabled = idle <= 0 or (limit >= 0 and GameState.jobs[id] >= limit)
 

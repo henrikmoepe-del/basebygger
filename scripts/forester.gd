@@ -15,7 +15,7 @@ func _work(delta: float) -> void:
 	if GameState.trees < GameState.max_trees():
 		if _walk_to(world.grove.plot_x(GameState.trees), delta):
 			_planting = true
-			GameState.add_planting_work(delta)
+			GameState.add_planting_work(delta * GameState.work_mult())
 		return
 
 	# Grove is full: wander from tree to tree.

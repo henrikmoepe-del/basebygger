@@ -7,6 +7,8 @@ const JobData = preload("res://scripts/job_data.gd")
 
 ## The job id from JobData.JOBS, or "" for idle.
 var job := ""
+## Trained peasants do their job twice as well and wear a hat.
+var trained := false
 var home_x := 0.0
 var speed := 50.0
 ## The Workers node, which knows where things are in the world.
@@ -39,6 +41,8 @@ func _draw() -> void:
 	var bob := _bob()
 	draw_rect(Rect2(-3, bob - 10, 6, 10), tunic)
 	draw_rect(Rect2(-2, bob - 14, 4, 4), Color(0.93, 0.76, 0.62))
+	if trained:
+		draw_rect(Rect2(-3, bob - 16, 6, 2), JobData.TRAINED_HAT)
 	_draw_extra(bob)
 
 
@@ -50,6 +54,11 @@ func _bob() -> float:
 ## Jobs draw what the peasant carries or holds here.
 func _draw_extra(_bob_y: float) -> void:
 	pass
+
+
+## 2 for a trained peasant, 1 otherwise: how much better they do their job.
+func _skill() -> float:
+	return GameState.TRAINED_MULT if trained else 1.0
 
 
 ## Moves towards x and returns true once there.

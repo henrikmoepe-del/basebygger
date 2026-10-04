@@ -22,6 +22,16 @@ const SKILLS := {
 		"cell": Vector2i(-1, 0), "requires": "", "max_level": 5, "cost": 1, "cost_step": 1,
 		"effects": {"peasant_speed": 0.1},
 	},
+	"t_wood": {
+		"name": "Woodcutters", "icon": "WC", "text": "A trade. Peasants chopping wood can be trained as woodcutters, who chop twice as fast and carry twice as much.",
+		"cell": Vector2i(-1, -1), "requires": "boots", "max_level": 1, "cost": 3, "cost_step": 0,
+		"effects": {}, "big": true,
+	},
+	"t_stone": {
+		"name": "Quarrymen", "icon": "QM", "text": "A trade. Peasants mining stone can be trained as quarrymen, who mine twice as fast and carry twice as much.",
+		"cell": Vector2i(-1, 1), "requires": "boots", "max_level": 1, "cost": 3, "cost_step": 0,
+		"effects": {}, "big": true,
+	},
 	"baskets": {
 		"name": "Bigger Baskets", "icon": "Bk", "text": "Gatherers carry 1 more per trip per level.",
 		"cell": Vector2i(-2, 0), "requires": "boots", "max_level": 5, "cost": 2, "cost_step": 1,
@@ -48,7 +58,7 @@ const SKILLS := {
 		"effects": {"tree_wood": 3},
 	},
 	"forester": {
-		"name": "Foresters", "icon": "FO", "text": "Unlocks the Forester job. Foresters plant new trees and tend the grove so it regrows faster.",
+		"name": "Foresters", "icon": "FO", "text": "A trade and a new job. Foresters plant new trees and tend the grove so it regrows faster.",
 		"cell": Vector2i(-2, 2), "requires": "forestry", "max_level": 1, "cost": 3, "cost_step": 0,
 		"effects": {}, "big": true,
 	},
@@ -73,6 +83,11 @@ const SKILLS := {
 		"name": "Better Hammers", "icon": "Hm", "text": "Builders hammer 20% faster per level.",
 		"cell": Vector2i(0, -1), "requires": "", "max_level": 5, "cost": 1, "cost_step": 1,
 		"effects": {"hammer": 0.2},
+	},
+	"t_build": {
+		"name": "Master Builders", "icon": "MB", "text": "A trade. Builders can be trained as master builders, who hammer twice as fast and haul twice as much.",
+		"cell": Vector2i(1, -1), "requires": "hammers", "max_level": 1, "cost": 4, "cost_step": 0,
+		"effects": {}, "big": true,
 	},
 	"hods": {
 		"name": "Hods", "icon": "Hd", "text": "Builders carry 3 more per trip per level.",
@@ -112,7 +127,7 @@ const SKILLS := {
 		"effects": {"hunter_carry": 1},
 	},
 	"cook": {
-		"name": "Cooks", "icon": "CK", "text": "Unlocks the Cook job. Each cook makes the food go 8% further (up to 6 cooks).",
+		"name": "Cooks", "icon": "CK", "text": "A trade. Peasants at the pot can be trained as cooks, whose meals stretch the food twice as far.",
 		"cell": Vector2i(2, 0), "requires": "gamebags", "max_level": 1, "cost": 4, "cost_step": 0,
 		"effects": {}, "big": true,
 	},
@@ -126,24 +141,29 @@ const SKILLS := {
 		"cell": Vector2i(3, 0), "requires": "cook", "max_level": 3, "cost": 3, "cost_step": 1,
 		"effects": {"food_saving": 0.08},
 	},
+	"t_hunt": {
+		"name": "Hunters", "icon": "HU", "text": "A trade. Peasants finding food can be trained as hunters, who bring back twice as much.",
+		"cell": Vector2i(1, 1), "requires": "gamebags", "max_level": 1, "cost": 3, "cost_step": 0,
+		"effects": {}, "big": true,
+	},
 	"bunks": {
 		"name": "Bunk Beds", "icon": "Bd", "text": "Each house holds 1 more peasant per level.",
-		"cell": Vector2i(1, 1), "requires": "gamebags", "max_level": 3, "cost": 3, "cost_step": 1,
+		"cell": Vector2i(2, 1), "requires": "t_hunt", "max_level": 3, "cost": 3, "cost_step": 1,
 		"effects": {"house_room": 1},
 	},
 	"ale": {
 		"name": "Good Ale", "icon": "Al", "text": "A full tavern makes everyone work another 4% faster per level.",
-		"cell": Vector2i(2, 1), "requires": "bunks", "max_level": 3, "cost": 3, "cost_step": 1,
+		"cell": Vector2i(3, 1), "requires": "bunks", "max_level": 3, "cost": 3, "cost_step": 1,
 		"effects": {"tavern_bonus": 0.04},
 	},
 	"deepwell": {
 		"name": "Deep Well", "icon": "Wl", "text": "Each well level serves 2 more peasants per level.",
-		"cell": Vector2i(2, 2), "requires": "ale", "max_level": 3, "cost": 2, "cost_step": 1,
+		"cell": Vector2i(2, 2), "requires": "bunks", "max_level": 3, "cost": 2, "cost_step": 1,
 		"effects": {"well_serves": 2},
 	},
 	"lanterns": {
 		"name": "Lanterns", "icon": "LN", "text": "Peasants work later into the evening: nights are a quarter shorter.",
-		"cell": Vector2i(3, 1), "requires": "ale", "max_level": 1, "cost": 5, "cost_step": 0,
+		"cell": Vector2i(3, 2), "requires": "ale", "max_level": 1, "cost": 5, "cost_step": 0,
 		"effects": {"night_shorter": 0.07}, "big": true,
 	},
 
@@ -152,6 +172,11 @@ const SKILLS := {
 		"name": "Drills", "icon": "Dr", "text": "Each soldier gives 1 more defence per level.",
 		"cell": Vector2i(0, 1), "requires": "", "max_level": 5, "cost": 2, "cost_step": 1,
 		"effects": {"soldier_defence": 1},
+	},
+	"t_guard": {
+		"name": "Men-at-arms", "icon": "MA", "text": "A trade. Peasants standing guard can be trained as men-at-arms, who count double for defence.",
+		"cell": Vector2i(1, 2), "requires": "drills", "max_level": 1, "cost": 4, "cost_step": 0,
+		"effects": {}, "big": true,
 	},
 	"thickwalls": {
 		"name": "Thick Walls", "icon": "Tw", "text": "Castle parts give 8% more defence per level.",

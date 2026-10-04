@@ -24,8 +24,14 @@ const CastleData = preload("res://scripts/castle_data.gd")
 const SkillData = preload("res://scripts/skill_data.gd")
 const JobData = preload("res://scripts/job_data.gd")
 
-const START_JOBS := {"wood": 1, "stone": 1, "hunter": 1, "build": 1, "soldier": 0, "forester": 0, "cook": 0}
-const START_PEASANTS := 4
+const START_JOBS := {"wood": 1, "stone": 1, "hunter": 0, "build": 1, "cook": 0, "soldier": 0, "forester": 0}
+const NO_JOBS := {"wood": 0, "stone": 0, "hunter": 0, "build": 0, "cook": 0, "soldier": 0, "forester": 0}
+const START_PEASANTS := 3
+## How much better a trained peasant does their job.
+const TRAINED_MULT := 2.0
+## Training costs food and wood, and each one trained costs more than the last.
+const TRAIN_BASE_COST := 12
+const TRAIN_COST_GROWTH := 1.3
 const PEASANT_BASE_COST := 10
 const PEASANT_COST_GROWTH := 1.25
 const PEASANT_BASE_CARRY := 2
@@ -36,13 +42,14 @@ const HUNTER_CARRY := 4
 ## everyone sleeps. Night begins at NIGHT_START (a fraction of the day).
 const DAY_LENGTH := 120.0
 const NIGHT_START := 0.72
-const START_FOOD := 30
+const START_FOOD := 40
 ## Every peasant eats this much at dawn. If there isn't enough, everyone
 ## goes hungry and works at HUNGRY_WORK_MULT until the next dawn.
 const FOOD_PER_PEASANT := 3.0
 const HUNGRY_WORK_MULT := 0.6
-const COOK_FOOD_SAVING := 0.08
-const MAX_USEFUL_COOKS := 6
+## Each cook saves this share of the food; a trained cook counts as two.
+const COOK_FOOD_SAVING := 0.05
+const MAX_COOK_POINTS := 10
 
 ## Raiders test the castle's defence every RAID_INTERVAL days, and each raid is
 ## RAID_STRENGTH_GROWTH times stronger than the last. Beating one gives renown;
@@ -98,7 +105,7 @@ const LEVELS_PER_RANK := 5
 const FIRST_RANK_UP := 18
 const RANK_UP_STEP := 24
 
-const SAVE_VERSION := 8
+const SAVE_VERSION := 9
 const AUTOSAVE_INTERVAL := 10.0
 const MAX_OFFLINE_SECONDS := 8 * 3600
 ## Offline progress is only granted (and reported) after this long away.
@@ -115,6 +122,8 @@ var part_levels := {
 var peasants := START_PEASANTS
 ## How many peasants are assigned to each job. The rest are idle.
 var jobs := START_JOBS.duplicate()
+## How many of the peasants in each job are trained in its trade.
+var trained := NO_JOBS.duplicate()
 var trees := START_TREES
 ## Seconds of forester work done on the next tree.
 var planting_work := 0.0
@@ -240,7 +249,8 @@ func is_night() -> bool:
 
 ## How much food the peasants eat at dawn.
 func food_needed() -> int:
-	var saving: float = mini(jobs.cook, MAX_USEFUL_COOKS) * COOK_FOOD_SAVING + skill_total("food_saving")
+	var cook_points: int = mini(jobs.cook + trained.cook, MAX_COOK_POINTS)
+	var saving: float = cook_points * COOK_FOOD_SAVING + skill_total("food_saving")
 	return ceili(peasants * FOOD_PER_PEASANT * (1.0 - saving))
 
 
@@ -371,6 +381,46 @@ func assign(job: String, change: int) -> bool:
 	if change < 0 and jobs[job] <= 0:
 		return false
 	jobs[job] += change
+	if job == "forester":
+		trained[job] = jobs[job]
+	# Taking the last untrained peasant off a job takes a trained one next,
+	# and their training is lost.
+	trained[job] = mini(trained[job], jobs[job])
+	peasants_changed.emit()
+	return true
+
+
+## True once the job's trade has been bought in the skill tree.
+func trade_unlocked(job: String) -> bool:
+	return skill_level(JobData.JOBS[job].trade_skill) > 0
+
+
+func total_trained() -> int:
+	var total := 0
+	for job: String in trained:
+		total += trained[job]
+	return total
+
+
+func train_cost() -> Dictionary:
+	var amount := ceili(TRAIN_BASE_COST * pow(TRAIN_COST_GROWTH, total_trained()))
+	return {"food": amount, "wood": amount}
+
+
+## Why nobody in the job can be trained right now (apart from cost), or "".
+func train_block_reason(job: String) -> String:
+	if not trade_unlocked(job):
+		return "Needs the %s skill" % SkillData.SKILLS[JobData.JOBS[job].trade_skill].name
+	if trained[job] >= jobs[job]:
+		return "Nobody left to train"
+	return ""
+
+
+## Trains one peasant in the job's trade.
+func train(job: String) -> bool:
+	if train_block_reason(job) != "" or not spend(train_cost()):
+		return false
+	trained[job] += 1
 	peasants_changed.emit()
 	return true
 
@@ -465,7 +515,8 @@ func total_defence() -> int:
 	for id: String in part_levels:
 		from_parts += part_levels[id] * CastleData.PARTS[id].defence
 	from_parts *= 1.0 + skill_total("part_defence")
-	return roundi(from_parts) + jobs.soldier * soldier_defence()
+	# A trained soldier counts as two.
+	return roundi(from_parts) + (jobs.soldier + trained.soldier) * soldier_defence()
 
 
 func soldier_defence() -> int:
@@ -676,6 +727,7 @@ func save_game() -> void:
 		"part_levels": part_levels,
 		"peasants": peasants,
 		"jobs": jobs,
+		"trained": trained,
 		"trees": trees,
 		"renown": renown,
 		"day": day,
@@ -729,6 +781,7 @@ func _start_over() -> void:
 		part_levels[id] = 0
 	peasants = START_PEASANTS
 	jobs = START_JOBS.duplicate()
+	trained = NO_JOBS.duplicate()
 	trees = START_TREES
 	planting_work = 0.0
 	renown = 0
@@ -765,6 +818,9 @@ func load_game() -> void:
 	_load_numbers(resources, data.get("resources"), true)
 	_load_numbers(part_levels, data.get("part_levels"), true)
 	_load_numbers(jobs, data.get("jobs"), true)
+	_load_numbers(trained, data.get("trained"), true)
+	for job: String in trained:
+		trained[job] = mini(trained[job], jobs[job])
 	_load_numbers(income_rate, data.get("income_rate"), false)
 	peasants = maxi(int(data.get("peasants", START_PEASANTS)), START_PEASANTS)
 	if idle_peasants() < 0:

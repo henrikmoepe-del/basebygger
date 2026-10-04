@@ -34,12 +34,12 @@ func _work(delta: float) -> void:
 				_timer = 0.0
 			elif _walk_to(_spot.position.x + _spot_offset, delta):
 				_state = State.WORKING
-				_timer = WORK_TIME * GameState.gather_time_mult()
+				_timer = WORK_TIME * GameState.gather_time_mult() / _skill()
 		State.WORKING:
 			_timer -= delta
 			if _timer <= 0.0:
 				# Take as much as the basket holds, or whatever is left.
-				while _carrying < GameState.carry_amount(job) and _spot.take():
+				while _carrying < GameState.carry_amount(job) * _skill() and _spot.take():
 					_carrying += 1
 				# If someone else took the last of it, look for another spot.
 				_state = State.TO_HOME if _carrying > 0 else State.IDLE

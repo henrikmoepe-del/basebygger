@@ -74,10 +74,13 @@ func _sync() -> void:
 		while current.size() > wanted:
 			current.pop_back().queue_free()
 		for i in wanted - current.size():
-			_spawn(job)
+			current.append(_spawn(job))
+		# The first peasants in each job are the trained ones.
+		for i in current.size():
+			current[i].trained = job != "" and i < GameState.trained[job]
 
 
-func _spawn(job: String) -> void:
+func _spawn(job: String) -> Node2D:
 	var worker: Node2D = JOB_SCRIPTS[job].new()
 	worker.job = job
 	worker.world = self
@@ -96,3 +99,4 @@ func _spawn(job: String) -> void:
 	# Everyone comes out of the stockhouse.
 	worker.position.x = stock_x
 	add_child(worker)
+	return worker

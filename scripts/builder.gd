@@ -25,7 +25,7 @@ func _work(delta: float) -> void:
 			_state = _choose_task()
 		State.TO_STOCK:
 			if _walk_to(world.stock_x + _offset, delta):
-				_carrying = GameState.job_take_load(GameState.builder_load())
+				_carrying = GameState.job_take_load(int(GameState.builder_load() * _skill()))
 				_state = State.TO_SITE if _carrying > 0 else State.IDLE
 		State.TO_SITE:
 			if _walk_to(world.site_x() + _offset, delta):
@@ -37,7 +37,7 @@ func _work(delta: float) -> void:
 				if GameState.job_can_hammer():
 					_hammering = true
 					_swing += delta * 10.0
-					GameState.job_add_work(GameState.hammer_rate() * delta)
+					GameState.job_add_work(GameState.hammer_rate() * _skill() * delta)
 				else:
 					_state = State.IDLE
 
