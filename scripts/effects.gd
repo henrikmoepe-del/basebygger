@@ -12,6 +12,8 @@ var _bits: Array[Dictionary] = []
 
 
 func _ready() -> void:
+	# In front of the castle and everyone on it.
+	z_index = 5
 	add_to_group("effects")
 
 

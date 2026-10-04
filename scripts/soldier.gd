@@ -1,9 +1,14 @@
 extends "res://scripts/worker.gd"
-## A peasant who guards the castle. Soldiers stand watch on top of the walls,
-## day and night, and each one adds to the castle's defence (counted in
+## A peasant who guards the castle. Soldiers keep watch from the wall walk,
+## the tower tops and the roofs, day and night, pacing to a new spot now and
+## then. Each one adds to the castle's defence (counted in
 ## GameState.total_defence).
 
-var _on_wall := false
+## Which post this soldier keeps, from 0 to 1 (see Workers.guard_post).
+var _beat := randf()
+var _post := Vector2.INF
+var _wait := 0.0
+var _seen_version := -1
 
 
 func _sleeps() -> bool:
@@ -11,9 +16,15 @@ func _sleeps() -> bool:
 
 
 func _work(delta: float) -> void:
-	_on_wall = _walk_to(home_x, delta)
-	# Once in place they climb up; while walking they are on the ground.
-	position.y = world.wall_top_y() if _on_wall else 0.0
+	if _seen_version != world.castle.version:
+		# The castle changed: the old post may have moved.
+		_seen_version = world.castle.version
+		_post = world.guard_post(_beat, home_x)
+	if _go_to(_post, delta):
+		_wait -= delta
+		if _wait <= 0.0:
+			_wait = randf_range(5.0, 14.0)
+			_post = world.guard_post(_beat, home_x)
 
 
 func _draw_extra(bob_y: float) -> void:

@@ -119,7 +119,7 @@ const PLANT_TIME_GROWTH := 1.35
 ## How much each forester speeds up regrowth by tending the grove.
 const FORESTER_TEND_BONUS := 0.15
 ## How many units of material a builder carries per trip.
-const BUILDER_BASE_LOAD := 4
+const BUILDER_BASE_LOAD := 12
 ## Renown pays for skills. It is earned by building the castle.
 const RENOWN_PER_RANK := 3
 
@@ -175,11 +175,14 @@ var skills := {}
 
 ## The building job: the one part being raised a level right now ("" = none).
 ## Its materials are paid for when ordered, then builders haul them from the
-## stockhouse to the site, and can only hammer in what has arrived.
+## stockhouse to the foot of the site, pull them up to the top of the scaffold
+## by rope, and can only hammer in what has been lifted. Parts without a
+## scaffold are built from the ground: what arrives counts as lifted.
 var job_part := ""
 var job_units := 0        ## Material units the job needs in total.
 var job_claimed := 0      ## Units builders have picked up so far.
 var job_hauled := 0       ## Units that have arrived at the site.
+var job_lifted := 0       ## Units that have been pulled up to the builders.
 var job_work := 0.0       ## Seconds of hammering done.
 var job_work_total := 0.0
 
@@ -699,6 +702,7 @@ func order_part(id: String) -> bool:
 		job_units += cost[type]
 	job_claimed = 0
 	job_hauled = 0
+	job_lifted = 0
 	job_work = 0.0
 	job_work_total = part_work(id)
 	castle_changed.emit()
@@ -720,18 +724,35 @@ func job_return_load(units: int) -> void:
 
 func job_deliver(units: int) -> void:
 	job_hauled += units
+	if CastleData.PARTS[job_part].scaffold.is_empty():
+		job_lifted = job_hauled
 	job_delivered.emit()
 	job_progress_changed.emit()
 
 
-## True if there is delivered material that hasn't been hammered in yet.
+## How many delivered units are waiting at the foot of the hoist.
+func job_waiting() -> int:
+	return job_hauled - job_lifted
+
+
+## A builder at the top pulls up to max_units from the pile below.
+## Returns how many came up.
+func job_lift(max_units: int) -> int:
+	var units := mini(max_units, job_waiting())
+	if units > 0:
+		job_lifted += units
+		job_progress_changed.emit()
+	return units
+
+
+## True if there is lifted material that hasn't been hammered in yet.
 func job_can_hammer() -> bool:
 	return job_part != "" and job_work < _job_work_allowed()
 
 
 func job_add_work(seconds: float) -> void:
 	job_work = minf(job_work + seconds, _job_work_allowed())
-	if job_hauled >= job_units and job_work >= job_work_total:
+	if job_lifted >= job_units and job_work >= job_work_total:
 		_finish_job()
 	job_progress_changed.emit()
 
@@ -744,9 +765,9 @@ func job_fraction() -> float:
 
 
 func _job_work_allowed() -> float:
-	if job_hauled >= job_units:
+	if job_lifted >= job_units:
 		return job_work_total
-	return job_work_total * job_hauled / job_units
+	return job_work_total * job_lifted / job_units
 
 
 func _finish_job() -> void:
@@ -864,6 +885,7 @@ func dev_skip(seconds: float) -> void:
 	if job_part != "":
 		job_hauled = job_units
 		job_claimed = job_units
+		job_lifted = job_units
 		job_work = job_work_total
 		_finish_job()
 	resources_changed.emit()
@@ -895,7 +917,7 @@ func save_game() -> void:
 		"skills": skills,
 		"income_rate": income_rate,
 		"job": {
-			"part": job_part, "units": job_units, "hauled": job_hauled,
+			"part": job_part, "units": job_units, "hauled": job_hauled, "lifted": job_lifted,
 			"work": job_work, "work_total": job_work_total,
 		},
 	}
@@ -1011,6 +1033,7 @@ func load_game() -> void:
 		job_hauled = clampi(int(job.get("hauled", 0)), 0, job_units)
 		# Loads that were being carried when the game closed go back to the stockhouse.
 		job_claimed = job_hauled
+		job_lifted = clampi(int(job.get("lifted", job_hauled)), 0, job_hauled)
 		job_work_total = float(job.work_total)
 		job_work = clampf(float(job.get("work", 0.0)), 0.0, _job_work_allowed())
 

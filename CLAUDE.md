@@ -45,8 +45,10 @@
   Placeholder art.
 - The player never clicks to gather. Peasants do all the work; the player hires them, gives
   them jobs, trains them, points at the world to build, and buys skills.
-- World layout: the castle is in the middle (x = 0). Defence is to the west, where raiders come
-  from (palisade, watchtower). The stockhouse, quarry, grove, wilds, mine and village are to the east.
+- World layout: the castle is in the middle (x = 0) and about 670 wide. Defence is to the west, where
+  raiders come from (palisade, watchtower). The stockhouse, quarry, grove, wilds, mine and village are to the east.
+- The castle is a side view with the front wall cut away: the curtain wall and gate are at the back,
+  and the court, keep and garrison stand in the courtyard in front of it, between two towers.
 - Done:
   - Start with 3 generalist peasants. Jobs: chop wood, mine stone, find food, build, cook,
     stand guard (needs a garrison), mine iron (needs a mine), tend the grove (needs the Foresters skill)
@@ -64,15 +66,25 @@
     bar, and a Menu for Pass the crown and New game. Details live in tooltips.
   - Cows (Cattle skill) wait with carts at gathering sites and haul loads home
   - Hover to build: point at a part or a signpost for a card (cost, benefit, drawback), click to order
-  - Building: builders haul materials from the stockhouse and hammer them in; scaffolding and rope hoist
+  - Building: builders carry materials to the foot of the site, one pulls them up by rope from the
+    top of the scaffold, and they hammer them in up there (`builder.gd` shares out the roles).
+    Parts without a scaffold (palisade, watchtower, village) are built from the ground.
+  - Walkable castle: `CastleData.floors()` lists floors and stairs per part; `castle.gd` finds the way
+    (`route`), and `worker.gd` `_go_to` walks it. Soldiers patrol the wall walk, tower tops and roofs;
+    idle peasants stroll around the castle; at night everyone sleeps behind the nearest door.
+    Stairs inside towers, keep and garrison are hidden: peasants go in at the door and come out on top.
   - Skill tree: a pannable node map with four arms, levels per skill, hidden "?" nodes; paid with renown
   - Day and night, food and hunger, trees that run out and regrow, raids every 3 days
   - Pass the crown (prestige) with lasting legacy; save/load with offline progress; New game
-  - Camera: drag or A/D to pan, mouse wheel to zoom out
+  - Camera: drag or A/D to pan, drag up/down or W/S to look up at the castle, mouse wheel to zoom out
   - Dev shortcuts (editor runs only): F2 speed, F3 skip 10 min, F4 resources, F6 peasants, F1 hide
 - Henrik's list from the last round is built. Wanted later: more minerals than iron, better food
   from trained cooks, buildings only trained builders can raise, individual peasant traits
-- Known balance issues: iron piles up late (costs are low); food is now tight in the mid game
+- Known balance issues: iron piles up late (costs are low); food is now tight in the mid game;
+  since the castle grew, parts far from the stockhouse (keep, court) take about twice as long to build
+  (builders carry 12 per trip to make up for some of it). Costs were not changed for the bigger castle.
+- Next for the castle: rooms inside it (kitchen, smithy, stores) so more jobs happen within the walls;
+  lit windows at night; the two towers as separate parts.
 - Design notes:
   - Castle parts and soldiers are defences. `GameState.total_defence()` and the part levels are
     what the later 3D wave defence will read; raids are the 2D stand-in for it.

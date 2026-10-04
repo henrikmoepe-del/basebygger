@@ -16,7 +16,8 @@ const SIGN_POST := Color(0.48, 0.32, 0.20)
 ## Moving the mouse further than this between press and release is a drag
 ## (which pans the camera), not a click.
 const CLICK_SLOP := 4.0
-const MIN_OUTLINED_AREA := 300.0
+## Outlines and signposts are drawn over the castle and the peasants on it.
+const OVERLAY_Z := 4
 
 ## The part under the mouse, or "".
 var hovered := ""
@@ -24,6 +25,7 @@ var _press_position := Vector2.ZERO
 
 
 func _ready() -> void:
+	z_index = OVERLAY_Z
 	GameState.castle_changed.connect(queue_redraw)
 	GameState.resources_changed.connect(queue_redraw)
 
@@ -51,7 +53,7 @@ func _draw() -> void:
 	if hovered != "":
 		for area in zones(hovered):
 			# Outline the main bodies only, not every window and battlement.
-			if area.get_area() >= MIN_OUTLINED_AREA:
+			if CastleData.is_body(area):
 				draw_rect(area, OUTLINE, false, 1.0)
 
 

@@ -5,12 +5,12 @@ extends Node2D
 
 const BODY := Color(0.70, 0.16, 0.16)
 const SKIN := Color(0.93, 0.76, 0.62)
-const START_X := -500.0
+const START_X := -760.0
 const SPACING := -9.0
 const FLEE_SPEED := 90.0
 
 ## Where the raiders stop: just outside the castle's west tower.
-@export var stop_x := -140.0
+@export var stop_x := -350.0
 
 ## The x position of each raider on screen.
 var _raiders: Array[float] = []

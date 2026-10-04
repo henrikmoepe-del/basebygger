@@ -1,7 +1,8 @@
 extends Node2D
 ## Keeps one walking peasant on screen for every peasant in GameState, each
 ## running the script for their job, and draws the stockhouse. Peasants ask
-## this node where things are (gather spots, the building site).
+## this node where things are (gather spots, guard posts, beds).
+## This node and the castle share the same origin: the castle's ground-centre.
 
 const CastleData = preload("res://scripts/castle_data.gd")
 const Worker = preload("res://scripts/worker.gd")
@@ -18,6 +19,8 @@ const PILE_UNIT := 6.0
 const MAX_PILE_PIECES := 6
 const FLOAT_TIME := 1.2
 const MAX_FLOATS := 12
+## Idle peasants stroll on floors no further than this from the castle's middle.
+const STROLL_REACH := 340.0
 const FLOAT_COLORS := {
 	"wood": Color(0.40, 0.26, 0.15), "stone": Color(0.36, 0.38, 0.46),
 	"food": Color(0.70, 0.20, 0.25), "iron": Color(0.20, 0.22, 0.30),
@@ -32,7 +35,7 @@ const JOB_SCRIPTS := {
 @export var wilds: Node2D
 @export var mine: Node2D
 @export var castle: Node2D
-@export var stock_x := 170.0
+@export var stock_x := 390.0
 
 ## Numbers floating up from the stockhouse as loads arrive:
 ## each is {"text": String, "color": Color, "age": float, "x": float}.
@@ -145,19 +148,68 @@ func cow_site_x(resource_type: String) -> float:
 	return rock.position.x + 30.0
 
 
-## The height of the top of the castle walls, where soldiers stand (negative = up).
-func wall_top_y() -> float:
-	return CastleData.top_y("walls", GameState.part_levels.walls)
+## Where a soldier stands watch: a spot on one of the castle's floors. beat
+## (0 to 1) picks the floor, so a soldier keeps to the same one; wide floors
+## like the wall walk get more soldiers than a tower top.
+func guard_post(beat: float, fallback_x: float) -> Vector2:
+	var flats: Array = castle.built_floors()
+	var total := 0.0
+	for flat: Dictionary in flats:
+		total += flat.x1 - flat.x0
+	var along := beat * total
+	for flat: Dictionary in flats:
+		along -= flat.x1 - flat.x0
+		if along <= 0.0:
+			return Vector2(randf_range(flat.x0 + 4.0, flat.x1 - 4.0), flat.y)
+	return Vector2(fallback_x, 0)
+
+
+## Somewhere for an idle peasant to wander to: near home, across the
+## courtyard, or up on the castle.
+func stroll_spot(home_x: float) -> Vector2:
+	var flats: Array = castle.built_floors().filter(func(flat: Dictionary) -> bool: return absf(flat.x0) < STROLL_REACH)
+	var roll := randf()
+	if flats.is_empty() or roll < 0.4:
+		return Vector2(home_x + randf_range(-30.0, 30.0), 0)
+	if roll < 0.7:
+		return Vector2(randf_range(-CastleData.WALL_HALF + 20.0, CastleData.WALL_HALF - 20.0), 0)
+	var flat: Dictionary = flats.pick_random()
+	return Vector2(randf_range(flat.x0 + 4.0, flat.x1 - 4.0), flat.y)
+
+
+## The door nearest to x where a peasant can sleep: the stockhouse, or any
+## building of the castle or village that has one.
+func bed_x(x: float) -> float:
+	var nearest := stock_x
+	for part: String in GameState.part_levels:
+		for door: float in CastleData.doors(part, GameState.part_levels[part]):
+			if absf(door - x) < absf(nearest - x):
+				nearest = door
+	return nearest
+
+
+## How many builders other than this one are working at the top of the scaffold.
+func builders_aloft(except: Node) -> int:
+	return _builders(except).filter(func(b: Node) -> bool: return b.is_top_crew()).size()
+
+
+## How many builders other than this one are carrying materials to the site.
+func builders_carrying(except: Node) -> int:
+	return _builders(except).filter(func(b: Node) -> bool: return b.is_carrying()).size()
+
+
+## True if a builder other than this one is at the rope.
+func hoist_manned(except: Node) -> bool:
+	return _builders(except).any(func(b: Node) -> bool: return b.is_hoisting())
+
+
+func _builders(except: Node) -> Array:
+	return get_children().filter(func(w: Node) -> bool: return w is Builder and w != except and not w.is_queued_for_deletion())
 
 
 ## Where the cooks stand.
 func kitchen_x() -> float:
 	return stock_x - 24.0
-
-
-## Where builders stand to work on the current job.
-func site_x() -> float:
-	return castle.position.x + CastleData.PARTS[GameState.job_part].site_x
 
 
 ## Adds and removes peasant nodes until each job has the right number.
@@ -199,12 +251,11 @@ func _spawn(job: String) -> Node2D:
 	worker.world = self
 	worker.speed *= randf_range(0.9, 1.1)
 	if job == "soldier":
-		# Soldiers spread out along the wall, clear of the gate in the middle.
-		var side := -1.0 if randf() < 0.5 else 1.0
-		worker.home_x = castle.position.x + side * randf_range(26.0, 96.0)
+		# Until there is somewhere to stand watch, soldiers wait by the gate.
+		worker.home_x = randf_range(40.0, 160.0)
 	elif job == "build":
 		# Builders wait between the castle and the stockhouse.
-		worker.home_x = castle.position.x + 132.0 + randf_range(0.0, 20.0)
+		worker.home_x = stock_x - 40.0 + randf_range(-10.0, 10.0)
 	elif job == "":
 		worker.home_x = stock_x + randf_range(-12.0, 12.0)
 	else:
