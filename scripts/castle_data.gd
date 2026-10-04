@@ -177,6 +177,9 @@ const COURT_LEFT := -345.0
 const COURT_WIDTH := 80.0
 const GARRISON_LEFT := 72.0
 const GARRISON_WIDTH := 100.0
+## A shape can have this as a third entry, [Rect2, Color, FITTING], to say it
+## is made and set in whole however big it is: a door.
+const FITTING := "fitting"
 ## Shapes thinner than this are details (windows, courses, battlements), not
 ## the body of a part.
 const BODY_MIN_SIZE := 12.0
@@ -340,8 +343,13 @@ static func is_body(area: Rect2) -> bool:
 	return minf(area.size.x, area.size.y) >= BODY_MIN_SIZE
 
 
-## True for the details builders put in place whole (see FITTING_MAX_WIDTH).
-## Everything else is laid block by block.
+## True for a shape builders put in place whole: one marked FITTING (a
+## door), or any small detail. Everything else is laid block by block.
+static func is_fitting_shape(shape: Array) -> bool:
+	return shape.size() > 2 or is_fitting(shape[0])
+
+
+## True for a detail small enough to be put in place whole (see FITTING_MAX_WIDTH).
 static func is_fitting(area: Rect2) -> bool:
 	return not is_body(area) and area.size.y > 1.5 and area.size.x < FITTING_MAX_WIDTH
 
@@ -401,7 +409,7 @@ static func _tower(out: Array, tower: Dictionary, level: int) -> void:
 			_masonry(out, Rect2(x, -h, w, h), STONE_LIGHT, 12.0)
 			out.append([Rect2(x - 3, -10, w + 6, 10), STONE])
 			_windows(out, x, [w / 2.0 - 3.0], Vector2(6, 16), -64.0, 48.0, -h, SHADOW)
-			out.append([Rect2(middle - 7, -18, 14, 18), WOOD_DARK])
+			out.append([Rect2(middle - 7, -18, 14, 18), WOOD_DARK, FITTING])
 			if level >= 3:
 				# The top juts out over the tower.
 				out.append([Rect2(x - 4, -h, w + 8, 7), STONE])
@@ -419,7 +427,7 @@ static func _tower(out: Array, tower: Dictionary, level: int) -> void:
 			_masonry(out, Rect2(x, -h, w, h), STONE_LIGHT.darkened(0.05), 12.0)
 			out.append([Rect2(x - 2, -8, w + 4, 8), STONE])
 			_windows(out, x, [w / 2.0 - 3.0], Vector2(6, 14), -58.0, 44.0, -h, SHADOW)
-			out.append([Rect2(middle - 6, -16, 12, 16), WOOD_DARK])
+			out.append([Rect2(middle - 6, -16, 12, 16), WOOD_DARK, FITTING])
 			_merlons(out, x, w, -h, STONE_LIGHT.darkened(0.05))
 			_stair_door(out, middle, -h, STONE)
 			if level >= 8:
@@ -473,7 +481,7 @@ static func shapes(part: String, level: int) -> Array:
 			_masonry(out, Rect2(KEEP_LEFT, -h, KEEP_WIDTH, h), STONE_DARK, 14.0)
 			out.append([Rect2(KEEP_LEFT - 4, -12, KEEP_WIDTH + 8, 12), SHADOW])
 			_windows(out, KEEP_LEFT, [20.0, 61.0, 102.0], Vector2(8, 16), -62.0, 42.0, -h, SHADOW)
-			out.append([Rect2(middle - 8, -26, 16, 26), WOOD_DARK])
+			out.append([Rect2(middle - 8, -26, 16, 26), WOOD_DARK, FITTING])
 			if level >= 2:
 				_merlons(out, KEEP_LEFT, KEEP_WIDTH, -h, STONE_DARK)
 			var top := -h - 8.0
@@ -587,7 +595,7 @@ static func shapes(part: String, level: int) -> Array:
 			# The middle windows are on the stairs.
 			_windows(out, GARRISON_LEFT, [12.0, 47.0, 82.0], Vector2(6, 10), -44.0, 24.0, -h, SHADOW)
 			_stair_door(out, GARRISON_LEFT + GARRISON_WIDTH / 2.0, -h, STONE_WARM.darkened(0.1))
-			out.append([Rect2(GARRISON_LEFT + 43, -20, 14, 20), WOOD_DARK])
+			out.append([Rect2(GARRISON_LEFT + 43, -20, 14, 20), WOOD_DARK, FITTING])
 			if level >= 4:
 				# Weapon rack on the roof once the garrison is established.
 				out.append([Rect2(GARRISON_LEFT + 88, -h - 16, 2, 16), WOOD_DARK])
@@ -605,7 +613,7 @@ static func shapes(part: String, level: int) -> Array:
 			out.append([Rect2(COURT_LEFT + 5, -h - 15, COURT_WIDTH - 10, 7), ROOF_BLUE])
 			out.append([Rect2(COURT_LEFT + 17, -h - 21, COURT_WIDTH - 34, 6), ROOF_BLUE])
 			_windows(out, COURT_LEFT, [36.0] if level < 3 else [14.0, 36.0, 58.0], Vector2(8, 14), -46.0, 26.0, -h - 6.0, ROOF_BLUE)
-			out.append([Rect2(COURT_LEFT + 33, -20, 14, 20), WOOD_DARK])
+			out.append([Rect2(COURT_LEFT + 33, -20, 14, 20), WOOD_DARK, FITTING])
 			if level >= 5:
 				out.append([Rect2(COURT_LEFT + 39, -h - 39, 2, 18), WOOD_DARK])
 				out.append([Rect2(COURT_LEFT + 41, -h - 39, 12, 7), ROOF_BLUE])

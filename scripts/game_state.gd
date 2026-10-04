@@ -202,6 +202,7 @@ var job_claimed := 0      ## Pieces builders have set off from the stockhouse wi
 var job_hauled := 0       ## Pieces that have arrived at the foot of the site.
 var job_formed := 0       ## Pieces shaped at the bench.
 var job_lifted := 0       ## Pieces pulled up to the top.
+var job_hooked := false   ## True while a piece is tied on the rope, ready to be pulled up.
 var job_taken := 0        ## Pieces a builder has picked up to put in place.
 var job_placed := 0       ## Pieces in place.
 
@@ -738,6 +739,7 @@ func order_part(id: String) -> bool:
 	job_hauled = 0
 	job_formed = 0
 	job_lifted = 0
+	job_hooked = false
 	job_taken = 0
 	job_placed = 0
 	if job_size() == 0:
@@ -807,8 +809,16 @@ func job_ready() -> int:
 	return job_formed - job_lifted
 
 
+## A builder at the foot of the rope has tied the next shaped piece on.
+func job_hook() -> void:
+	if job_ready() > 0:
+		job_hooked = true
+		job_progress_changed.emit()
+
+
 ## A piece has been pulled up to the top.
 func job_lift() -> void:
+	job_hooked = false
 	job_lifted += 1
 	_job_advance()
 	job_progress_changed.emit()
@@ -872,6 +882,7 @@ func _finish_job() -> void:
 		announced.emit("Castle rank %d! Parts can now reach level %d" % [castle_rank(), level_cap()])
 	job_part = ""
 	job_plan = {}
+	job_hooked = false
 	castle_changed.emit()
 	skills_changed.emit()
 

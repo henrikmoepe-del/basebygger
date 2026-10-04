@@ -224,6 +224,9 @@ func pickup_spot() -> Vector2:
 		if piece.kind == BuildPlan.Kind.REMOVE:
 			# Scaffolding to take down: nothing to pick up, go straight to it.
 			return piece.stand
+		if piece.kind == BuildPlan.Kind.DISMANTLE:
+			# Old work to knock down: the same, from up on the old wall.
+			return stand_spot(GameState.job_taken)
 		if piece.lift:
 			return hoist_spot()
 	return Vector2(hoist_x() + READY_PILE, 0)
@@ -325,6 +328,21 @@ func _deck_step(section: int) -> Array:
 	if absf(piece.partial.end.y - piece.floor) > 0.5:
 		return []
 	return [piece.partial.position.x, piece.partial.end.x, piece.partial.position.y]
+
+
+## Where a builder stands to tie a piece on the rope.
+func rope_foot() -> Vector2:
+	return Vector2(hoist_x() + READY_PILE - 4.0, 0)
+
+
+## True if there is still work to do up on the deck: a piece that has to be
+## pulled up, or one waiting up there to be put in place.
+func work_above() -> bool:
+	var pieces := _plan
+	for i in range(GameState.job_taken, GameState.job_fetch()):
+		if pieces[i].lift:
+			return true
+	return false
 
 
 ## How many benches are set up in the yard being used right now.
@@ -687,9 +705,16 @@ func _draw_hoists(canvas) -> void:
 		var top: float = _deck_y(piece.section) - HOIST_RISE
 		canvas.draw_rect(Rect2(x - 10, top, 16, 2), SCAFFOLD_COLOR)
 		canvas.draw_rect(Rect2(x - 10, top, 2, HOIST_RISE), SCAFFOLD_COLOR)
-		canvas.draw_rect(Rect2(x + 2, top + 2, 1, 4), ROPE_COLOR)
+		if piece.section == active and _hoists.is_empty():
+			# The rope hangs to the ground, with the next piece tied on if a
+			# builder below has done so.
+			canvas.draw_rect(Rect2(x + 2, top + 2, 1, -top - 6), ROPE_COLOR)
+			if GameState.job_hooked:
+				canvas.draw_rect(Rect2(x - 1, -6, 7, 5), item_color(GameState.job_lifted))
+		else:
+			canvas.draw_rect(Rect2(x + 2, top + 2, 1, 4), ROPE_COLOR)
 		if piece.section == active:
 			for age in _hoists:
 				var y := lerpf(-4.0, top + 8.0, age / HOIST_TIME)
 				canvas.draw_rect(Rect2(x + 2, top + 2, 1, y - top - 2), ROPE_COLOR)
-				canvas.draw_rect(Rect2(x - 1, y, 7, 5), CastleData.STONE_LIGHT)
+				canvas.draw_rect(Rect2(x - 1, y, 7, 5), item_color(GameState.job_lifted))

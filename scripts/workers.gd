@@ -316,6 +316,11 @@ func builders_picking(except: Node) -> int:
 	return _builders(except).filter(func(b: Node) -> bool: return b.is_picking()).size()
 
 
+## True if a builder other than this one is tying a piece on the rope.
+func loader_busy(except: Node) -> bool:
+	return _builders(except).any(func(b: Node) -> bool: return b.is_loading())
+
+
 ## True if a builder other than this one is at the rope.
 func hoist_manned(except: Node) -> bool:
 	return _builders(except).any(func(b: Node) -> bool: return b.is_hoisting())

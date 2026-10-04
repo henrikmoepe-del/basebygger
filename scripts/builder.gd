@@ -11,18 +11,24 @@ extends "res://scripts/worker.gd"
 ## Long and heavy things (a ladder, a bench, the hoist) take two to carry
 ## from the stockyard: the one who picks it up waits for a helper, and they
 ## walk it over together. A builder with nobody to help drags it, slowly.
-## Builders share the steps out: each takes whatever is waiting, and a lone
-## builder does them all in turn. GameState counts how far each piece has
-## got; castle.gd says where to stand.
+## Builders work as a crew. While there is work up on the deck, some of them
+## (see _crew_above) stay up there: one at the hoist hauling pieces up, the
+## others setting them in place. The rest stay on the ground: fetching,
+## shaping, and tying each shaped piece on the rope for the one above to
+## haul. Nobody runs up and down for a single step. A lone builder has to do
+## it all, and saves the climb until a few pieces are ready.
+## GameState counts how far each piece has got; castle.gd says where to stand.
 
-enum State { IDLE, TO_STOCK, TO_YARD, FORM, HOIST, TO_PIECE, PLACE, RETURN, HELP }
+enum State { IDLE, TO_STOCK, TO_YARD, FORM, LOAD, HOIST, WAIT, TO_PIECE, PLACE, RETURN, HELP }
 
 ## Seconds to shape one piece at the bench, pull one up the rope, and set one in place.
 const FORM_TIME := 2.5
 const HOIST_TIME := 1.2
+## Seconds to tie a piece on the rope.
+const LOAD_TIME := 0.8
 const PLACE_TIME := 1.5
-## Builders go up to work at the top once this many pieces are waiting there
-## for each builder already up, so nobody climbs the ladder for one block.
+## A lone builder goes up to work at the top once this many pieces are
+## waiting there, so as not to climb the ladder for one block.
 const BATCH := 4
 ## Builders waiting for work stay within this distance of the yard.
 const LEISURE_REACH := 70.0
@@ -55,6 +61,8 @@ var _timer := 0.0
 var _swing := randf() * TAU
 var _hammering := false
 var _pulling := false
+## True if the piece this builder is going for is up on the deck.
+var _aims_up := false
 
 
 func _work(delta: float) -> void:
@@ -113,19 +121,41 @@ func _work(delta: float) -> void:
 			elif _walk_to(castle.bench_x(_bench), delta) and _toil(delta, FORM_TIME, "mine"):
 				GameState.job_form()
 				_state = State.IDLE
-		State.HOIST:
-			if GameState.job_ready() <= 0:
+		State.LOAD:
+			if GameState.job_ready() <= 0 or GameState.job_hooked:
 				_state = State.IDLE
-			elif _go_to(castle.hoist_spot(), delta):
-				# Hand over hand: the piece is at the top when the pull is done.
+			elif _go_to(castle.rope_foot(), delta):
+				# Tying the piece on for the one above to haul.
 				_pulling = true
-				if _timer <= 0.0:
-					castle.show_hoist()
 				_timer += delta
 				_swing += delta * 10.0
-				if _timer >= HOIST_TIME:
-					GameState.job_lift()
+				if _timer >= LOAD_TIME:
+					GameState.job_hook()
 					_state = State.IDLE
+		State.HOIST:
+			if not castle.work_above() or not castle.hoist_ready():
+				_state = State.IDLE
+			elif _go_to(castle.hoist_spot(), delta):
+				if not _alone() and GameState.job_landed() > world.builders_picking(self) and world.builders_aloft(self) == 0:
+					# Nobody else up here to set it in place: leave the rope and do it.
+					_state = State.IDLE
+				elif GameState.job_ready() > 0 and (GameState.job_hooked or _alone()):
+					# Hand over hand: the piece is at the top when the pull is done.
+					_pulling = true
+					if _timer <= 0.0:
+						castle.show_hoist()
+					_timer += delta
+					_swing += delta * 10.0
+					if _timer >= HOIST_TIME:
+						_timer = 0.0
+						GameState.job_lift()
+				elif _alone() and GameState.job_ready() <= 0:
+					_state = State.IDLE
+		State.WAIT:
+			# Up on the deck with nothing to set just now: stand by near the hoist.
+			_state = _choose_task()
+			if _state == State.WAIT:
+				_go_to(castle.hoist_spot() + Vector2(-12.0 - absf(_offset), 0), delta)
 		State.TO_PIECE:
 			if GameState.job_landed() <= 0:
 				_state = State.IDLE
@@ -166,7 +196,7 @@ func _exit_tree() -> void:
 
 ## True while this builder is one of those working at the top.
 func is_top_crew() -> bool:
-	return _state == State.HOIST or _state == State.TO_PIECE or _state == State.PLACE
+	return _state == State.HOIST or _state == State.WAIT or ((_state == State.TO_PIECE or _state == State.PLACE) and _aims_up)
 
 
 func is_hoisting() -> bool:
@@ -175,6 +205,21 @@ func is_hoisting() -> bool:
 
 func is_forming() -> bool:
 	return _state == State.FORM
+
+
+func is_loading() -> bool:
+	return _state == State.LOAD
+
+
+## True if this is the only builder: there is nobody to work with.
+func _alone() -> bool:
+	return GameState.jobs.build <= 1
+
+
+## How many builders should be up on the deck while there is work there:
+## one for a small crew, more for a big one.
+func _crew_above() -> int:
+	return clampi(roundi(GameState.jobs.build / 2.5), 1, 3)
 
 
 func is_picking() -> bool:
@@ -206,51 +251,76 @@ func _toil(delta: float, seconds: float, sound: String) -> bool:
 	return _timer >= seconds * GameState.build_time_mult()
 
 
-## Picks the next step to do. A builder already at the top keeps working
-## there while there is anything to do; one on the ground places what can be
-## placed from the ground, goes up when enough is waiting above, and
-## otherwise shapes pieces at the bench or fetches more.
+## Picks the next step to do: see the top of this file.
 func _choose_task() -> State:
+	var castle: Node2D = world.castle
 	var pieces: Array = GameState.job_pieces()
 	# Only as many builders set off for a step as there are pieces waiting for it.
 	var picking: int = world.builders_picking(self)
 	var can_place: bool = GameState.job_landed() > picking
-	if can_place and world.castle.needs_turn(GameState.job_taken):
+	if can_place and castle.needs_turn(GameState.job_taken):
 		can_place = picking == 0 and GameState.job_taken == GameState.job_placed
-	if can_place and world.castle.is_removal(GameState.job_taken):
+	if can_place and castle.is_removal(GameState.job_taken):
 		# Nothing is taken down while anyone else is still up there.
 		can_place = world.builders_above(self) == 0
 	var place_above: bool = can_place and pieces[GameState.job_taken].lift
-	var can_hoist: bool = GameState.job_ready() > 0 and world.castle.hoist_ready() and not world.hoist_manned(self)
+	var rope_free: bool = castle.hoist_ready() and not world.hoist_manned(self)
 	var forming: int = world.builders_forming(self)
-	var can_form: bool = GameState.job_rough() > forming and forming < world.castle.benches_ready()
+	var can_form: bool = GameState.job_rough() > forming and forming < castle.benches_ready()
 	_bench = forming
 	var to_fetch: bool = GameState.job_can_fetch()
-	if position.y > -0.5:
+	var above: bool = castle.work_above()
+	var up_there: int = world.builders_aloft(self)
+	_aims_up = false
+
+	if position.y < -0.5:
+		# Up on the deck: set what has come up, man the rope, or stand by.
+		if can_place:
+			_aims_up = place_above
+			return State.TO_PIECE
+		if above and rope_free:
+			return State.HOIST
+		if above and not _alone() and up_there < _crew_above():
+			return State.WAIT
+		# No more work up here: come down and join the ground crew.
+	else:
 		# Someone is standing with a load too heavy for one: lend a hand first.
 		var lead: Node2D = world.heavy_carrier(self)
 		if lead != null:
 			_lead = lead
 			lead.join(self)
 			return State.HELP
-	if position.y < -0.5:
-		if can_place:
-			return State.TO_PIECE
-		if can_hoist:
-			return State.HOIST
 	if can_place and not place_above:
 		return State.TO_PIECE
-	# Work waiting at the top, or to go up: is it worth the climb yet?
-	var above := GameState.job_ready() + (GameState.job_landed() if place_above else 0)
-	var go_up := State.TO_PIECE if place_above else (State.HOIST if can_hoist else State.IDLE)
-	if go_up != State.IDLE and above >= BATCH * (world.builders_aloft(self) + 1):
+	if _alone():
+		# One builder does it all, and saves the climb until it is worth it.
+		var waiting := GameState.job_ready() + (GameState.job_landed() if place_above else 0)
+		var go_up := State.TO_PIECE if place_above else (State.HOIST if rope_free and GameState.job_ready() > 0 else State.IDLE)
+		_aims_up = go_up == State.TO_PIECE
+		if go_up != State.IDLE and waiting >= BATCH:
+			return go_up
+		if can_form:
+			_aims_up = false
+			return State.FORM
+		if to_fetch:
+			_aims_up = false
+			return State.TO_STOCK
 		return go_up
+	# The deck needs its crew before anything else.
+	if above and up_there < _crew_above() and position.y > -0.5:
+		if rope_free:
+			return State.HOIST
+		if place_above:
+			_aims_up = true
+			return State.TO_PIECE
+	# The ground crew: tie the next piece on for the one at the rope, shape, fetch.
+	if GameState.job_ready() > 0 and not GameState.job_hooked and castle.hoist_ready() and not world.loader_busy(self):
+		return State.LOAD
 	if can_form:
 		return State.FORM
 	if to_fetch:
 		return State.TO_STOCK
-	# Nothing left to do on the ground.
-	return go_up
+	return State.IDLE
 
 
 ## What is being carried, on the shoulder: each kind of thing has its own
@@ -258,11 +328,20 @@ func _choose_task() -> State:
 func _draw_item(item: String, color: Color) -> void:
 	if _heavy and _has_helper():
 		var gap: float = _helper.position.x - position.x
+		if item == "boulder":
+			# Slung from a pole between the two.
+			draw_rect(Rect2(minf(gap, 0.0) - 2.0, -19, absf(gap) + 4.0, 1), Color(0.48, 0.32, 0.20))
+			draw_rect(Rect2(gap / 2.0 - 5.0, -18, 11, 7), color)
+			return
 		draw_rect(Rect2(minf(gap, 0.0) - 2.0, -20, absf(gap) + 4.0, 2), color)
 		if item == "ladder":
 			draw_rect(Rect2(minf(gap, 0.0) - 2.0, -17, absf(gap) + 4.0, 1), color)
 		return
 	match item:
+		"boulder":
+			# Too heavy to lift alone: dragged along the ground on a rope.
+			draw_rect(Rect2(-14, -7, 11, 7), color)
+			draw_rect(Rect2(-4, -8, 5, 1), Color(0.75, 0.68, 0.50))
 		"plank":
 			draw_rect(Rect2(-8, -19, 16, 2), color)
 		"poles":

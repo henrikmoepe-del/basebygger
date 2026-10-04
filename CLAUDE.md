@@ -105,6 +105,17 @@
   - While a level is added, what the new level replaces (battlements, turrets, roofs, flags) is
     first knocked down by builders standing on the old wall, a piece at a time, and falls to the
     ground (`Kind.DISMANTLE`, `plan.gone`). Nobody strolls or stands guard on a part being rebuilt.
+  - Crew work (`builder._choose_task`): while there is work up on a deck, part of the crew stays
+    up (1 of 2-3 builders, 2 of 4-6, 3 of 7+): one at the hoist hauling, the rest setting pieces.
+    The others stay on the ground fetching, shaping, and tying each shaped piece on the rope
+    (`GameState.job_hook`); the rope lifts nothing until someone below has tied it on. A lone
+    builder does it all and saves the climb until four pieces are ready.
+  - Blocks: the bottom course of a stone building is of big foundation stones ("boulder", 1.5
+    blocks wide) that take two to carry. Doors are marked `CastleData.FITTING` so they are made
+    and set in whole, not laid as wall.
+  - Ideas Henrik wants next (not started): materials made in their own buildings (bricks from a
+    brickworks, planks from a sawmill) and carried to the site; rooms inside the keep, with walls
+    that turn see-through when hovered or by a button.
   - Stairs inside buildings go up in flights, back and forth (`castle.route` turns hidden steps
     into flights); a peasant finishes a flight before changing their mind. Until the stair door is
     built there is an open trapdoor in the deck.

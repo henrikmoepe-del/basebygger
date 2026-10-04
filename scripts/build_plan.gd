@@ -73,9 +73,11 @@ enum Kind { BLOCK, FITTING, SCAFFOLD, LADDER, BENCH, HOIST, REMOVE, DISMANTLE }
 const CastleData = preload("res://scripts/castle_data.gd")
 ## Items that are shaped at the bench before they go up: stone is dressed,
 ## planks are sawn, fittings are put together.
-const FORMED := ["stone", "plank", "fitting"]
+const FORMED := ["stone", "boulder", "plank", "fitting"]
 ## Items too long or heavy for one: two builders carry them from the stockyard.
-const HEAVY := ["ladder", "hoist", "bench"]
+const HEAVY := ["ladder", "hoist", "bench", "boulder"]
+## Foundation stones are this many times as wide as an ordinary block.
+const FOUNDATION_WIDTH := 1.5
 const SCAFFOLD_COLOR := Color(0.48, 0.32, 0.20)
 ## Scaffolding goes up in bays about this wide and lifts this high. A builder
 ## can reach this high from where they stand.
@@ -110,7 +112,7 @@ static func item_for(color: Color) -> String:
 ## Which store of the stockyard an item is fetched from ("" = the shed).
 static func store_for(item: String) -> String:
 	match item:
-		"stone":
+		"stone", "boulder":
 			return "stone"
 		"plank", "poles", "ladder":
 			return "wood"
@@ -136,7 +138,7 @@ static func make(part: String, level: int) -> Dictionary:
 	var old_solid: Array[Rect2] = []
 	for shape: Array in old:
 		old_rects[shape[0]] = true
-		if not CastleData.is_fitting(shape[0]):
+		if not CastleData.is_fitting_shape(shape):
 			old_solid.append(shape[0])
 	for shape: Array in fresh:
 		fresh_rects[shape[0]] = true
@@ -149,9 +151,9 @@ static func make(part: String, level: int) -> Dictionary:
 		gone.append([])
 	for shape: Array in old:
 		var kept: bool = fresh_rects.has(shape[0])
-		if not kept and not CastleData.is_fitting(shape[0]):
+		if not kept and not CastleData.is_fitting_shape(shape):
 			for other: Array in fresh:
-				if not CastleData.is_fitting(other[0]) and other[0].encloses(shape[0]):
+				if not CastleData.is_fitting_shape(other) and other[0].encloses(shape[0]):
 					kept = true
 					break
 		if kept:
@@ -164,7 +166,7 @@ static func make(part: String, level: int) -> Dictionary:
 		plan.solid.append([])
 		fittings.append([])
 	for shape: Array in fresh:
-		if not CastleData.is_fitting(shape[0]):
+		if not CastleData.is_fitting_shape(shape):
 			# A wall that runs through several sections is built a section at a time.
 			for i in plan.sections.size():
 				var within: Rect2 = shape[0].intersection(Rect2(bands[i][0], -FAR, bands[i][1] - bands[i][0], FAR * 2.0))
@@ -219,8 +221,9 @@ static func _plan_section(plan: Dictionary, part: String, index: int, old_solid:
 		left = minf(left, shape[0].position.x)
 		right = maxf(right, shape[0].end.x)
 		top = minf(top, shape[0].position.y)
-	var columns := ceili((right - left) / block)
-	right = left + columns * block
+	var span := right - left
+	# The far edge of the widest course (see the foundation stones below).
+	right = left + maxf(ceilf(span / block) * block, ceilf(span / (block * FOUNDATION_WIDTH)) * block * FOUNDATION_WIDTH)
 
 	# The courses, each [top, bottom], from the ground up. They are counted
 	# from the top of what already stands here, so the first new course sits
@@ -272,11 +275,15 @@ static func _plan_section(plan: Dictionary, part: String, index: int, old_solid:
 	var new_cells := []
 	for band: Array in courses:
 		var cells := []
-		for column in columns:
-			var cell := Rect2(left + column * block, band[0], block, band[1] - band[0])
+		# The bottom course of a stone building is of big foundation stones.
+		var foundation: bool = plan.scaffolded and part in CastleData.BLOCK_BUILT and band[1] > -0.5
+		var width := block * FOUNDATION_WIDTH if foundation else block
+		for column in ceili(span / width):
+			var cell := Rect2(left + column * width, band[0], width, band[1] - band[0])
 			var made_of := _new_shape(cell, solid, old_solid)
 			if made_of >= 0:
-				cells.append([cell, solid[made_of][1]])
+				var item := item_for(solid[made_of][1])
+				cells.append([cell, solid[made_of][1], "boulder" if foundation and item == "stone" else item])
 		new_cells.append(cells)
 
 	# Fittings are set from the ground, from the deck, or from scaffolding.
@@ -322,7 +329,7 @@ static func _plan_section(plan: Dictionary, part: String, index: int, old_solid:
 		var chunks := []
 		for shape: Array in gone:
 			var area: Rect2 = shape[0]
-			if CastleData.is_fitting(area):
+			if CastleData.is_fitting_shape(shape):
 				chunks.append([area, shape[1]])
 				continue
 			# Walls and roofs come down a block at a time.
@@ -357,7 +364,7 @@ static func _plan_section(plan: Dictionary, part: String, index: int, old_solid:
 			for cell: Array in cells:
 				var area: Rect2 = cell[0]
 				var partial := Rect2(left, row_top, area.position.x - left, row_bottom - row_top) if forward else Rect2(area.end.x, row_top, right - area.end.x, row_bottom - row_top)
-				_add(plan, Kind.BLOCK, item_for(cell[1]), area, cell[1], index, Vector2(stand_x, state.floor), plan.scaffolded, state, partial)
+				_add(plan, Kind.BLOCK, cell[2], area, cell[1], index, Vector2(stand_x, state.floor), plan.scaffolded, state, partial)
 				stand_x = area.get_center().x
 			cursor = right if forward else left
 		state.line = row_top
