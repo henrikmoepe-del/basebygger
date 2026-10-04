@@ -19,6 +19,7 @@ const OUTLINE_COLOR := Color(0.96, 0.95, 0.85)
 @onready var toast_label: Label = %ToastLabel
 @onready var reset_button: Button = %ResetButton
 @onready var crown_button: Button = %CrownButton
+@onready var view_button: Button = %ViewButton
 @onready var peasants_label: Label = %PeasantsLabel
 @onready var jobs_box: VBoxContainer = %Jobs
 @onready var hire_button: Button = %HireButton
@@ -34,6 +35,8 @@ var _job_rows := {}
 var _toast_tween: Tween
 var _reset_armed := false
 var _crown_armed := false
+## Whether the build buttons show the village buildings or the castle parts.
+var _showing_village := false
 
 
 func _ready() -> void:
@@ -47,6 +50,9 @@ func _ready() -> void:
 	skills_button.pressed.connect(skill_tree.show)
 	reset_button.pressed.connect(_on_reset_pressed)
 	crown_button.pressed.connect(_on_crown_pressed)
+	view_button.pressed.connect(func() -> void:
+		_showing_village = not _showing_village
+		_refresh())
 	GameState.announced.connect(_show_toast)
 	GameState.raid_resolved.connect(func(_won: bool) -> void: _refresh())
 	_make_part_buttons()
@@ -58,6 +64,8 @@ func _ready() -> void:
 			label.add_theme_color_override("font_outline_color", OUTLINE_COLOR)
 	_refresh()
 	_show_offline_report()
+	if GameState.day == 1 and GameState.total_levels() == 0:
+		_show_toast("Your peasants do the work. Hire more, give them jobs, and order castle parts below. Drag or press A/D to look west to the village.")
 
 
 ## One button per castle part, made from the data in CastleData.PARTS,
@@ -121,7 +129,7 @@ func _on_reset_pressed() -> void:
 		GameState.reset_game()
 		return
 	_reset_armed = true
-	reset_button.text = "Sure? Press again"
+	reset_button.text = "Sure?\nPress again"
 	await get_tree().create_timer(RESET_CONFIRM_TIME).timeout
 	_reset_armed = false
 	reset_button.text = "New game"
@@ -171,6 +179,7 @@ func _refresh() -> void:
 	day_label.text = "Day %d, %s.  %s" % [
 		GameState.day, "night" if GameState.is_night() else "daytime",
 		"Fed (eat %d at dawn)" % GameState.food_needed() if GameState.fed else "HUNGRY: working slowly"]
+	day_label.text += "  Morale +%d%%" % roundi(GameState.morale_bonus() * 100)
 	day_label.add_theme_color_override("font_color", TEXT_COLOR if GameState.fed else HUNGRY_COLOR)
 
 	var safe := GameState.total_defence() >= GameState.raid_strength()
@@ -182,11 +191,11 @@ func _refresh() -> void:
 	var gain := GameState.legacy_gain()
 	crown_button.disabled = gain <= 0
 	if _crown_armed:
-		crown_button.text = "Start a new castle? Press again"
+		crown_button.text = "Start over?\nPress again"
 	elif gain > 0:
-		crown_button.text = "Pass the crown (+%d legacy)" % gain
+		crown_button.text = "Pass the crown\n+%d legacy" % gain
 	else:
-		crown_button.text = "Pass the crown (needs rank %d)" % GameState.LEGACY_MIN_RANK
+		crown_button.text = "Pass the crown\nneeds rank %d" % GameState.LEGACY_MIN_RANK
 
 	var idle := GameState.idle_peasants()
 	peasants_label.text = "Peasants: %d  (%d idle)" % [GameState.peasants, idle]
@@ -200,7 +209,13 @@ func _refresh() -> void:
 		row.minus.disabled = GameState.jobs[id] <= 0
 		row.plus.disabled = idle <= 0 or (limit >= 0 and GameState.jobs[id] >= limit)
 
-	_set_button(hire_button, "Hire Peasant", GameState.peasant_cost(), "")
+	view_button.text = "Building:\nvillage" if _showing_village else "Building:\ncastle"
+	var hire_title := "Hire Peasant (%d/%d)" % [GameState.peasants, GameState.max_peasants()]
+	if GameState.peasants >= GameState.max_peasants():
+		hire_button.text = "%s\nBuild more houses" % hire_title
+		hire_button.disabled = true
+	else:
+		_set_button(hire_button, hire_title, GameState.peasant_cost(), "")
 	skills_button.text = "Skills\n%d renown" % GameState.renown
 
 	for id: String in _part_buttons:
@@ -211,9 +226,11 @@ func _refresh_part_button(id: String, button: Button) -> void:
 	var part_name: String = CastleData.PARTS[id].name
 	var level: int = GameState.part_levels[id]
 	if id == GameState.job_part:
+		button.visible = GameState.is_village(id) == _showing_village
 		button.text = "Building %s %d\n%d%%" % [part_name, level + 1, GameState.job_fraction() * 100]
 		button.disabled = true
 		return
+	button.visible = GameState.is_village(id) == _showing_village
 	var reason := GameState.part_block_reason(id)
 	var cost := GameState.part_cost(id)
 	button.text = "%s Lv %d\n%s" % [part_name, level, reason if reason != "" else _cost_text(cost)]

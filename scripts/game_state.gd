@@ -68,6 +68,16 @@ const RAIDS_WON_PER_LEGACY := 2
 const LEGACY_WORK_BONUS := 0.1
 ## Each point of legacy adds this much wood and stone to a new castle's stores.
 const LEGACY_START_STOCK := 10
+
+## The village. Houses set how many peasants can live here. The well and the
+## tavern each serve a number of peasants per level; the share of peasants
+## served decides how much of that building's work bonus everyone gets.
+const BASE_POPULATION := 12
+const POPULATION_PER_HOUSE := 4
+const WELL_SERVES := 8
+const WELL_BONUS := 0.15
+const TAVERN_SERVES := 10
+const TAVERN_BONUS := 0.15
 const START_TREES := 3
 ## Trees the grove has room for before any skills. The screen fits MAX_TREE_PLOTS.
 const BASE_TREE_PLOTS := 8
@@ -88,7 +98,7 @@ const LEVELS_PER_RANK := 5
 const FIRST_RANK_UP := 18
 const RANK_UP_STEP := 24
 
-const SAVE_VERSION := 6
+const SAVE_VERSION := 7
 const AUTOSAVE_INTERVAL := 10.0
 const MAX_OFFLINE_SECONDS := 8 * 3600
 ## Offline progress is only granted (and reported) after this long away.
@@ -98,7 +108,10 @@ const INCOME_WINDOW := DAY_LENGTH
 
 ## What is in the stockhouse.
 var resources := {"wood": 0, "stone": 0, "food": START_FOOD}
-var part_levels := {"walls": 0, "towers": 0, "gate": 0, "keep": 0, "garrison": 0, "court": 0}
+var part_levels := {
+	"walls": 0, "towers": 0, "gate": 0, "keep": 0, "garrison": 0, "court": 0,
+	"houses": 0, "well": 0, "tavern": 0,
+}
 var peasants := START_PEASANTS
 ## How many peasants are assigned to each job. The rest are idle.
 var jobs := START_JOBS.duplicate()
@@ -232,7 +245,7 @@ func food_needed() -> int:
 
 ## Multiplies how fast everyone walks and works: slower when hungry.
 func work_mult() -> float:
-	var legacy_mult := 1.0 + LEGACY_WORK_BONUS * legacy
+	var legacy_mult := (1.0 + LEGACY_WORK_BONUS * legacy) * (1.0 + morale_bonus())
 	if not fed:
 		return HUNGRY_WORK_MULT * legacy_mult
 	return (1.0 + skill_total("fed_bonus")) * legacy_mult
@@ -310,9 +323,22 @@ func peasant_cost() -> Dictionary:
 	return {"wood": ceili(PEASANT_BASE_COST * growth * discount), "food": 2 + peasants - START_PEASANTS}
 
 
+## How many peasants the village has room for.
+func max_peasants() -> int:
+	return BASE_POPULATION + POPULATION_PER_HOUSE * part_levels.houses
+
+
+## How much faster everyone works for being content: the well and the tavern
+## each give their full bonus only if they are big enough for every peasant.
+func morale_bonus() -> float:
+	var watered := clampf(float(part_levels.well * WELL_SERVES) / peasants, 0.0, 1.0)
+	var cheered := clampf(float(part_levels.tavern * TAVERN_SERVES) / peasants, 0.0, 1.0)
+	return WELL_BONUS * watered + TAVERN_BONUS * cheered
+
+
 ## Hires a peasant. They start idle until given a job.
 func hire_peasant() -> bool:
-	if not spend(peasant_cost()):
+	if peasants >= max_peasants() or not spend(peasant_cost()):
 		return false
 	peasants += 1
 	peasants_changed.emit()
@@ -372,11 +398,17 @@ func add_planting_work(seconds: float) -> void:
 
 # --- Castle parts and rank ---
 
+## The castle's levels added together. Village buildings don't count.
 func total_levels() -> int:
 	var total := 0
 	for id: String in part_levels:
-		total += part_levels[id]
+		if not is_village(id):
+			total += part_levels[id]
 	return total
+
+
+func is_village(id: String) -> bool:
+	return CastleData.PARTS[id].get("village", false)
 
 
 func castle_rank() -> int:
@@ -415,6 +447,8 @@ func part_work(id: String) -> float:
 func part_block_reason(id: String) -> String:
 	if job_part != "":
 		return "Builders are busy"
+	if is_village(id):
+		return "Fully built" if part_levels[id] >= CastleData.PARTS[id].max_level else ""
 	if id != "walls" and part_levels.walls == 0:
 		return "Needs Walls first"
 	if part_levels[id] >= level_cap():

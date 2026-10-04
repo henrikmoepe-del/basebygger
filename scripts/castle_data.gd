@@ -4,6 +4,9 @@ extends RefCounted
 ## later 3D wave-defence mode will read the part levels to build the castle.
 ## "renown" is how much renown finishing a level gives.
 ##
+## Village buildings ("village": true) are built the same way, but stand west
+## of the grove, don't count towards the castle rank, and stop at "max_level".
+##
 ## "cost" and "work" are for level 1; each further level multiplies them by
 ## COST_GROWTH and WORK_GROWTH. "work" is seconds of hammering for one builder.
 ## "site_x" is where builders stand to work on the part, and "scaffold" lists
@@ -57,9 +60,31 @@ const PARTS := {
 		"name": "Court", "defence": 0, "renown": 2, "cost": {"wood": 25, "stone": 15}, "work": 12.0,
 		"site_x": -68.0, "scaffold": [[-88.0, -48.0]],
 	},
+	# Houses raise how many peasants can live here (see GameState.max_peasants).
+	"houses": {
+		"name": "Houses", "defence": 0, "renown": 0, "cost": {"wood": 12, "stone": 4}, "work": 6.0,
+		"site_x": -560.0, "scaffold": [], "village": true, "max_level": 12,
+	},
+	# The well and the tavern keep peasants content, which makes them work
+	# faster (see GameState.morale_bonus). Each level serves more peasants.
+	"well": {
+		"name": "Well", "defence": 0, "renown": 1, "cost": {"stone": 16, "wood": 4}, "work": 8.0,
+		"site_x": -474.0, "scaffold": [], "village": true, "max_level": 10,
+	},
+	"tavern": {
+		"name": "Tavern", "defence": 0, "renown": 1, "cost": {"wood": 24, "stone": 8}, "work": 10.0,
+		"site_x": -520.0, "scaffold": [[-542.0, -498.0]], "village": true, "max_level": 10,
+	},
 }
 ## Back to front.
-const DRAW_ORDER := ["keep", "court", "garrison", "walls", "towers", "gate"]
+const DRAW_ORDER := ["houses", "tavern", "well", "keep", "court", "garrison", "walls", "towers", "gate"]
+
+## Where the village stands, relative to the castle's ground-centre point.
+const WELL_X := -474.0
+const TAVERN_X := -520.0
+const FIRST_HOUSE_X := -570.0
+const HOUSE_SPACING := -30.0
+const THATCH := Color(0.80, 0.68, 0.36)
 
 
 ## Placeholder art for a part at a level: a list of [Rect2, Color], relative to
@@ -111,6 +136,30 @@ static func shapes(part: String, level: int) -> Array:
 			if level >= 5:
 				out.append([Rect2(-1, -h - 36, 2, 36), WOOD_DARK])
 				out.append([Rect2(1, -h - 36, 18, 10), BANNER])
+		"houses":
+			# One hut per level, in a row going west.
+			for i in v:
+				var x := FIRST_HOUSE_X + HOUSE_SPACING * i
+				out.append([Rect2(x - 10, -14, 20, 14), PLASTER])
+				out.append([Rect2(x - 12, -20, 24, 7), THATCH])
+				out.append([Rect2(x - 2, -8, 4, 8), WOOD_DARK])
+		"well":
+			out.append([Rect2(WELL_X - 7, -7, 14, 7), STONE])
+			out.append([Rect2(WELL_X - 5, -5, 10, 3), ROOF_BLUE])
+			out.append([Rect2(WELL_X - 8, -18, 1, 11), WOOD_DARK])
+			out.append([Rect2(WELL_X + 7, -18, 1, 11), WOOD_DARK])
+			# The roof gets grander as the well is improved.
+			out.append([Rect2(WELL_X - 10, -20 - mini(v, 4), 20, 3 + mini(v, 4)), ROOF_RED if level >= 4 else THATCH])
+		"tavern":
+			var h := 22 + 3 * mini(v, 8)
+			out.append([Rect2(TAVERN_X - 20, -h, 40, h), PLASTER])
+			out.append([Rect2(TAVERN_X - 23, -h - 8, 46, 9), ROOF_RED])
+			out.append([Rect2(TAVERN_X - 3, -11, 6, 11), WOOD_DARK])
+			out.append([Rect2(TAVERN_X - 15, -h + 6, 7, 7), Color(0.98, 0.82, 0.40)])
+			out.append([Rect2(TAVERN_X + 8, -h + 6, 7, 7), Color(0.98, 0.82, 0.40)])
+			# The sign.
+			out.append([Rect2(TAVERN_X + 20, -h + 2, 6, 1), WOOD_DARK])
+			out.append([Rect2(TAVERN_X + 22, -h + 3, 5, 5), BANNER])
 		"garrison":
 			# Barracks behind the wall, right of the keep.
 			var h := 40 + 8 * v

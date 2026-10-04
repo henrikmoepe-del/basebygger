@@ -8,22 +8,30 @@
 [ext_resource type="Script" path="res://scripts/skill_tree.gd" id="7_skills"]
 [ext_resource type="Script" path="res://scripts/sky.gd" id="8_sky"]
 [ext_resource type="Script" path="res://scripts/raiders.gd" id="9_raiders"]
+[ext_resource type="Script" path="res://scripts/camera.gd" id="10_camera"]
 
 [node name="Main" type="Node2D"]
 
+[node name="Camera" type="Camera2D" parent="."]
+script = ExtResource("10_camera")
+
 [node name="WorldTint" type="CanvasModulate" parent="."]
 
-[node name="Sky" type="ColorRect" parent="." node_paths=PackedStringArray("world_tint")]
+[node name="SkyLayer" type="CanvasLayer" parent="."]
+layer = -1
+
+[node name="Sky" type="ColorRect" parent="SkyLayer" node_paths=PackedStringArray("world_tint")]
 offset_right = 640.0
 offset_bottom = 360.0
 mouse_filter = 2
 color = Color(0.93, 0.92, 0.66, 1)
 script = ExtResource("8_sky")
-world_tint = NodePath("../WorldTint")
+world_tint = NodePath("../../WorldTint")
 
 [node name="Ground" type="ColorRect" parent="."]
+offset_left = -900.0
 offset_top = 270.0
-offset_right = 640.0
+offset_right = 1500.0
 offset_bottom = 360.0
 mouse_filter = 2
 color = Color(0.45, 0.68, 0.38, 1)
@@ -133,27 +141,6 @@ text = "Message"
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="ResetButton" type="Button" parent="HUD"]
-unique_name_in_owner = true
-offset_left = 8.0
-offset_top = 248.0
-offset_right = 72.0
-offset_bottom = 266.0
-focus_mode = 0
-theme_override_font_sizes/font_size = 9
-text = "New game"
-
-[node name="CrownButton" type="Button" parent="HUD"]
-unique_name_in_owner = true
-offset_left = 76.0
-offset_top = 248.0
-offset_right = 236.0
-offset_bottom = 266.0
-tooltip_text = "Start a new castle with legacy. Each point of legacy makes everyone work 10% faster, for good."
-focus_mode = 0
-theme_override_font_sizes/font_size = 9
-text = "Pass the crown"
-
 [node name="OfflineLabel" type="Label" parent="HUD"]
 unique_name_in_owner = true
 visible = false
@@ -205,6 +192,15 @@ focus_mode = 0
 theme_override_font_sizes/font_size = 11
 text = "Hire Peasant"
 
+[node name="ViewButton" type="Button" parent="HUD/Actions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(84, 0)
+layout_mode = 2
+tooltip_text = "Switch the build buttons between castle parts and village buildings."
+focus_mode = 0
+theme_override_font_sizes/font_size = 10
+text = "Build: castle"
+
 [node name="SkillsButton" type="Button" parent="HUD/Actions"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -212,6 +208,24 @@ size_flags_horizontal = 3
 focus_mode = 0
 theme_override_font_sizes/font_size = 11
 text = "Skills"
+
+[node name="CrownButton" type="Button" parent="HUD/Actions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(104, 0)
+layout_mode = 2
+tooltip_text = "Start a new castle with legacy. Each point of legacy makes everyone work 10% faster, for good."
+focus_mode = 0
+theme_override_font_sizes/font_size = 10
+text = "Pass the crown"
+
+[node name="ResetButton" type="Button" parent="HUD/Actions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+tooltip_text = "Wipe everything, legacy included, and start from the very beginning."
+focus_mode = 0
+theme_override_font_sizes/font_size = 10
+text = "New game"
 
 [node name="SkillTree" type="Control" parent="HUD"]
 unique_name_in_owner = true

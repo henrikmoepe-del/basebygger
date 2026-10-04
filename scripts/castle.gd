@@ -104,4 +104,7 @@ func _draw_hoists() -> void:
 
 ## Stones go up just left of the first scaffold section.
 func _hoist_x() -> float:
-	return CastleData.PARTS[GameState.job_part].scaffold[0][0] - 8.0
+	var part: Dictionary = CastleData.PARTS[GameState.job_part]
+	if part.scaffold.is_empty():
+		return part.site_x - 16.0
+	return part.scaffold[0][0] - 8.0
