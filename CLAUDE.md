@@ -39,6 +39,38 @@
 - After finishing a feature, update "Current status" below.
 - If you believe a tool/program/pluggen would be of good use, for example to create pixel 2d art, to create sound, etc, then say so 
 
+## Future ideas (Henrik's list, 2026-10-05)
+Not started. Keep them in mind when building features, so new systems can connect to them later.
+- Events: traders; raids; a mystical man who wants to give you dark gifts; werewolves; a traitor
+  in the base; fire; fall accidents; people getting stuck in the mines; strikes; nature catastrophes.
+- Buildings: wells; a moat; different kinds of towers; mines; bath house; whore house; windmills;
+  temples; torture and punishment; flowerbeds; smith; tanner; bakery.
+- Policies (the player chooses): work during the night; smaller rations; child labour; everyone
+  must bathe; religion allowed or not; cults allowed or not.
+- Peasants come from children: apart from travellers joining and bandits converted, the only way
+  to get peasants is peasants having children. Parents get a small sum to raise the child and work
+  less while raising it. A policy decides whether people should have children.
+- An area to the right of the village (a forest or similar) to hunt wild animals, meet bandits, etc.
+- Boosts you can buy that raise the effectiveness of various things.
+- Expeditions? A world map?
+- Choosing where to place houses: maybe there isn't room for every house type and you must
+  choose, or you can expand into the forest on the right.
+- Small things to click for small bonuses: wake a sleeping worker, chase off a badger that ruins
+  the crops.
+- Seasons.
+- Materials: planks are a resource of their own, on top of wood. Basic buildings need only wood;
+  more luxurious ones and later upgrades need planks. (Bricks from a brickworks the same way, later.)
+- Rooms inside the main castle building that you build, seen through see-through walls.
+
+What this means for the design now (Claude's notes):
+- Peasants will become individuals (parents, children, sleeping, bathing, striking, traitors), so
+  avoid new code that treats them only as a count per job. `workers.gd` re-making peasant nodes
+  when jobs change will have to go.
+- Events and policies need one place to live: plan for a small event system and a policy list in
+  `GameState` rather than one-off timers like the raid.
+- Buildings will be many and placed by choice: keep building data in `castle_data.gd` style
+  entries, and don't hard-code more x positions than needed.
+
 ## Current status
 - Stage: working on the 2D builder (make it better, more realistic, more fun) and on raids.
   The 3D wave defence is a first prototype; it now starts by itself when raiders reach the castle.
