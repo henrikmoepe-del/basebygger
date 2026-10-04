@@ -1,6 +1,8 @@
 extends Node2D
 ## Keeps one walking peasant on screen for every peasant in GameState, each
-## running the script for their job, and draws the stockhouse. Peasants ask
+## running the script for their job, and draws the stockyard: a shed with a
+## store for each resource beside it (STORES), so what is in stock can be
+## seen. Each store is a stack that grows with the amount, under a number. Peasants ask
 ## this node where things are (gather spots, guard posts, beds).
 ## This node and the castle share the same origin: the castle's ground-centre.
 
@@ -14,9 +16,20 @@ const Soldier = preload("res://scripts/soldier.gd")
 const Cow = preload("res://scripts/cow.gd")
 ## Which script runs each job ("" = idle).
 const BUMP_TIME := 0.15
-## One piece appears in a pile for every PILE_UNIT, then 4x, 9x, 16x that...
-const PILE_UNIT := 6.0
-const MAX_PILE_PIECES := 6
+## The stores of the stockyard. "x" is where the stack starts, east of the
+## shed's middle (stock_x); "piece" is the size of one log, block, sack or
+## ingot; "per_row" how many lie side by side; "rows" how high the stack can
+## get. The stack holds STACK_GROWTH x the square root of the amount, so it
+## grows quickly at first and never stops being readable.
+const STORES := {
+	"iron": {"x": -72.0, "piece": Vector2(4, 2), "per_row": 3, "rows": 6, "color": Color(0.36, 0.38, 0.46)},
+	"stone": {"x": -52.0, "piece": Vector2(5, 4), "per_row": 6, "rows": 9, "color": Color(0.66, 0.66, 0.70)},
+	"wood": {"x": 20.0, "piece": Vector2(7, 3), "per_row": 5, "rows": 12, "color": Color(0.52, 0.36, 0.22)},
+	"food": {"x": 66.0, "piece": Vector2(4, 5), "per_row": 5, "rows": 5, "color": Color(0.82, 0.74, 0.52)},
+}
+const STACK_GROWTH := 1.5
+const POST := Color(0.33, 0.21, 0.13)
+const NUMBER := Color(0.20, 0.17, 0.15)
 const FLOAT_TIME := 1.2
 const MAX_FLOATS := 12
 ## Idle peasants stroll on floors no further than this from the castle's middle.
@@ -35,7 +48,7 @@ const JOB_SCRIPTS := {
 @export var wilds: Node2D
 @export var mine: Node2D
 @export var castle: Node2D
-@export var stock_x := 490.0
+@export var stock_x := 550.0
 
 ## Numbers floating up from the stockhouse as loads arrive:
 ## each is {"text": String, "color": Color, "age": float, "x": float}.
@@ -54,9 +67,12 @@ func _ready() -> void:
 
 
 func _draw() -> void:
-	_draw_piles()
-	# The stockhouse: everything gathered is stored here. It swells for a
-	# moment each time a load comes in.
+	for type: String in STORES:
+		# Iron only has a place once there is a mine.
+		if type != "iron" or GameState.part_levels.mine > 0:
+			_draw_store(type)
+	# The shed, for tools and everything small. It swells for a moment each
+	# time a load comes in.
 	var swell := 2.0 * maxf(_bump, 0.0) / BUMP_TIME
 	draw_rect(Rect2(stock_x - 14 - swell, -18 - swell, 28 + swell * 2, 18 + swell), Color(0.48, 0.32, 0.20))
 	draw_rect(Rect2(stock_x - 17 - swell, -24 - swell, 34 + swell * 2, 7), Color(0.33, 0.21, 0.13))
@@ -88,32 +104,32 @@ func _on_income_delivered(type: String, amount: int) -> void:
 	if amount <= 0 or _floats.size() >= MAX_FLOATS:
 		return
 	_bump = BUMP_TIME
-	_floats.append({"text": "+%d" % amount, "color": FLOAT_COLORS[type], "age": 0.0, "x": stock_x + randf_range(-10.0, 4.0)})
+	_floats.append({"text": "+%d" % amount, "color": FLOAT_COLORS[type], "age": 0.0, "x": store_x(type) + randf_range(-10.0, 4.0)})
 	queue_redraw()
 
 
-## Logs and stone blocks stacked beside the stockhouse, so the stores can be
-## seen at a glance. The piles grow slowly: each row needs more than the last.
-func _draw_piles() -> void:
-	_draw_pile(stock_x + 20.0, GameState.resources.wood, Vector2(7, 3), Color(0.52, 0.36, 0.22))
-	_draw_pile(stock_x - 34.0, GameState.resources.stone, Vector2(5, 4), Color(0.66, 0.66, 0.70))
-
-
-func _draw_pile(left: float, amount: int, piece: Vector2, color: Color) -> void:
-	var pieces := mini(int(sqrt(amount / PILE_UNIT)), MAX_PILE_PIECES)
-	var row := 0
-	var in_row := 0
-	var row_size := 3
+## One store: two posts that mark its place, the stack between them, and the
+## amount written above. Food is kept dry under a little roof.
+func _draw_store(type: String) -> void:
+	var store: Dictionary = STORES[type]
+	var piece: Vector2 = store.piece
+	var left: float = stock_x + store.x
+	var width: float = store.per_row * (piece.x + 1.0)
+	var full: float = store.rows * piece.y
+	var amount: int = GameState.resources[type]
+	var pieces := mini(int(sqrt(amount) * STACK_GROWTH), store.per_row * store.rows)
+	draw_rect(Rect2(left - 2, -full - 2, 1, full + 2), POST)
+	draw_rect(Rect2(left + width, -full - 2, 1, full + 2), POST)
 	for i in pieces:
-		var x := left + in_row * (piece.x + 1) + row * (piece.x + 1) * 0.5
-		var y := -(row + 1) * piece.y
-		draw_rect(Rect2(x, y, piece.x, piece.y - 1), color if (i + row) % 2 == 0 else color.darkened(0.12))
-		in_row += 1
-		if in_row >= row_size - row:
-			in_row = 0
-			row += 1
-			if row >= row_size:
-				break
+		var row: int = i / store.per_row
+		var column: int = i % store.per_row
+		var color: Color = store.color if (row + column) % 2 == 0 else store.color.darkened(0.12)
+		draw_rect(Rect2(left + column * (piece.x + 1.0), -(row + 1) * piece.y, piece.x, piece.y - 1.0), color)
+	if type == "food":
+		draw_rect(Rect2(left - 4, -full - 6, width + 7, 4), CastleData.THATCH)
+	var text := str(amount)
+	var text_width := _font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
+	draw_string(_font, Vector2(left + (width - text_width) / 2.0, -full - 9.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, NUMBER)
 
 
 ## Where a gatherer should go for this resource right now (null = nowhere).
@@ -212,9 +228,18 @@ func _builders(except: Node) -> Array:
 	return get_children().filter(func(w: Node) -> bool: return w is Builder and w != except and not w.is_queued_for_deletion())
 
 
-## Where the cooks stand.
+## Where the cooks stand: by the food store.
 func kitchen_x() -> float:
-	return stock_x - 24.0
+	return stock_x + STORES.food.x + 40.0
+
+
+## Where a peasant stands to add to or take from a resource's store.
+## Anything without a store of its own is kept in the shed.
+func store_x(resource_type: String) -> float:
+	if not STORES.has(resource_type):
+		return stock_x
+	var store: Dictionary = STORES[resource_type]
+	return stock_x + store.x + store.per_row * (store.piece.x + 1.0) / 2.0
 
 
 ## Adds and removes peasant nodes until each job has the right number.

@@ -60,7 +60,8 @@ func _work(delta: float) -> void:
 				# Nothing to do yet: wait by the yard, where the next work will be.
 				_walk_to(castle.yard_x() + 14.0 + _offset * 2.0, delta)
 		State.TO_STOCK:
-			if _walk_to(world.stock_x + _offset, delta):
+			# Stone from the stone stack, timber from the wood stack, the rest from the shed.
+			if _walk_to(world.store_x(castle.item_store(GameState.job_claimed)) + _offset, delta):
 				_carry_color = castle.item_color(GameState.job_claimed)
 				_carrying = GameState.job_take_load(int(GameState.builder_load() * _skill()))
 				_state = State.TO_YARD if _carrying > 0 else State.IDLE
@@ -104,7 +105,7 @@ func _work(delta: float) -> void:
 				_carrying = 1 if taken_down else 0
 				_state = State.RETURN if taken_down else State.IDLE
 		State.RETURN:
-			if _walk_to(world.stock_x + _offset, delta):
+			if _walk_to(world.store_x("wood") + _offset, delta):
 				_carrying = 0
 				_state = State.IDLE
 	if _state != before:

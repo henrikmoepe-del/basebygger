@@ -219,6 +219,11 @@ func item_color(index: int) -> Color:
 	return _plan[clampi(index, 0, _plan.size() - 1)].color
 
 
+## Which store of the stockyard a piece's material comes from.
+func item_store(index: int) -> String:
+	return BuildPlan.store_for(_plan[clampi(index, 0, _plan.size() - 1)].item)
+
+
 ## True if the piece is scaffolding being taken down.
 func is_removal(index: int) -> bool:
 	return _plan[index].kind == BuildPlan.Kind.REMOVE

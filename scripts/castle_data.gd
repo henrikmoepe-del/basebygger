@@ -85,19 +85,19 @@ const PARTS := {
 	"quarry": {
 		"benefit": "Stone appears 0.7 a second faster, and 10 more can pile up, per level", "drawback": "Dust: everyone works 2% slower per level",
 		"name": "Quarry", "defence": 0, "renown": 1, "cost": {"wood": 24, "stone": 6}, "work": 10.0,
-		"site_x": 560.0, "village": true, "max_level": 10,
+		"site_x": 700.0, "village": true, "max_level": 10,
 	},
 	# The farm's fields add to what the hunting grounds give (see GameState.site_rate).
 	"farm": {
 		"benefit": "Food appears 0.3 a second faster, and 12 more can wait, per level", "drawback": "",
 		"name": "Farm", "defence": 0, "renown": 1, "cost": {"wood": 20, "stone": 4}, "work": 8.0,
-		"site_x": 750.0, "village": true, "max_level": 10,
+		"site_x": 890.0, "village": true, "max_level": 10,
 	},
 	# The mine goes underground for iron, which high castle levels need.
 	"mine": {
 		"benefit": "Lets peasants mine iron: room for 2 miners per level", "drawback": "Each miner eats double",
 		"name": "Mine", "defence": 0, "renown": 2, "cost": {"wood": 40, "stone": 40}, "work": 20.0,
-		"site_x": 868.0, "village": true, "max_level": 8,
+		"site_x": 1008.0, "village": true, "max_level": 8,
 	},
 	# Outer defences: cheap wooden works that raiders meet first.
 	"palisade": {
@@ -128,19 +128,19 @@ const PARTS := {
 	"houses": {
 		"benefit": "Room for 4 more peasants per level", "drawback": "",
 		"name": "Houses", "defence": 0, "renown": 0, "cost": {"wood": 12, "stone": 4}, "work": 6.0,
-		"site_x": 1038.0, "village": true, "max_level": 12,
+		"site_x": 1178.0, "village": true, "max_level": 12,
 	},
 	# The well and the tavern keep peasants content, which makes them work
 	# faster (see GameState.morale_bonus). Each level serves more peasants.
 	"well": {
 		"benefit": "Up to +15% work speed; each level serves 8 peasants", "drawback": "",
 		"name": "Well", "defence": 0, "renown": 1, "cost": {"stone": 16, "wood": 4}, "work": 8.0,
-		"site_x": 950.0, "village": true, "max_level": 10,
+		"site_x": 1090.0, "village": true, "max_level": 10,
 	},
 	"tavern": {
 		"benefit": "Up to +15% work speed; each level serves 10 peasants", "drawback": "Peasants eat 3% more per level",
 		"name": "Tavern", "defence": 0, "renown": 1, "cost": {"wood": 24, "stone": 8}, "work": 10.0,
-		"site_x": 996.0, "village": true, "max_level": 10,
+		"site_x": 1136.0, "village": true, "max_level": 10,
 	},
 }
 ## Back to front.
@@ -150,12 +150,12 @@ const DRAW_ORDER := ["houses", "tavern", "well", "mine", "farm", "quarry", "watc
 const FRONT := ["court", "garrison", "keep", "towers"]
 
 ## Where the village stands, relative to the castle's ground-centre point.
-const QUARRY_X := 536.0
-const FARM_X := 772.0
-const MINE_X := 886.0
-const WELL_X := 950.0
-const TAVERN_X := 996.0
-const FIRST_HOUSE_X := 1052.0
+const QUARRY_X := 676.0
+const FARM_X := 912.0
+const MINE_X := 1026.0
+const WELL_X := 1090.0
+const TAVERN_X := 1136.0
+const FIRST_HOUSE_X := 1192.0
 const HOUSE_SPACING := 26.0
 ## The outer defences, west of the castle.
 const PALISADE_X := -520.0

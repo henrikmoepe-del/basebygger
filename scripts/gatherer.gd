@@ -65,7 +65,7 @@ func _work(delta: float) -> void:
 				_state = State.TO_HOME if _carrying > 0 else State.IDLE
 				_timer = 0.0
 		State.TO_HOME:
-			if _walk_to(home_x, delta):
+			if _walk_to(world.store_x(_resource) + _spot_offset, delta):
 				GameState.add_income(_resource, _carrying)
 				_carrying = 0
 				_state = State.IDLE

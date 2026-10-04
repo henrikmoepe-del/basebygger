@@ -68,6 +68,16 @@ static func item_for(color: Color) -> String:
 	return "stone"
 
 
+## Which store of the stockyard an item is fetched from ("" = the shed).
+static func store_for(item: String) -> String:
+	match item:
+		"stone":
+			return "stone"
+		"plank", "poles", "ladder":
+			return "wood"
+	return ""
+
+
 ## The plan for raising a part from level to level + 1.
 static func make(part: String, level: int) -> Dictionary:
 	var old := CastleData.shapes(part, level)

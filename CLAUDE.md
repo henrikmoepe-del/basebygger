@@ -59,6 +59,11 @@
     a castle rank caps levels; castle levels 4+ need iron. Village: houses, well, tavern, quarry, mine
   - Goals: a chain of objectives in `scripts/quest_data.gd`, one at a time, each paying renown
   - Stone and food come from sites that refill over time (faster with Quarry and Farm levels)
+  - Stockyard (just east of the castle, drawn by `workers.gd`, see `STORES`): a shed with a store
+    for each resource beside it. Each store is a stack that grows with the amount, with the number
+    above it. Gatherers deliver to the right store and builders fetch from it (`store_x`).
+    No storage limits yet. Ideas for later: stores as things you build and enlarge, limits,
+    stores inside the castle walls.
   - Scenery: parallax hills, clouds, grass; peasants' legs move; numbers float up at the stockhouse
   - Game feel: chips fly and trees shake when worked, the stockhouse bumps and shows log and stone
     piles, finished castle parts flash with dust and a small screen shake, messages pop in
