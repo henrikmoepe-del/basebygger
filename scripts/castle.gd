@@ -199,11 +199,9 @@ func job_has_scaffold() -> bool:
 	return not _plan.is_empty() and _plan_scaffolded
 
 
-## Where the materials for the part being built are dropped and lifted from.
-## Parts without a scaffold are built from the ground.
+## Where the rope hangs for the section being worked on. The yard (the piles
+## and the benches) is laid out from here, whether or not there is a rope.
 func hoist_x() -> float:
-	if not job_has_scaffold():
-		return CastleData.PARTS[GameState.job_part].site_x
 	return CastleData.hoist_x(GameState.job_part, _plan_sections[_next_piece().section])
 
 
@@ -620,6 +618,8 @@ func _draw_scaffold(canvas) -> void:
 				# An open trapdoor: its frame in the deck and its lid standing up.
 				# The stair door is built over it at the end.
 				var x: float = plan.access[i].x
+				# On top of the course being laid, where that has passed it.
+				y = _on_deck(i, x).y
 				canvas.draw_rect(Rect2(x - 6, y - 2, 12, 2), HATCH)
 				canvas.draw_rect(Rect2(x - 4, y - 1, 8, 1), CastleData.SHADOW)
 				canvas.draw_rect(Rect2(x + 5, y - 10, 2, 8), HATCH)
