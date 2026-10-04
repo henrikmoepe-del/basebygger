@@ -77,11 +77,17 @@ const PARTS := {
 		"name": "Quarry", "defence": 0, "renown": 1, "cost": {"wood": 24, "stone": 6}, "work": 10.0,
 		"site_x": 240.0, "scaffold": [], "village": true, "max_level": 10,
 	},
+	# The farm's fields add to what the hunting grounds give (see GameState.site_rate).
+	"farm": {
+		"benefit": "Food appears 0.3 a second faster, and 12 more can wait, per level", "drawback": "",
+		"name": "Farm", "defence": 0, "renown": 1, "cost": {"wood": 20, "stone": 4}, "work": 8.0,
+		"site_x": 430.0, "scaffold": [], "village": true, "max_level": 10,
+	},
 	# The mine goes underground for iron, which high castle levels need.
 	"mine": {
 		"benefit": "Lets peasants mine iron: room for 2 miners per level", "drawback": "Each miner eats double",
 		"name": "Mine", "defence": 0, "renown": 2, "cost": {"wood": 40, "stone": 40}, "work": 20.0,
-		"site_x": 494.0, "scaffold": [], "village": true, "max_level": 8,
+		"site_x": 548.0, "scaffold": [], "village": true, "max_level": 8,
 	},
 	# Outer defences: cheap wooden works that raiders meet first.
 	"palisade": {
@@ -112,30 +118,31 @@ const PARTS := {
 	"houses": {
 		"benefit": "Room for 4 more peasants per level", "drawback": "",
 		"name": "Houses", "defence": 0, "renown": 0, "cost": {"wood": 12, "stone": 4}, "work": 6.0,
-		"site_x": 668.0, "scaffold": [], "village": true, "max_level": 12,
+		"site_x": 718.0, "scaffold": [], "village": true, "max_level": 12,
 	},
 	# The well and the tavern keep peasants content, which makes them work
 	# faster (see GameState.morale_bonus). Each level serves more peasants.
 	"well": {
 		"benefit": "Up to +15% work speed; each level serves 8 peasants", "drawback": "",
 		"name": "Well", "defence": 0, "renown": 1, "cost": {"stone": 16, "wood": 4}, "work": 8.0,
-		"site_x": 566.0, "scaffold": [], "village": true, "max_level": 10,
+		"site_x": 616.0, "scaffold": [], "village": true, "max_level": 10,
 	},
 	"tavern": {
 		"benefit": "Up to +15% work speed; each level serves 10 peasants", "drawback": "Peasants eat 3% more per level",
 		"name": "Tavern", "defence": 0, "renown": 1, "cost": {"wood": 24, "stone": 8}, "work": 10.0,
-		"site_x": 600.0, "scaffold": [[604.0, 648.0]], "village": true, "max_level": 10,
+		"site_x": 650.0, "scaffold": [[654.0, 698.0]], "village": true, "max_level": 10,
 	},
 }
 ## Back to front.
-const DRAW_ORDER := ["houses", "tavern", "well", "mine", "quarry", "watchtower", "palisade", "keep", "court", "garrison", "walls", "towers", "gate"]
+const DRAW_ORDER := ["houses", "tavern", "well", "mine", "farm", "quarry", "watchtower", "palisade", "keep", "court", "garrison", "walls", "towers", "gate"]
 
 ## Where the village stands, relative to the castle's ground-centre point.
 const QUARRY_X := 216.0
-const MINE_X := 512.0
-const WELL_X := 580.0
-const TAVERN_X := 626.0
-const FIRST_HOUSE_X := 682.0
+const FARM_X := 452.0
+const MINE_X := 566.0
+const WELL_X := 630.0
+const TAVERN_X := 676.0
+const FIRST_HOUSE_X := 732.0
 const HOUSE_SPACING := 26.0
 ## The outer defences, west of the castle.
 const PALISADE_X := -230.0
@@ -227,6 +234,16 @@ static func shapes(part: String, level: int) -> Array:
 				# A wooden hoist on top.
 				out.append([Rect2(QUARRY_X - 18, -h - 12, 2, 12), WOOD_DARK])
 				out.append([Rect2(QUARRY_X - 18, -h - 12, 12, 2), WOOD_DARK])
+		"farm":
+			# Tilled rows with crops that stand taller as the farm grows, and a barn later on.
+			var crop := 2 + mini(v, 6)
+			for i in 6:
+				var x := FARM_X - 18 + i * 6
+				out.append([Rect2(x, -2, 5, 2), WOOD_DARK])
+				out.append([Rect2(x + 1, -2 - crop, 3, crop), THATCH if i % 2 == 0 else Color(0.45, 0.68, 0.30)])
+			if level >= 3:
+				out.append([Rect2(FARM_X + 20, -14, 16, 14), WOOD])
+				out.append([Rect2(FARM_X + 18, -19, 20, 6), ROOF_RED])
 		"mine":
 			# A timber-framed entrance, and a shaft and tunnel under the ground
 			# (positive y is below the ground line) that go deeper with each level.

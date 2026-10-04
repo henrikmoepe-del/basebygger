@@ -23,6 +23,7 @@ signal announced(text: String)
 const CastleData = preload("res://scripts/castle_data.gd")
 const SkillData = preload("res://scripts/skill_data.gd")
 const JobData = preload("res://scripts/job_data.gd")
+const QuestData = preload("res://scripts/quest_data.gd")
 
 const START_JOBS := {"wood": 1, "stone": 1, "hunter": 0, "build": 1, "cook": 0, "soldier": 0, "iron": 0, "forester": 0}
 const NO_JOBS := {"wood": 0, "stone": 0, "hunter": 0, "build": 0, "cook": 0, "soldier": 0, "iron": 0, "forester": 0}
@@ -92,6 +93,13 @@ const LOOSE_STONE_RATE := 0.6
 const LOOSE_STONE_PILE := 10
 const QUARRY_RATE_PER_LEVEL := 0.7
 const QUARRY_PILE_PER_LEVEL := 10
+## Food works the same way: the wild game is thin, and each Farm level adds to it.
+const WILD_FOOD_RATE := 0.25
+const WILD_FOOD_PILE := 12
+const FARM_RATE_PER_LEVEL := 0.3
+const FARM_PILE_PER_LEVEL := 12
+## How often the current goal is checked.
+const QUEST_CHECK_TIME := 0.5
 const MINERS_PER_MINE_LEVEL := 2
 
 ## Cows need the Cattle skill. Each costs more than the last and eats every day.
@@ -119,7 +127,7 @@ const LEVELS_PER_RANK := 5
 const FIRST_RANK_UP := 20
 const RANK_UP_STEP := 28
 
-const SAVE_VERSION := 11
+const SAVE_VERSION := 12
 const AUTOSAVE_INTERVAL := 10.0
 const MAX_OFFLINE_SECONDS := 8 * 3600
 ## Offline progress is only granted (and reported) after this long away.
@@ -133,7 +141,7 @@ var cows := 0
 var part_levels := {
 	"walls": 0, "towers": 0, "gate": 0, "keep": 0, "garrison": 0, "court": 0,
 	"palisade": 0, "watchtower": 0,
-	"houses": 0, "well": 0, "tavern": 0, "quarry": 0, "mine": 0,
+	"houses": 0, "well": 0, "tavern": 0, "quarry": 0, "farm": 0, "mine": 0,
 }
 var peasants := START_PEASANTS
 ## How many peasants are assigned to each job. The rest are idle.
@@ -149,6 +157,8 @@ var day := 1
 var day_time := 0.0
 ## False if there wasn't enough food at dawn today.
 var fed := true
+## Which goal in QuestData.QUESTS the player is on.
+var quest_index := 0
 var raids_faced := 0
 var raids_won := 0
 ## Kept when the crown is passed on. See LEGACY_* above.
@@ -181,6 +191,7 @@ var save_path := "user://save.json"
 var _window_income := {"wood": 0, "stone": 0, "food": 0, "iron": 0}
 var _was_night := false
 var _raid_timer := 0.0
+var _quest_timer := 0.0
 var _window_time := 0.0
 var _autosave_time := 0.0
 
@@ -205,6 +216,10 @@ func _process(delta: float) -> void:
 		_was_night = is_night()
 		daytime_changed.emit()
 	_update_raid(delta)
+	_quest_timer += delta
+	if _quest_timer >= QUEST_CHECK_TIME:
+		_quest_timer = 0.0
+		_check_quest()
 
 	_window_time += delta
 	if _window_time >= INCOME_WINDOW:
@@ -296,6 +311,55 @@ func _eat() -> void:
 		announced.emit("Not enough food: your peasants are hungry and slow today")
 
 
+# --- Goals ---
+
+## The goal the player is working on, or an empty Dictionary when all are done.
+func current_quest() -> Dictionary:
+	if quest_index >= QuestData.QUESTS.size():
+		return {}
+	return QuestData.QUESTS[quest_index]
+
+
+func _quest_done(quest: Dictionary) -> bool:
+	var amount: int = quest.amount
+	match quest.kind:
+		"part":
+			return part_levels[quest.id] >= amount
+		"parts":
+			for id: String in quest.ids:
+				if part_levels[id] < amount:
+					return false
+			return true
+		"job":
+			return jobs[quest.id] >= amount
+		"peasants":
+			return peasants >= amount
+		"skills":
+			var levels := 0
+			for id: String in skills:
+				levels += skills[id]
+			return levels >= amount
+		"trained":
+			return total_trained() >= amount
+		"raids_won":
+			return raids_won >= amount
+		"rank":
+			return castle_rank() >= amount
+		"cows":
+			return cows >= amount
+	return false
+
+
+func _check_quest() -> void:
+	var quest := current_quest()
+	if quest.is_empty() or not _quest_done(quest):
+		return
+	renown += quest.renown
+	quest_index += 1
+	announced.emit("Goal reached! +%d renown" % quest.renown)
+	skills_changed.emit()
+
+
 # --- Raids ---
 
 ## The day the next raid arrives.
@@ -315,7 +379,7 @@ func _update_raid(delta: float) -> void:
 			raid_incoming = true
 			_raid_timer = RAID_MARCH_TIME
 			raid_started.emit()
-			announced.emit("Raiders approach! Press Defend to command the walls yourself, or your defence of %d meets their %d" % [total_defence(), raid_strength()])
+			announced.emit("Raiders approach! Their strength is %d, your defence is %d" % [raid_strength(), total_defence()])
 		return
 	_raid_timer -= delta
 	if _raid_timer <= 0.0:
@@ -473,13 +537,17 @@ func train(job: String) -> bool:
 
 # --- Stone and cows ---
 
-## Stone appearing per second at the stone site.
-func quarry_rate() -> float:
+## How much of a resource appears per second at its gathering site.
+func site_rate(type: String) -> float:
+	if type == "food":
+		return WILD_FOOD_RATE + FARM_RATE_PER_LEVEL * part_levels.farm
 	return LOOSE_STONE_RATE + QUARRY_RATE_PER_LEVEL * part_levels.quarry
 
 
-## How much stone can wait at the stone site.
-func quarry_capacity() -> float:
+## How much of a resource can wait at its gathering site.
+func site_capacity(type: String) -> float:
+	if type == "food":
+		return WILD_FOOD_PILE + FARM_PILE_PER_LEVEL * part_levels.farm
 	return LOOSE_STONE_PILE + QUARRY_PILE_PER_LEVEL * part_levels.quarry
 
 
@@ -818,6 +886,7 @@ func save_game() -> void:
 		"day_time": day_time,
 		"fed": fed,
 		"raids_faced": raids_faced,
+		"quest_index": quest_index,
 		"raids_won": raids_won,
 		"legacy": legacy,
 		"skills": skills,
@@ -876,6 +945,7 @@ func _start_over() -> void:
 	fed = true
 	raids_faced = 0
 	raids_won = 0
+	quest_index = 0
 	raid_incoming = false
 	job_part = ""
 	for type: String in income_rate:
@@ -919,6 +989,7 @@ func load_game() -> void:
 	day_time = clampf(float(data.get("day_time", 0.0)), 0.0, DAY_LENGTH - 0.1)
 	fed = bool(data.get("fed", true))
 	raids_faced = maxi(int(data.get("raids_faced", 0)), 0)
+	quest_index = clampi(int(data.get("quest_index", 0)), 0, QuestData.QUESTS.size())
 	raids_won = clampi(int(data.get("raids_won", 0)), 0, raids_faced)
 	legacy = maxi(int(data.get("legacy", 0)), 0)
 	_was_night = is_night()

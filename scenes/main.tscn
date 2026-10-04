@@ -48,14 +48,14 @@ position = Vector2(216, 270)
 script = ExtResource("13_quarry")
 
 [node name="Wilds" type="Node2D" parent="."]
-position = Vector2(462, 270)
-script = ExtResource("1_gather")
+position = Vector2(508, 270)
+script = ExtResource("13_quarry")
 resource_type = "food"
 size = Vector2(44, 30)
 look = "bushes"
 
 [node name="MineSpot" type="Node2D" parent="."]
-position = Vector2(512, 270)
+position = Vector2(566, 270)
 script = ExtResource("1_gather")
 resource_type = "iron"
 look = "none"
@@ -147,13 +147,24 @@ theme_override_font_sizes/font_size = 12
 text = "Raid on day 4"
 horizontal_alignment = 2
 
+[node name="GoalLabel" type="Label" parent="HUD"]
+unique_name_in_owner = true
+offset_left = 8.0
+offset_top = 24.0
+offset_right = 420.0
+offset_bottom = 42.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.2, 0.2, 0.25, 1)
+theme_override_font_sizes/font_size = 11
+text = "Goal"
+
 [node name="ToastLabel" type="Label" parent="HUD"]
 unique_name_in_owner = true
 visible = false
 offset_left = 12.0
-offset_top = 30.0
+offset_top = 46.0
 offset_right = 330.0
-offset_bottom = 90.0
+offset_bottom = 100.0
 mouse_filter = 2
 theme_override_colors/font_color = Color(0.2, 0.2, 0.25, 1)
 theme_override_font_sizes/font_size = 12
@@ -165,9 +176,9 @@ autowrap_mode = 3
 unique_name_in_owner = true
 visible = false
 offset_left = 12.0
-offset_top = 92.0
+offset_top = 104.0
 offset_right = 400.0
-offset_bottom = 112.0
+offset_bottom = 124.0
 mouse_filter = 2
 theme_override_colors/font_color = Color(0.25, 0.4, 0.2, 1)
 theme_override_font_sizes/font_size = 12

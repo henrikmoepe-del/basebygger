@@ -17,6 +17,7 @@ const OUTLINE_COLOR := Color(0.96, 0.95, 0.85)
 @onready var day_label: Label = %DayLabel
 @onready var raid_label: Label = %RaidLabel
 @onready var toast_label: Label = %ToastLabel
+@onready var goal_label: Label = %GoalLabel
 @onready var reset_button: Button = %ResetButton
 @onready var crown_button: Button = %CrownButton
 @onready var peasants_label: Label = %PeasantsLabel
@@ -186,8 +187,11 @@ func _refresh() -> void:
 		"Raiders at the walls" if GameState.raid_incoming else "Raid on day %d" % GameState.next_raid_day(),
 		GameState.raid_strength()]
 	raid_label.add_theme_color_override("font_color", TEXT_COLOR if safe else HUNGRY_COLOR)
-	# While raiders march in, the player can take command of the defence in 3D.
-	defend_button.visible = GameState.raid_incoming
+	# The 3D siege is parked for now; the dev key F7 still opens it.
+	defend_button.visible = false
+
+	var quest := GameState.current_quest()
+	goal_label.text = "Goal: %s  (+%d renown)" % [quest.text, quest.renown] if not quest.is_empty() else "All goals reached"
 
 	var gain := GameState.legacy_gain()
 	crown_button.disabled = gain <= 0

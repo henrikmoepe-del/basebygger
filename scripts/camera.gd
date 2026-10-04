@@ -11,7 +11,7 @@ const ZOOM_LEVELS := [1.0, 0.75, 0.5]
 
 ## The left and right edges of the world.
 @export var world_left := -480.0
-@export var world_right := 1040.0
+@export var world_right := 1090.0
 ## Where the view is centred when the game starts: the castle and the stockhouse.
 @export var start_x := 150.0
 
