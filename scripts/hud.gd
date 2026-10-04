@@ -167,11 +167,14 @@ func _show_offline_report() -> void:
 func _refresh() -> void:
 	var stock: PackedStringArray = []
 	for type: String in GameState.resources:
-		stock.append("%s: %d" % [type.capitalize(), GameState.resources[type]])
+		var entry := "%s: %d" % [type.capitalize(), GameState.resources[type]]
+		if GameState.income_rate[type] > 0.0:
+			entry += " (+%.1f/s)" % GameState.income_rate[type]
+		stock.append(entry)
 	stock.append("Renown: %d" % GameState.renown)
 	if GameState.legacy > 0:
 		stock.append("Legacy: %d" % GameState.legacy)
-	resources_label.text = "   ".join(stock)
+	resources_label.text = "  ".join(stock)
 	defence_label.text = "Defence: %d" % GameState.total_defence()
 	rank_label.text = "Castle rank %d  (%d/%d levels to next)" % [
 		GameState.castle_rank(), GameState.total_levels(), GameState.levels_for_next_rank()]

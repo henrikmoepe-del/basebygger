@@ -41,23 +41,25 @@
 ## Current status
 - Stage: Milestone 1 (2D incremental builder), expanding the builder before the 3D part. Placeholder art.
 - The player never clicks to gather. Peasants do all the work; the player hires them,
-  assigns them to jobs, orders castle parts and buys skills.
+  assigns them to jobs, orders castle parts and village buildings, and buys skills.
 - Done:
   - Jobs: woodcutter, quarryman, hunter, builder, soldier (needs a garrison), forester and cook (skills)
   - Castle: six upgradable parts (walls, towers, gate, keep, garrison, court); a castle rank caps levels
+  - Village (west of the grove): houses (population cap), well and tavern (morale = faster work)
   - Building: builders haul materials from the stockhouse and hammer them in; scaffolding and rope hoist
-  - Skill tree: four tabs (Peasants, Builders, Village, Defence), 47 skills, paid with renown
+  - Skill tree: four tabs (Peasants, Builders, Village, Defence), 51 skills, paid with renown
   - Day and night (peasants sleep), food and hunger, trees that run out and regrow
   - Raids every 3 days, checked against the castle's defence; win renown or lose stores
-  - Save/load with offline progress, and a New game button
+  - Pass the crown (prestige): start a new castle, keep legacy that speeds up all work
+  - Wide world with a camera you drag or move with A/D; save/load with offline progress; New game button
 - Design notes:
   - Castle parts and soldiers are defences. `GameState.total_defence()` and the part levels are
     what the later 3D wave defence will read; raids are the 2D stand-in for it.
-  - Data lives in `scripts/*_data.gd` (castle parts, jobs, skills); adding an entry there is
-    usually all it takes to get new content on screen.
+  - Data lives in `scripts/*_data.gd` (castle parts and village buildings, jobs, skills); adding
+    an entry there is usually all it takes to get new content on screen.
   - Henrik's design ideas are starting points: explore and expand on them, then explain the choices.
-- Ideas not built yet: thirst, boredom and peasant traits; houses and other village buildings
-  (needs a wider, scrolling world); real pixel art; sound
-- Then Milestone 2: 3D wave defence, which also acts as the prestige loop
+- Ideas not built yet: individual peasant traits; farms; thirst and boredom as per-peasant needs
+  (they exist only as village-wide morale); real pixel art; sound; a proper tutorial
+- Then Milestone 2: 3D wave defence, which would replace raids and tie into passing the crown
 - Testing: run Godot with `--headless` and `-- --save=user://test_save.json` so tests
   open no window and never touch the real save (`user://save.json`).

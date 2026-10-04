@@ -180,6 +180,24 @@ const SKILLS := {
 		"cost": 4, "requires": "", "effects": {"rank_renown": 3}, "cell": Vector2i(5, 0),
 	},
 
+	"v_bunks": {
+		"branch": "village", "name": "Bunk Beds", "text": "Each house holds 1 more peasant.",
+		"cost": 3, "requires": "", "effects": {"house_room": 1}, "cell": Vector2i(0, 4),
+	},
+	"v_lofts": {
+		"branch": "village", "name": "Lofts", "text": "Each house holds another 2 peasants.",
+		"cost": 6, "requires": "v_bunks", "effects": {"house_room": 2}, "cell": Vector2i(1, 4),
+		"big": true,
+	},
+	"v_brew": {
+		"branch": "village", "name": "Good Ale", "text": "A full tavern makes everyone work another 10% faster.",
+		"cost": 4, "requires": "", "effects": {"tavern_bonus": 0.1}, "cell": Vector2i(3, 4),
+	},
+	"v_deepwell": {
+		"branch": "village", "name": "Deep Well", "text": "Each well level serves 4 more peasants.",
+		"cost": 3, "requires": "", "effects": {"well_serves": 4}, "cell": Vector2i(4, 4),
+	},
+
 	# --- Defence: soldiers and raids ---
 	"d_drill": {
 		"branch": "defence", "name": "Drills", "text": "Each soldier gives 2 more defence.",

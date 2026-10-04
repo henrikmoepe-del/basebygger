@@ -47,9 +47,9 @@ const MAX_USEFUL_COOKS := 6
 ## Raiders test the castle's defence every RAID_INTERVAL days, and each raid is
 ## RAID_STRENGTH_GROWTH times stronger than the last. Beating one gives renown;
 ## losing one costs RAID_LOSS of everything in the stockhouse.
-const FIRST_RAID_DAY := 4
+const FIRST_RAID_DAY := 5
 const RAID_INTERVAL := 3
-const RAID_BASE_STRENGTH := 45.0
+const RAID_BASE_STRENGTH := 40.0
 const RAID_STRENGTH_GROWTH := 1.3
 ## Seconds between the raiders appearing and reaching the walls.
 const RAID_MARCH_TIME := 12.0
@@ -182,6 +182,7 @@ func _process(delta: float) -> void:
 			income_rate[type] = _window_income[type] / _window_time
 			_window_income[type] = 0
 		_window_time = 0.0
+		resources_changed.emit()
 
 	_autosave_time += delta
 	if _autosave_time >= AUTOSAVE_INTERVAL:
@@ -325,15 +326,16 @@ func peasant_cost() -> Dictionary:
 
 ## How many peasants the village has room for.
 func max_peasants() -> int:
-	return BASE_POPULATION + POPULATION_PER_HOUSE * part_levels.houses
+	return BASE_POPULATION + (POPULATION_PER_HOUSE + int(skill_total("house_room"))) * part_levels.houses
 
 
 ## How much faster everyone works for being content: the well and the tavern
 ## each give their full bonus only if they are big enough for every peasant.
 func morale_bonus() -> float:
-	var watered := clampf(float(part_levels.well * WELL_SERVES) / peasants, 0.0, 1.0)
+	var well_serves := WELL_SERVES + int(skill_total("well_serves"))
+	var watered := clampf(float(part_levels.well * well_serves) / peasants, 0.0, 1.0)
 	var cheered := clampf(float(part_levels.tavern * TAVERN_SERVES) / peasants, 0.0, 1.0)
-	return WELL_BONUS * watered + TAVERN_BONUS * cheered
+	return WELL_BONUS * watered + (TAVERN_BONUS + skill_total("tavern_bonus")) * cheered
 
 
 ## Hires a peasant. They start idle until given a job.
