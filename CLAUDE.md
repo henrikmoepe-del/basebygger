@@ -99,6 +99,14 @@
     (`workers.gd` `_draw_inside`). While a deck is being raised there is a hatch where they come up.
   - Known and intended: peasants on the curtain wall pass behind the courtyard buildings, so they
     are out of sight for a moment there.
+  - Courses are counted from the top of what already stands, so a new course sits exactly on the
+    old wall. A deck has a step in it: builders stand on the stretch of the course already laid
+    (`castle._deck_step`, `surface_at`), not in front of it.
+  - While a level is added, old pieces the new level lacks (battlements, turrets, flags) stay until
+    stone is laid over them, and whatever rests on a removed piece goes with it (`_draw_job`).
+  - Leisure (`worker.gd` `_relax`): nobody stands and waits. A peasant with no job, or a builder or
+    gatherer with nothing to do right now, strolls, walks the lands, visits another to talk
+    (speech bubbles) or play ball, or sits in the tavern. Builders stay near their yard.
   - Movement rule: peasants only move along the ground, along a floor, or up and down a stair
     (`castle.route`). A target with no floor under it is not reachable; the way ends on the ground
     below it. Anything a peasant must stand on has to be a floor (`CastleData.floors`, or

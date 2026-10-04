@@ -87,6 +87,31 @@ func _run() -> void:
 	gs.peasants_changed.emit()
 	await _wait(40.0)
 	var workers := current_scene.get_node("Workers")
+	# Leisure: nobody without work should stand about doing nothing.
+	gs.part_levels.tavern = 1
+	gs.day_time = 10.0
+	var seen := {}
+	var still := {}
+	var longest := 0.0
+	var t := 0.0
+	while t < 240.0:
+		await process_frame
+		var step := root.get_process_delta_time()
+		t += step
+		gs.day_time = 10.0
+		for w in workers.get_children():
+			if not w.has_method("at_leisure") or not w.at_leisure():
+				continue
+			seen[w._leisure] = seen.get(w._leisure, 0) + 1
+			var busy: bool = w._leisure in [2, 3, 4] or not w.visible
+			var last: Array = still.get(w, [w.position, 0.0])
+			if busy or not w.position.is_equal_approx(last[0]):
+				still[w] = [w.position, 0.0]
+			else:
+				still[w] = [last[0], last[1] + step]
+				longest = maxf(longest, last[1] + step)
+	print("leisure frames by kind (0 none, 1 stroll, 2 visit, 3 host, 4 tavern): ", seen)
+	print("longest anyone at leisure stood doing nothing: %.1f s" % longest)
 	for w in workers.get_children():
 		if w.get("job") == "soldier":
 			print("  soldier at (%.0f, %.0f) visible=%s z=%d" % [w.position.x, w.position.y, w.visible, w.z_index])

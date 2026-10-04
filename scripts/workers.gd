@@ -35,6 +35,9 @@ const FLOAT_TIME := 1.2
 const MAX_FLOATS := 12
 ## Idle peasants stroll on floors no further than this from the castle's middle.
 const STROLL_REACH := 440.0
+## How far a peasant with time to spare may walk out into the lands.
+const LANDS_WEST := -680.0
+const LANDS_EAST := 1400.0
 const FLOAT_COLORS := {
 	"wood": Color(0.40, 0.26, 0.15), "stone": Color(0.36, 0.38, 0.46),
 	"food": Color(0.70, 0.20, 0.25), "iron": Color(0.20, 0.22, 0.30),
@@ -212,12 +215,24 @@ func guard_post(beat: float, fallback_x: float) -> Vector2:
 func stroll_spot(home_x: float) -> Vector2:
 	var flats: Array = castle.built_floors().filter(func(flat: Dictionary) -> bool: return absf(flat.x0) < STROLL_REACH)
 	var roll := randf()
+	if roll > 0.88:
+		# A walk in the lands, well away from home.
+		return Vector2(randf_range(LANDS_WEST, LANDS_EAST), 0)
 	if flats.is_empty() or roll < 0.4:
 		return Vector2(home_x + randf_range(-30.0, 30.0), 0)
 	if roll < 0.7:
 		return Vector2(randf_range(-CastleData.WALL_HALF + 20.0, CastleData.WALL_HALF - 20.0), 0)
 	var flat: Dictionary = flats.pick_random()
 	return Vector2(randf_range(flat.x0 + 4.0, flat.x1 - 4.0), flat.y)
+
+
+## Another peasant with nothing to do, on the ground and within reach of
+## this one, to talk to or play with. Null if there is nobody.
+func leisure_partner(seeker: Node2D, reach: float) -> Node2D:
+	var free := get_children().filter(func(other: Node) -> bool:
+		return other != seeker and other.has_method("at_leisure") and other.at_leisure() \
+				and other.position.y > -0.5 and absf(other.position.x - seeker.position.x) <= reach)
+	return free.pick_random() if not free.is_empty() else null
 
 
 ## The door nearest to x where a peasant can sleep: the stockhouse, or any
@@ -234,6 +249,11 @@ func bed_x(x: float) -> float:
 ## How many builders other than this one are working at the top of the site.
 func builders_aloft(except: Node) -> int:
 	return _builders(except).filter(func(b: Node) -> bool: return b.is_top_crew()).size()
+
+
+## How many builders other than this one are up off the ground.
+func builders_above(except: Node) -> int:
+	return _builders(except).filter(func(b: Node) -> bool: return b.position.y < -0.5).size()
 
 
 ## How many builders other than this one are shaping a piece at a bench.

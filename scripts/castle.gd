@@ -217,7 +217,7 @@ func pickup_spot() -> Vector2:
 func stand_spot(index: int) -> Vector2:
 	var piece: Dictionary = _plan[index]
 	if piece.top:
-		return Vector2(piece.stand.x, _deck_y(piece.section))
+		return _on_deck(piece.section, piece.stand.x)
 	return piece.stand
 
 
@@ -252,7 +252,32 @@ func is_removal(index: int) -> bool:
 func hoist_spot() -> Vector2:
 	var piece := _next_piece()
 	var deck: Array = GameState.job_plan.decks[piece.section]
-	return Vector2(clampf(hoist_x(), deck[0] + 4.0, deck[1] - 4.0), _deck_y(piece.section))
+	return _on_deck(piece.section, clampf(hoist_x(), deck[0] + 4.0, deck[1] - 4.0))
+
+
+## The point on a section's deck at x: on the course being laid where it
+## has got that far, else on the course below.
+func _on_deck(section: int, x: float) -> Vector2:
+	var y := _deck_y(section)
+	var step := _deck_step(section)
+	if not step.is_empty() and x >= step[0] - 0.5 and x <= step[1] + 0.5:
+		y = step[2]
+	return Vector2(x, y)
+
+
+## The stretch of the course being laid that is laid so far, as
+## [left, right, height]: builders step up onto it. Empty if there is none.
+func _deck_step(section: int) -> Array:
+	if _placed >= GameState.job_fetch():
+		return []
+	var piece := _next_piece()
+	if piece.section != section or piece.kind != BuildPlan.Kind.BLOCK or not piece.top or not piece.partial.has_area():
+		return []
+	# Only the course that sits right on the deck: anything higher (a roof, a
+	# turret) is built from the deck itself.
+	if absf(piece.partial.end.y - piece.floor) > 0.5:
+		return []
+	return [piece.partial.position.x, piece.partial.end.x, piece.partial.position.y]
 
 
 ## How many benches are set up in the yard being used right now.
@@ -326,7 +351,7 @@ func job_floors() -> Array:
 				var deck: Array = plan.decks[i]
 				out.append({
 					"x0": deck[0], "x1": deck[1], "y": y, "stairs": [plan.access[i].x],
-					"hidden": plan.access[i].hidden, "back": back,
+					"hidden": plan.access[i].hidden, "back": back, "step": _deck_step(i),
 				})
 	for platform: Dictionary in plan.platforms:
 		if _placed >= platform.from and _placed <= platform.until:
@@ -349,7 +374,7 @@ func route(from: Vector2, to: Vector2) -> Array:
 	var all := floors()
 	var start := _floor_at(all, from)
 	var goal := _floor_at(all, to)
-	var end := Vector2(to.x, all[goal].y if goal >= 0 else 0.0)
+	var end := Vector2(to.x, _surface(all[goal], to.x) if goal >= 0 else 0.0)
 	var end_back: bool = goal >= 0 and all[goal].back
 	var steps := []
 	var x := from.x
@@ -357,7 +382,7 @@ func route(from: Vector2, to: Vector2) -> Array:
 		# Part way up a stair: carry on if it leads to the goal, else go back
 		# down it first.
 		if goal >= 0 and all[goal].stairs.has(from.x):
-			steps.append(_step(Vector2(from.x, all[goal].y), all[goal].hidden, end_back))
+			steps.append(_step(Vector2(from.x, _surface(all[goal], from.x)), all[goal].hidden, end_back))
 			steps.append(_step(end, false, end_back))
 			return steps
 		var stair := _stair_floor(all, from.x)
@@ -365,7 +390,7 @@ func route(from: Vector2, to: Vector2) -> Array:
 		if goal >= 0:
 			var stair_x := _nearest_stair(all[goal], x)
 			steps.append(_step(Vector2(stair_x, 0), false, false))
-			steps.append(_step(Vector2(stair_x, all[goal].y), all[goal].hidden, end_back))
+			steps.append(_step(Vector2(stair_x, _surface(all[goal], stair_x)), all[goal].hidden, end_back))
 	elif start != goal:
 		if start >= 0:
 			var flat: Dictionary = all[start]
@@ -373,20 +398,37 @@ func route(from: Vector2, to: Vector2) -> Array:
 				for stair: float in flat.stairs:
 					if all[goal].stairs.has(stair):
 						# Both floors are on this stair: no need to touch the ground.
-						steps.append(_step(Vector2(stair, flat.y), false, flat.back))
-						steps.append(_step(Vector2(stair, all[goal].y), all[goal].hidden, end_back))
+						steps.append(_step(Vector2(stair, _surface(flat, stair)), false, flat.back))
+						steps.append(_step(Vector2(stair, _surface(all[goal], stair)), all[goal].hidden, end_back))
 						steps.append(_step(end, false, end_back))
 						return steps
 			x = _nearest_stair(flat, from.x)
-			steps.append(_step(Vector2(x, flat.y), false, flat.back))
+			steps.append(_step(Vector2(x, _surface(flat, x)), false, flat.back))
 			steps.append(_step(Vector2(x, 0), flat.hidden, flat.back))
 		if goal >= 0:
 			var flat: Dictionary = all[goal]
 			var stair_x := _nearest_stair(flat, x)
 			steps.append(_step(Vector2(stair_x, 0), false, false))
-			steps.append(_step(Vector2(stair_x, flat.y), flat.hidden, flat.back))
+			steps.append(_step(Vector2(stair_x, _surface(flat, stair_x)), flat.hidden, flat.back))
 	steps.append(_step(end, false, end_back))
 	return steps
+
+
+## How high a peasant standing at a point is: on the floor that is there
+## (see _surface), or just where they are if there is none.
+func surface_at(point: Vector2) -> float:
+	var all := floors()
+	var found := _floor_at(all, point)
+	return _surface(all[found], point.x) if found >= 0 else point.y
+
+
+## How high a floor is at x. A deck being built on has a step in it: the
+## stretch of the next course that is already laid.
+func _surface(flat: Dictionary, x: float) -> float:
+	var step: Array = flat.get("step", [])
+	if not step.is_empty() and x >= step[0] - 0.5 and x <= step[1] + 0.5:
+		return step[2]
+	return flat.y
 
 
 func _step(pos: Vector2, hidden: bool, back: bool) -> Dictionary:
@@ -466,10 +508,25 @@ func _draw_job(canvas: CanvasItem) -> void:
 	var built := mini(_placed, plan.fetch)
 	var done: bool = built >= plan.fetch
 	var piece := _next_piece()
-	# The old battlements, flags and overhangs stay until new stone is laid over them.
-	for shape: Array in plan.gone:
-		var covered: bool = piece.line < shape[0].position.y - 0.01 or shape[0].intersects(piece.partial)
-		if not done and (shape[2] > piece.section or (shape[2] == piece.section and not covered)):
+	# The old battlements, turrets and flags stay until new stone is laid
+	# over them. Whatever stands on something that has gone, goes with it.
+	if not done:
+		var standing: Array = plan.gone.filter(func(shape: Array) -> bool:
+			var covered: bool = piece.line < shape[0].position.y - 0.01 or shape[0].intersects(piece.partial)
+			return shape[2] > piece.section or (shape[2] == piece.section and not covered))
+		var fallen: Array = plan.gone.filter(func(shape: Array) -> bool: return not shape in standing)
+		var changed := true
+		while changed:
+			changed = false
+			for shape: Array in standing:
+				# Resting on, hanging from or set into a piece that has gone.
+				var reach: Rect2 = shape[0].grow(1.5)
+				if fallen.any(func(lost: Array) -> bool: return lost[2] == shape[2] and reach.intersects(lost[0])):
+					standing.erase(shape)
+					fallen.append(shape)
+					changed = true
+					break
+		for shape: Array in standing:
 			canvas.draw_rect(shape[0], shape[1])
 	for i in _plan_sections.size():
 		if done or i < piece.section:

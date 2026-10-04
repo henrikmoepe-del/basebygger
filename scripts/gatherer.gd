@@ -31,7 +31,8 @@ func _work(delta: float) -> void:
 	_resource = JobData.JOBS[job].get("gathers", job)
 	match _state:
 		State.IDLE:
-			# Nothing to gather (e.g. all trees regrowing): wait and look again.
+			# Nothing to gather (e.g. all trees regrowing): pass the time and look again.
+			_relax(delta, world.store_x(_resource), 60.0)
 			_timer -= delta
 			if _timer <= 0.0:
 				_spot = world.find_spot(_resource)

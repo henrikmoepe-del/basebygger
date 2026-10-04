@@ -21,6 +21,8 @@ const PLACE_TIME := 1.5
 ## Builders go up to work at the top once this many pieces are waiting there
 ## for each builder already up, so nobody climbs the ladder for one block.
 const BATCH := 4
+## Builders waiting for work stay within this distance of the yard.
+const LEISURE_REACH := 70.0
 const SKIN := Color(0.93, 0.76, 0.62)
 const TOOL := Color(0.30, 0.30, 0.34)
 
@@ -30,7 +32,7 @@ var _carrying := 0
 var _carry_color := Color.WHITE
 ## The piece being carried to its place (its number in the plan), or -1.
 var _piece := -1
-var _offset := randf_range(-6.0, 6.0)
+var _offset := randf_range(-14.0, 14.0)
 ## Which bench this builder is shaping at.
 var _bench := 0
 ## Seconds spent on the step in hand.
@@ -44,10 +46,12 @@ func _work(delta: float) -> void:
 	_hammering = false
 	_pulling = false
 	if GameState.job_part == "":
-		# No job: bring back anything carried and wait by the castle.
+		# No job: bring back anything carried, then the day is their own.
 		_piece = -1
 		_state = State.IDLE
-		if _walk_to(world.stock_x + _offset if _carrying > 0 else home_x, delta):
+		if _carrying == 0:
+			_relax(delta)
+		elif _walk_to(world.store_x("wood") + _offset, delta):
 			_carrying = 0
 		return
 
@@ -57,8 +61,8 @@ func _work(delta: float) -> void:
 		State.IDLE:
 			_state = _choose_task()
 			if _state == State.IDLE:
-				# Nothing to do yet: come down and wait by the yard, where the next work will be.
-				_walk_to(castle.yard_x() + 14.0 + _offset * 2.0, delta)
+				# Nothing to do yet: pass the time near the yard, where the next work will be.
+				_relax(delta, castle.yard_x(), LEISURE_REACH)
 		State.TO_STOCK:
 			# Stone from the stone stack, timber from the wood stack, the rest from the shed.
 			if _walk_to(world.store_x(castle.item_store(GameState.job_claimed)) + _offset, delta):
@@ -161,6 +165,9 @@ func _choose_task() -> State:
 	var can_place: bool = GameState.job_landed() > picking
 	if can_place and world.castle.needs_turn(GameState.job_taken):
 		can_place = picking == 0 and GameState.job_taken == GameState.job_placed
+	if can_place and world.castle.is_removal(GameState.job_taken):
+		# Nothing is taken down while anyone else is still up there.
+		can_place = world.builders_above(self) == 0
 	var place_above: bool = can_place and pieces[GameState.job_taken].lift
 	var can_hoist: bool = GameState.job_ready() > 0 and world.castle.hoist_ready() and not world.hoist_manned(self)
 	var forming: int = world.builders_forming(self)

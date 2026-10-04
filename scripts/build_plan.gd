@@ -210,9 +210,25 @@ static func _plan_section(plan: Dictionary, part: String, index: int, old_solid:
 		left = minf(left, shape[0].position.x)
 		right = maxf(right, shape[0].end.x)
 		top = minf(top, shape[0].position.y)
-	var rows := ceili(-top / course)
 	var columns := ceili((right - left) / block)
 	right = left + columns * block
+
+	# The courses, each [top, bottom], from the ground up. They are counted
+	# from the top of what already stands here, so the first new course sits
+	# exactly on the old wall.
+	var old_body := Rect2()
+	for old: Rect2 in old_solid:
+		if old.end.x > section[0] and old.position.x < section[1] and old.get_area() > old_body.get_area():
+			old_body = old
+	var courses := []
+	var y := 0.0
+	var odd := fposmod(-old_body.position.y, course)
+	if odd > 0.5:
+		courses.append([-odd, 0.0])
+		y = -odd
+	while y > top + 0.01:
+		courses.append([y - course, y])
+		y -= course
 
 	# The deck is the floor the finished section has, if it has one (the wall
 	# walk, a tower top), or else the top of its main body: builders stand
@@ -245,10 +261,10 @@ static func _plan_section(plan: Dictionary, part: String, index: int, old_solid:
 
 	# Which blocks of each course are new, and what each is made of.
 	var new_cells := []
-	for row in rows:
+	for band: Array in courses:
 		var cells := []
 		for column in columns:
-			var cell := Rect2(left + column * block, -(row + 1) * course, block, course)
+			var cell := Rect2(left + column * block, band[0], block, band[1] - band[0])
 			var made_of := _new_shape(cell, solid, old_solid)
 			if made_of >= 0:
 				cells.append([cell, solid[made_of][1]])
@@ -290,19 +306,24 @@ static func _plan_section(plan: Dictionary, part: String, index: int, old_solid:
 		plan.pieces[-1].stand = Vector2(at - 7.0, 0.0)
 		plan.pieces[-1].removed_by = TO_REMOVE
 	var cursor: float = access.x
-	for row in rows:
-		var row_top := -(row + 1) * course
+	for row in courses.size():
+		var row_top: float = courses[row][0]
+		var row_bottom: float = courses[row][1]
 		var cells: Array = new_cells[row]
 		if not cells.is_empty():
-			state.floor = maxf(-row * course, deck) if plan.scaffolded else 0.0
+			state.floor = maxf(row_bottom, deck) if plan.scaffolded else 0.0
 			_rise(plan, part, index, state, deck)
 			var forward := absf(cursor - left) <= absf(cursor - right)
 			if not forward:
 				cells.reverse()
+			# The first block of a course is laid from the course below; each
+			# one after it from on top of the block just laid.
+			var stand_x: float = cells[0][0].get_center().x
 			for cell: Array in cells:
 				var area: Rect2 = cell[0]
-				var partial := Rect2(left, row_top, area.position.x - left, course) if forward else Rect2(area.end.x, row_top, right - area.end.x, course)
-				_add(plan, Kind.BLOCK, item_for(cell[1]), area, cell[1], index, Vector2(area.get_center().x, state.floor), plan.scaffolded, state, partial)
+				var partial := Rect2(left, row_top, area.position.x - left, row_bottom - row_top) if forward else Rect2(area.end.x, row_top, right - area.end.x, row_bottom - row_top)
+				_add(plan, Kind.BLOCK, item_for(cell[1]), area, cell[1], index, Vector2(stand_x, state.floor), plan.scaffolded, state, partial)
+				stand_x = area.get_center().x
 			cursor = right if forward else left
 		state.line = row_top
 		# Doors and posts the wall has now risen past.
