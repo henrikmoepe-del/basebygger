@@ -30,6 +30,7 @@ const STORES := {
 const STACK_GROWTH := 1.5
 const POST := Color(0.33, 0.21, 0.13)
 const NUMBER := Color(0.20, 0.17, 0.15)
+const SKIN := Color(0.93, 0.76, 0.62)
 const FLOAT_TIME := 1.2
 const MAX_FLOATS := 12
 ## Idle peasants stroll on floors no further than this from the castle's middle.
@@ -56,9 +57,15 @@ var _floats: Array[Dictionary] = []
 var _font: Font = ThemeDB.fallback_font
 ## Seconds left of the stockhouse's little bump when a load arrives.
 var _bump := 0.0
+## Draws peasants who are on the stairs inside a building, where they pass a window.
+var _inside_view := Node2D.new()
 
 
 func _ready() -> void:
+	# Over the courtyard buildings, under everyone who is outside.
+	_inside_view.z_index = castle.FRONT_Z
+	_inside_view.draw.connect(_draw_inside)
+	add_child(_inside_view)
 	GameState.castle_changed.connect(_sync)
 	GameState.peasants_changed.connect(_sync)
 	GameState.income_delivered.connect(_on_income_delivered)
@@ -89,6 +96,7 @@ func _draw() -> void:
 
 
 func _process(delta: float) -> void:
+	_inside_view.queue_redraw()
 	if _bump > 0.0:
 		_bump -= delta
 		queue_redraw()
@@ -130,6 +138,25 @@ func _draw_store(type: String) -> void:
 	var text := str(amount)
 	var text_width := _font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
 	draw_string(_font, Vector2(left + (width - text_width) / 2.0, -full - 9.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, NUMBER)
+
+
+## Peasants climbing the stairs inside a building show through its windows:
+## the part of each that is behind a window is drawn there.
+func _draw_inside() -> void:
+	var windows: Array[Rect2] = castle.windows()
+	for worker in get_children():
+		if not worker.has_method("is_inside") or not worker.is_inside() or worker.position.y > -0.5:
+			continue
+		var at: Vector2 = worker.position
+		for window in windows:
+			if absf(window.get_center().x - at.x) > 12.0:
+				continue
+			var body := Rect2(at.x - 3, at.y - 12, 6, 10).intersection(window)
+			if body.has_area():
+				_inside_view.draw_rect(body, worker.tunic())
+			var head := Rect2(at.x - 2, at.y - 16, 4, 4).intersection(window)
+			if head.has_area():
+				_inside_view.draw_rect(head, SKIN)
 
 
 ## Where a gatherer should go for this resource right now (null = nowhere).

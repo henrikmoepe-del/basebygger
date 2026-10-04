@@ -374,6 +374,13 @@ static func _cone(out: Array, centre: float, width: float, base: float, color: C
 	return y
 
 
+## The little stair house on a roof, with the door peasants come out of
+## when they climb the stairs inside.
+static func _stair_door(out: Array, x: float, roof: float, color: Color) -> void:
+	out.append([Rect2(x - 5.5, roof - 15, 11, 15), color])
+	out.append([Rect2(x - 3, roof - 11, 6, 11), WOOD_DARK])
+
+
 ## Rows of windows that start a fixed height above the ground, so they stay
 ## where they are when the part grows taller.
 static func _windows(out: Array, left: float, offsets: Array, size: Vector2, first_top: float, spacing: float, body_top: float, color: Color) -> void:
@@ -400,6 +407,7 @@ static func _tower(out: Array, tower: Dictionary, level: int) -> void:
 				out.append([Rect2(x - 4, -h, w + 8, 7), STONE])
 			if level >= 2:
 				_merlons(out, x, w, -h, STONE_LIGHT)
+			_stair_door(out, middle, -h, STONE)
 			if level >= 6:
 				# A pointed roof on posts, with room to stand under it.
 				out.append([Rect2(x + 3, -h - 26, 2, 26), WOOD_DARK])
@@ -413,6 +421,7 @@ static func _tower(out: Array, tower: Dictionary, level: int) -> void:
 			_windows(out, x, [w / 2.0 - 3.0], Vector2(6, 14), -58.0, 44.0, -h, SHADOW)
 			out.append([Rect2(middle - 6, -16, 12, 16), WOOD_DARK])
 			_merlons(out, x, w, -h, STONE_LIGHT.darkened(0.05))
+			_stair_door(out, middle, -h, STONE)
 			if level >= 8:
 				out.append([Rect2(x + 2, -h - 24, 2, 24), WOOD_DARK])
 				out.append([Rect2(x + w - 4, -h - 24, 2, 24), WOOD_DARK])
@@ -482,11 +491,15 @@ static func shapes(part: String, level: int) -> Array:
 				var rise := 50.0 + 8.0 * (v - 7)
 				out.append([Rect2(middle - 25, -h - rise, 50, rise), STONE_DARK.lightened(0.04)])
 				out.append([Rect2(middle - 4, -h - rise + 14, 8, 16), SHADOW])
+				# The stair door is in the foot of the great tower.
+				out.append([Rect2(middle - 3, -h - 12, 6, 12), WOOD_DARK])
 				top = -h - rise - 8.0
 				if level >= 10:
 					top = _cone(out, middle, 50, -h - rise, ROOF_RED)
 				else:
 					_merlons(out, middle - 25, 50, -h - rise, STONE_DARK.lightened(0.04))
+			else:
+				_stair_door(out, middle, -h, STONE)
 			if level >= 5:
 				out.append([Rect2(middle - 1, top - 36, 2, 36), WOOD_DARK])
 				out.append([Rect2(middle + 1, top - 36, 24, 13), BANNER])
@@ -569,7 +582,9 @@ static func shapes(part: String, level: int) -> Array:
 			# Barracks in the courtyard, east of the gate, with a flat roof.
 			_masonry(out, Rect2(GARRISON_LEFT, -h, GARRISON_WIDTH, h), STONE_WARM, 10.0)
 			out.append([Rect2(GARRISON_LEFT - 4, -h, GARRISON_WIDTH + 8, 6), ROOF_RED])
-			_windows(out, GARRISON_LEFT, [12.0, 34.0, 60.0, 82.0], Vector2(6, 10), -44.0, 24.0, -h, SHADOW)
+			# The middle windows are on the stairs.
+			_windows(out, GARRISON_LEFT, [12.0, 47.0, 82.0], Vector2(6, 10), -44.0, 24.0, -h, SHADOW)
+			_stair_door(out, GARRISON_LEFT + GARRISON_WIDTH / 2.0, -h, STONE_WARM.darkened(0.1))
 			out.append([Rect2(GARRISON_LEFT + 43, -20, 14, 20), WOOD_DARK])
 			if level >= 4:
 				# Weapon rack on the roof once the garrison is established.

@@ -62,6 +62,15 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
+## True while on the stairs inside a building, or asleep in one.
+func is_inside() -> bool:
+	return _inside
+
+
+func tunic() -> Color:
+	return JobData.JOBS[job].color if job != "" else JobData.IDLE_COLOR
+
+
 ## Jobs that keep going through the night return false.
 func _sleeps() -> bool:
 	return true
@@ -79,7 +88,6 @@ func _work(delta: float) -> void:
 
 
 func _draw() -> void:
-	var tunic: Color = JobData.JOBS[job].color if job != "" else JobData.IDLE_COLOR
 	var bob := _bob()
 	var hop := -sin(clampf(_age / HOP_TIME, 0.0, 1.0) * PI) * 7.0
 	draw_set_transform(Vector2(0, hop))
@@ -89,7 +97,7 @@ func _draw() -> void:
 	draw_rect(Rect2(1, -3, 2, 2 if step == 1 else 3), LEGS)
 	# The body sits on top of the legs.
 	draw_set_transform(Vector2(0, hop - LEG_HEIGHT))
-	draw_rect(Rect2(-3, bob - 10, 6, 10), tunic)
+	draw_rect(Rect2(-3, bob - 10, 6, 10), tunic())
 	draw_rect(Rect2(-2, bob - 14, 4, 4), Color(0.93, 0.76, 0.62))
 	if trained:
 		draw_rect(Rect2(-3, bob - 16, 6, 2), JobData.TRAINED_HAT)

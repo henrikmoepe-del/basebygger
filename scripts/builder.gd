@@ -157,11 +157,14 @@ func _toil(delta: float, seconds: float, sound: String) -> bool:
 func _choose_task() -> State:
 	var pieces: Array = GameState.job_pieces()
 	# Only as many builders set off for a step as there are pieces waiting for it.
-	var can_place: bool = GameState.job_landed() > world.builders_picking(self)
+	var picking: int = world.builders_picking(self)
+	var can_place: bool = GameState.job_landed() > picking
+	if can_place and world.castle.needs_turn(GameState.job_taken):
+		can_place = picking == 0 and GameState.job_taken == GameState.job_placed
 	var place_above: bool = can_place and pieces[GameState.job_taken].lift
-	var can_hoist: bool = GameState.job_ready() > 0 and not world.hoist_manned(self)
+	var can_hoist: bool = GameState.job_ready() > 0 and world.castle.hoist_ready() and not world.hoist_manned(self)
 	var forming: int = world.builders_forming(self)
-	var can_form: bool = GameState.job_rough() > forming and forming < world.castle.BENCHES
+	var can_form: bool = GameState.job_rough() > forming and forming < world.castle.benches_ready()
 	_bench = forming
 	var to_fetch := GameState.job_claimed < GameState.job_fetch()
 	if position.y < -0.5:

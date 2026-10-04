@@ -90,6 +90,15 @@
     laid over them. Pieces follow their material (`item_for`): stone blocks, planks for timber
     parts (thin courses), daub panels, thatch, roof tiles.
     Builders reserve a piece before walking to it, and wait by the yard when there is nothing to do.
+    The benches in the yard and the hoist on the deck are pieces too: carried in, set up, and
+    taken away at the end. Anything set up or taken down, or set from a scaffold platform, is done
+    one piece at a time in order (`castle.needs_turn`); stone laid from the deck can go side by side.
+    A deck is only as wide as the section's main body, so nobody stands beside a roof peak.
+  - Stairs inside: towers, keep and garrison have a stair door on the roof (`_stair_door`) and a
+    column of windows on the stairs; peasants climbing inside show through those windows
+    (`workers.gd` `_draw_inside`). While a deck is being raised there is a hatch where they come up.
+  - Known and intended: peasants on the curtain wall pass behind the courtyard buildings, so they
+    are out of sight for a moment there.
   - Movement rule: peasants only move along the ground, along a floor, or up and down a stair
     (`castle.route`). A target with no floor under it is not reachable; the way ends on the ground
     below it. Anything a peasant must stand on has to be a floor (`CastleData.floors`, or

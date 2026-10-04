@@ -29,6 +29,7 @@ extends RefCounted
 ##   "same"        fittings of the new level that the old one already had
 ##   "solid"       per section: the new level's walls and roofs
 ##   "tops"        per section: the height of its deck when finished
+##   "decks"       per section: [left, right], how wide its deck is
 ##   "access"      per section: {"x", "hidden"}, the stair up to its deck
 ##   "platforms"   the scaffold platforms, each {"x0", "x1", "y", "ladder",
 ##                 "from", "until"}: it can be stood on while the number of
@@ -39,6 +40,8 @@ extends RefCounted
 ##              Kind.FITTING   a window, door, battlement, post, flag
 ##              Kind.SCAFFOLD  one bay of one lift of scaffolding
 ##              Kind.LADDER    a ladder
+##              Kind.BENCH     a bench in the yard, where pieces are shaped
+##              Kind.HOIST     the beam and rope on the deck that lifts pieces up
 ##              Kind.REMOVE    taking a bay or ladder down again
 ##   "item"     what is carried for it: see FORMED and item_for()
 ##   "rect", "color"   what appears when it is placed
@@ -53,15 +56,15 @@ extends RefCounted
 ##              everything below line, and the partial stretch of its course
 ##   "end"      for scaffold bays: true for the last bay, which gets a pole
 ##              on its far side too
-##   "removed_by"  for scaffolding and ladders: the REMOVE piece that takes
-##              it down (-1 if it stays)
+##   "removed_by"  for scaffolding, ladders, benches and the hoist: the REMOVE
+##              piece that takes it away again (-1 if it stays)
 ##   "target"   for REMOVE pieces: the piece that is taken down
 ##
 ## Later, an item can become something made at a workstation (a window from
 ## the glazier, say): have builders fetch it from there instead of from the
 ## stockyard.
 
-enum Kind { BLOCK, FITTING, SCAFFOLD, LADDER, REMOVE }
+enum Kind { BLOCK, FITTING, SCAFFOLD, LADDER, BENCH, HOIST, REMOVE }
 
 const CastleData = preload("res://scripts/castle_data.gd")
 ## Items that are shaped at the bench before they go up: stone is dressed,
@@ -73,6 +76,14 @@ const SCAFFOLD_COLOR := Color(0.48, 0.32, 0.20)
 const BAY_WIDTH := 45.0
 const LIFT_HEIGHT := 24.0
 const FAR := 100000.0
+## The yard at the foot of a section, as distances east of the rope: the
+## shaped pieces wait by the rope, then the benches, then the rough pile.
+const READY_PILE := 8.0
+const BENCH_AT := 30.0
+const BENCH_GAP := 14.0
+const BENCHES := 2
+const ROUGH_PILE := 58.0
+const BENCH_COLOR := Color(0.40, 0.27, 0.17)
 ## Marks scaffolding that has yet to be given the piece that removes it.
 const TO_REMOVE := -2
 
@@ -104,7 +115,7 @@ static func store_for(item: String) -> String:
 static func make(part: String, level: int) -> Dictionary:
 	var old := CastleData.shapes(part, level)
 	var fresh := CastleData.shapes(part, level + 1)
-	var plan := {"pieces": [], "gone": [], "same": [], "solid": [], "tops": [], "access": [], "platforms": []}
+	var plan := {"pieces": [], "gone": [], "same": [], "solid": [], "tops": [], "decks": [], "access": [], "platforms": []}
 	plan["sections"] = CastleData.sections(part, level + 1)
 	plan["scaffolded"] = not plan.sections.is_empty()
 	if not plan.scaffolded:
@@ -123,9 +134,18 @@ static func make(part: String, level: int) -> Dictionary:
 			old_solid.append(shape[0])
 	for shape: Array in fresh:
 		fresh_rects[shape[0]] = true
+	# What the new level keeps of the old one is drawn all through the job.
+	# The rest (battlements, flags, overhangs that will sit higher) stays
+	# only until new stone is laid over it.
 	plan["old"] = []
 	for shape: Array in old:
-		if not CastleData.is_fitting(shape[0]) or fresh_rects.has(shape[0]):
+		var kept: bool = fresh_rects.has(shape[0])
+		if not kept and not CastleData.is_fitting(shape[0]):
+			for other: Array in fresh:
+				if not CastleData.is_fitting(other[0]) and other[0].encloses(shape[0]):
+					kept = true
+					break
+		if kept:
 			plan.old.append(shape)
 		else:
 			plan.gone.append([shape[0], shape[1], _nearest_section(plan.sections, shape[0].get_center().x)])
@@ -158,7 +178,7 @@ static func make(part: String, level: int) -> Dictionary:
 			piece.removed_by = plan.pieces.size()
 			plan.pieces.append({
 				"kind": Kind.REMOVE, "item": "poles", "rect": piece.rect, "color": SCAFFOLD_COLOR,
-				"section": piece.section, "stand": piece.stand, "top": false, "floor": plan.tops[piece.section],
+				"section": piece.section, "stand": piece.stand, "top": piece.top, "floor": plan.tops[piece.section],
 				"form": false, "lift": false, "line": -FAR, "partial": Rect2(), "end": false,
 				"removed_by": -1, "target": i,
 			})
@@ -195,19 +215,32 @@ static func _plan_section(plan: Dictionary, part: String, index: int, old_solid:
 	right = left + columns * block
 
 	# The deck is the floor the finished section has, if it has one (the wall
-	# walk, a tower top): builders stand there to build anything higher.
-	# The stair up to it is the building's own, or else a ladder.
-	var deck := top if plan.scaffolded else 0.0
-	var access := {"x": ladder_x(section, CastleData.hoist_x(part, section)), "hidden": false}
+	# walk, a tower top), or else the top of its main body: builders stand
+	# there to build anything higher. The stair up to it is the building's
+	# own, or else a ladder.
+	var deck := 0.0
+	var deck_x := [section[0], section[1]]
+	var hoist := CastleData.hoist_x(part, section)
+	var access := {"x": ladder_x(section, hoist), "hidden": false}
 	var own_stair := false
+	if plan.scaffolded:
+		var body := Rect2()
+		for shape: Array in solid:
+			if shape[0].get_area() > body.get_area():
+				body = shape[0]
+		deck = body.position.y
+		deck_x = [body.position.x, body.end.x]
+		access.x = clampf(access.x, deck_x[0] + 4.0, deck_x[1] - 4.0)
 	for flat: Dictionary in floors:
 		if flat.x1 > section[0] and flat.x0 < section[1]:
 			deck = flat.y
+			deck_x = [maxf(flat.x0, section[0]), minf(flat.x1, section[1])]
 			for x: float in flat.stairs:
 				if x >= section[0] and x <= section[1]:
 					access = {"x": x, "hidden": flat.hidden}
 					own_stair = true
 	plan.tops.append(deck)
+	plan.decks.append(deck_x)
 	plan.access.append(access)
 
 	# Which blocks of each course are new, and what each is made of.
@@ -238,16 +271,31 @@ static func _plan_section(plan: Dictionary, part: String, index: int, old_solid:
 	low.sort_custom(by_height)
 	crown.sort_custom(by_height)
 
-	# state.floor is how high the deck is so far; state.ladder whether the
-	# way up is there yet; state.line how far the walls have risen.
-	var state := {"floor": 0.0, "ladder": own_stair and access.hidden, "line": 0.0, "permanent": own_stair}
+	# state.floor is how high the deck is so far; state.ladder and state.hoist
+	# whether the way up and the rope are there yet; state.line how far the
+	# walls have risen.
+	var state := {
+		"floor": 0.0, "ladder": own_stair and access.hidden, "hoist": false, "line": 0.0,
+		"permanent": own_stair, "deck": deck_x,
+	}
+	var any_work := not fittings.is_empty()
+	for cells: Array in new_cells:
+		any_work = any_work or not cells.is_empty()
+	if not any_work:
+		return
+	# First the benches are carried to the yard and set up.
+	for bench in BENCHES:
+		var at := hoist + BENCH_AT + bench * BENCH_GAP
+		_add(plan, Kind.BENCH, "bench", Rect2(at - 6.0, -7.0, 12.0, 7.0), BENCH_COLOR, index, Vector2(at, 0.0), false, state, Rect2())
+		plan.pieces[-1].stand = Vector2(at - 7.0, 0.0)
+		plan.pieces[-1].removed_by = TO_REMOVE
 	var cursor: float = access.x
 	for row in rows:
 		var row_top := -(row + 1) * course
 		var cells: Array = new_cells[row]
 		if not cells.is_empty():
 			state.floor = maxf(-row * course, deck) if plan.scaffolded else 0.0
-			_add_ladder(plan, index, state, deck)
+			_rise(plan, part, index, state, deck)
 			var forward := absf(cursor - left) <= absf(cursor - right)
 			if not forward:
 				cells.reverse()
@@ -266,33 +314,43 @@ static func _plan_section(plan: Dictionary, part: String, index: int, old_solid:
 		_add(plan, Kind.FITTING, "fitting", shape[0], shape[1], index, Vector2(shape[0].get_center().x, 0.0), false, state, Rect2())
 	if not crown.is_empty():
 		state.floor = deck
-		_add_ladder(plan, index, state, deck)
+		_rise(plan, part, index, state, deck)
 		for shape: Array in crown:
 			_add(plan, Kind.FITTING, "fitting", shape[0], shape[1], index, Vector2(shape[0].get_center().x, deck), true, state, Rect2())
 	if own_stair and not access.hidden and not plan.scaffolded:
 		# A part built from the ground that has a ladder of its own (the watchtower).
 		state.floor = deck
 		state.ladder = false
-		_add_ladder(plan, index, state, deck)
+		state.hoist = true
+		_rise(plan, part, index, state, deck)
 		state.floor = 0.0
 	if not face.is_empty():
 		_plan_scaffold(plan, part, index, face, state)
 
 
-## The way up to the deck, once the deck is off the ground: the stair ladder
-## that stays, or a builders' ladder that is taken away at the end.
-static func _add_ladder(plan: Dictionary, index: int, state: Dictionary, deck: float) -> void:
-	if state.ladder or state.floor > -0.5:
+## Once the deck is off the ground, builders need the way up to it (the
+## stair ladder that stays, or a builders' ladder that is taken away at the
+## end) and the hoist on it to pull pieces up.
+static func _rise(plan: Dictionary, part: String, index: int, state: Dictionary, deck: float) -> void:
+	if state.floor > -0.5:
 		return
-	state.ladder = true
-	var x: float = plan.access[index].x
 	var floor_now: float = state.floor
-	# It is put up from the ground, before anyone is on the deck.
-	state.floor = 0.0
-	_add(plan, Kind.LADDER, "ladder", Rect2(x - 3.0, deck, 6.0, -deck), SCAFFOLD_COLOR, index, Vector2(x, 0.0), false, state, Rect2())
-	if not state.permanent:
+	if not state.ladder:
+		state.ladder = true
+		var x: float = plan.access[index].x
+		# It is put up from the ground, before anyone is on the deck.
+		state.floor = 0.0
+		_add(plan, Kind.LADDER, "ladder", Rect2(x - 3.0, deck, 6.0, -deck), SCAFFOLD_COLOR, index, Vector2(x, 0.0), false, state, Rect2())
+		if not state.permanent:
+			plan.pieces[-1].removed_by = TO_REMOVE
+		state.floor = floor_now
+	if not state.hoist:
+		state.hoist = true
+		# Carried up by hand and set at the edge of the deck.
+		var x := clampf(CastleData.hoist_x(part, plan.sections[index]), state.deck[0] + 4.0, state.deck[1] - 4.0)
+		_add(plan, Kind.HOIST, "hoist", Rect2(x - 4.0, floor_now - 20.0, 16.0, 20.0), SCAFFOLD_COLOR, index, Vector2(x, floor_now), true, state, Rect2())
+		plan.pieces[-1].lift = false
 		plan.pieces[-1].removed_by = TO_REMOVE
-	state.floor = floor_now
 
 
 ## Scaffolding in front of a section's face, for the details set into it. It
@@ -336,8 +394,9 @@ static func _plan_scaffold(plan: Dictionary, part: String, index: int, face: Arr
 
 
 static func _add(plan: Dictionary, kind: Kind, item: String, rect: Rect2, color: Color, index: int, stand: Vector2, top: bool, state: Dictionary, partial: Rect2) -> void:
-	var section: Array = plan.sections[index]
-	var spot := Vector2(clampf(stand.x, section[0] + 3.0, section[1] - 3.0), stand.y)
+	# Builders on the deck keep to the deck; others keep to the section.
+	var within: Array = state.deck if top else plan.sections[index]
+	var spot := Vector2(clampf(stand.x, within[0] + 3.0, within[1] - 3.0), stand.y)
 	plan.pieces.append({
 		"kind": kind, "item": item, "rect": rect, "color": color, "section": index,
 		"stand": spot, "top": top, "floor": state.floor, "form": item in FORMED, "lift": top and spot.y < -0.5,
