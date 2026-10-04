@@ -22,6 +22,7 @@ const OUTLINE_COLOR := Color(0.96, 0.95, 0.85)
 @onready var peasants_label: Label = %PeasantsLabel
 @onready var jobs_box: VBoxContainer = %Jobs
 @onready var hire_button: Button = %HireButton
+@onready var cow_button: Button = %CowButton
 @onready var build_hover: Node2D = %BuildHover
 @onready var build_card: ColorRect = %BuildCard
 @onready var build_card_label: Label = %BuildCardLabel
@@ -44,6 +45,7 @@ func _ready() -> void:
 	]:
 		changed.connect(_refresh)
 	hire_button.pressed.connect(GameState.hire_peasant)
+	cow_button.pressed.connect(GameState.buy_cow)
 	skills_button.pressed.connect(skill_tree.show)
 	reset_button.pressed.connect(_on_reset_pressed)
 	crown_button.pressed.connect(_on_crown_pressed)
@@ -155,6 +157,9 @@ func _show_offline_report() -> void:
 func _refresh() -> void:
 	var stock: PackedStringArray = []
 	for type: String in GameState.resources:
+		# Iron only matters once there is a mine.
+		if type == "iron" and GameState.part_levels.mine == 0:
+			continue
 		var entry := "%s: %d" % [type.capitalize(), GameState.resources[type]]
 		if GameState.income_rate[type] > 0.0:
 			entry += " (+%.1f/s)" % GameState.income_rate[type]
@@ -214,6 +219,9 @@ func _refresh() -> void:
 	else:
 		_set_button(hire_button, hire_title, GameState.peasant_cost(), "")
 	skills_button.text = "Skills\n%d renown" % GameState.renown
+	cow_button.visible = GameState.skill_level("cattle") > 0
+	_set_button(cow_button, "Buy cow (%d/%d)" % [GameState.cows, GameState.MAX_COWS],
+			GameState.cow_cost() if GameState.cow_block_reason() == "" else {}, "Pasture full")
 
 	_refresh_build_card()
 

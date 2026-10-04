@@ -10,20 +10,23 @@ const Builder = preload("res://scripts/builder.gd")
 const Forester = preload("res://scripts/forester.gd")
 const Cook = preload("res://scripts/cook.gd")
 const Soldier = preload("res://scripts/soldier.gd")
+const Cow = preload("res://scripts/cow.gd")
 ## Which script runs each job ("" = idle).
 const JOB_SCRIPTS := {
-	"": Worker, "wood": Gatherer, "stone": Gatherer, "hunter": Gatherer,
+	"": Worker, "wood": Gatherer, "stone": Gatherer, "hunter": Gatherer, "iron": Gatherer,
 	"build": Builder, "forester": Forester, "cook": Cook, "soldier": Soldier,
 }
 
 @export var grove: Node2D
 @export var rock: Node2D
 @export var wilds: Node2D
+@export var mine: Node2D
 @export var castle: Node2D
 @export var stock_x := 170.0
 
 
 func _ready() -> void:
+	GameState.castle_changed.connect(_sync)
 	GameState.peasants_changed.connect(_sync)
 	_sync()
 
@@ -47,7 +50,29 @@ func find_spot(resource_type: String) -> Node2D:
 			return grove.best_tree()
 		"food":
 			return wilds
+		"iron":
+			return mine
 	return rock
+
+
+## A cow waiting with room in its cart for this resource, or null.
+func cow_for(resource_type: String) -> Node2D:
+	for child in get_children():
+		if child is Cow and child.resource == resource_type and child.has_room():
+			return child
+	return null
+
+
+## Where a cow waits for a resource: at the far end of that walk.
+func cow_site_x(resource_type: String) -> float:
+	match resource_type:
+		"wood":
+			return grove.plot_x(mini(GameState.trees, 4)) + 4.0
+		"food":
+			return wilds.position.x - 30.0
+		"iron":
+			return mine.position.x + 22.0
+	return rock.position.x + 30.0
 
 
 ## The height of the top of the castle walls, where soldiers stand (negative = up).
@@ -68,9 +93,10 @@ func site_x() -> float:
 ## Adds and removes peasant nodes until each job has the right number.
 func _sync() -> void:
 	queue_redraw()
+	_sync_cows()
 	for job: String in JOB_SCRIPTS:
 		var wanted: int = GameState.idle_peasants() if job == "" else GameState.jobs[job]
-		var current := get_children().filter(func(w: Node) -> bool: return w.job == job and not w.is_queued_for_deletion())
+		var current := get_children().filter(func(w: Node) -> bool: return w.get("job") == job and not w.is_queued_for_deletion())
 		while current.size() > wanted:
 			current.pop_back().queue_free()
 		for i in wanted - current.size():
@@ -78,6 +104,23 @@ func _sync() -> void:
 		# The first peasants in each job are the trained ones.
 		for i in current.size():
 			current[i].trained = job != "" and i < GameState.trained[job]
+
+
+## Cows share out the hauls in turn: food first (the longest walk), then
+## wood, stone, and iron once there is a mine.
+func _sync_cows() -> void:
+	var hauls := ["food", "wood", "stone"]
+	if GameState.part_levels.mine > 0:
+		hauls.append("iron")
+	var cows := get_children().filter(func(c: Node) -> bool: return c is Cow)
+	for i in GameState.cows - cows.size():
+		var cow := Cow.new()
+		cow.world = self
+		cow.position.x = stock_x
+		add_child(cow)
+		cows.append(cow)
+	for i in cows.size():
+		cows[i].resource = hauls[i % hauls.size()]
 
 
 func _spawn(job: String) -> Node2D:

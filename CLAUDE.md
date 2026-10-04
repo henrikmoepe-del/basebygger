@@ -43,13 +43,15 @@
 - The player never clicks to gather. Peasants do all the work; the player hires them, gives
   them jobs, trains them, points at the world to build, and buys skills.
 - World layout: the castle is in the middle (x = 0). Defence is to the west, where raiders come
-  from (palisade, watchtower). The stockhouse, rock, grove, wilds and village are to the east.
+  from (palisade, watchtower). The stockhouse, quarry, grove, wilds, mine and village are to the east.
 - Done:
   - Start with 3 generalist peasants. Jobs: chop wood, mine stone, find food, build, cook,
-    stand guard (needs a garrison), tend the grove (needs the Foresters skill)
+    stand guard (needs a garrison), mine iron (needs a mine), tend the grove (needs the Foresters skill)
   - Trades: big skill-tree unlocks that let peasants in a job be trained (twice as good, wear a hat)
   - Castle: eight parts (walls, towers, gate, keep, garrison, court, palisade, watchtower);
-    a castle rank caps levels. Village: houses, well, tavern
+    a castle rank caps levels; castle levels 4+ need iron. Village: houses, well, tavern, quarry, mine
+  - Stone comes from a quarry site that refills over time (faster with Quarry levels)
+  - Cows (Cattle skill) wait with carts at gathering sites and haul loads home
   - Hover to build: point at a part or a signpost for a card (cost, benefit, drawback), click to order
   - Building: builders haul materials from the stockhouse and hammer them in; scaffolding and rope hoist
   - Skill tree: a pannable node map with four arms, levels per skill, hidden "?" nodes; paid with renown
@@ -57,11 +59,10 @@
   - Pass the crown (prestige) with lasting legacy; save/load with offline progress; New game
   - Camera: drag or A/D to pan, mouse wheel to zoom out
   - Dev shortcuts (editor runs only): F2 speed, F3 skip 10 min, F4 resources, F6 peasants, F1 hide
-- Agreed next steps (Henrik's list, in order):
-  1. Quarries (built and levelled, replacing the endless rock) and cows that haul loads
-  2. Underground mines with other minerals (iron first)
-  Also wanted later: better food from trained cooks, new buildings only trained builders can raise,
-  individual peasant traits
+- Henrik's list from the last round is built. Wanted later: more minerals than iron, better food
+  from trained cooks, buildings only trained builders can raise, individual peasant traits
+- Known balance issues: food and iron pile up late (cows make hunting very effective; iron costs
+  are low); the grove draws as one green block when full
 - Design notes:
   - Castle parts and soldiers are defences. `GameState.total_defence()` and the part levels are
     what the later 3D wave defence will read; raids are the 2D stand-in for it.

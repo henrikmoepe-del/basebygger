@@ -11,6 +11,7 @@
 [ext_resource type="Script" path="res://scripts/camera.gd" id="10_camera"]
 [ext_resource type="Script" path="res://scripts/dev_tools.gd" id="11_dev"]
 [ext_resource type="Script" path="res://scripts/build_hover.gd" id="12_hover"]
+[ext_resource type="Script" path="res://scripts/quarry.gd" id="13_quarry"]
 
 [node name="Main" type="Node2D"]
 
@@ -44,7 +45,7 @@ script = ExtResource("5_grove")
 
 [node name="Rock" type="Node2D" parent="."]
 position = Vector2(216, 270)
-script = ExtResource("1_gather")
+script = ExtResource("13_quarry")
 
 [node name="Wilds" type="Node2D" parent="."]
 position = Vector2(462, 270)
@@ -52,6 +53,12 @@ script = ExtResource("1_gather")
 resource_type = "food"
 size = Vector2(44, 30)
 look = "bushes"
+
+[node name="MineSpot" type="Node2D" parent="."]
+position = Vector2(512, 270)
+script = ExtResource("1_gather")
+resource_type = "iron"
+look = "none"
 
 [node name="Castle" type="Node2D" parent="."]
 position = Vector2(0, 270)
@@ -62,12 +69,13 @@ unique_name_in_owner = true
 position = Vector2(0, 270)
 script = ExtResource("12_hover")
 
-[node name="Workers" type="Node2D" parent="." node_paths=PackedStringArray("grove", "rock", "wilds", "castle")]
+[node name="Workers" type="Node2D" parent="." node_paths=PackedStringArray("grove", "rock", "wilds", "mine", "castle")]
 position = Vector2(0, 270)
 script = ExtResource("4_workers")
 grove = NodePath("../Grove")
 rock = NodePath("../Rock")
 wilds = NodePath("../Wilds")
+mine = NodePath("../MineSpot")
 castle = NodePath("../Castle")
 
 [node name="Raiders" type="Node2D" parent="."]
@@ -215,6 +223,16 @@ size_flags_horizontal = 3
 focus_mode = 0
 theme_override_font_sizes/font_size = 11
 text = "Hire Peasant"
+
+[node name="CowButton" type="Button" parent="HUD/Actions"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(110, 0)
+layout_mode = 2
+tooltip_text = "A cow waits with a cart where peasants gather and hauls the loads home. Each cow eats 2 food a day."
+focus_mode = 0
+theme_override_font_sizes/font_size = 10
+text = "Buy cow"
 
 [node name="SkillsButton" type="Button" parent="HUD/Actions"]
 unique_name_in_owner = true

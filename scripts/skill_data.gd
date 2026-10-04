@@ -42,6 +42,11 @@ const SKILLS := {
 		"cell": Vector2i(-2, -1), "requires": "baskets", "max_level": 4, "cost": 2, "cost_step": 1,
 		"effects": {"gather_speed": 0.2},
 	},
+	"t_mine": {
+		"name": "Miners", "icon": "MI", "text": "A trade. Peasants mining iron can be trained as miners, who dig twice as fast and carry twice as much.",
+		"cell": Vector2i(-3, -1), "requires": "tools", "max_level": 1, "cost": 4, "cost_step": 0,
+		"effects": {}, "big": true,
+	},
 	"apprentices": {
 		"name": "Apprentices", "icon": "Ap", "text": "Peasants cost 12% less to hire per level.",
 		"cell": Vector2i(-3, 0), "requires": "baskets", "max_level": 3, "cost": 4, "cost_step": 2,
@@ -135,6 +140,11 @@ const SKILLS := {
 		"name": "Hearty Meals", "icon": "Ml", "text": "Peasants who have eaten work 5% faster per level.",
 		"cell": Vector2i(2, -1), "requires": "cook", "max_level": 3, "cost": 3, "cost_step": 1,
 		"effects": {"fed_bonus": 0.05},
+	},
+	"cattle": {
+		"name": "Cattle", "icon": "CW", "text": "Lets you buy cows. A cow waits with a cart where peasants gather, so they load the cart instead of walking home, and hauls it back when full.",
+		"cell": Vector2i(3, -1), "requires": "cook", "max_level": 1, "cost": 5, "cost_step": 0,
+		"effects": {}, "big": true,
 	},
 	"ration": {
 		"name": "Rationing", "icon": "Rn", "text": "Peasants eat 8% less per level.",

@@ -31,6 +31,11 @@ const KEEP_RAID_GROWTH := 0.03      ## A richer keep draws stronger raids.
 const TAVERN_EXTRA_EATING := 0.03   ## Tavern-goers eat more.
 const COURT_FOOD_UPKEEP := 2        ## The court's household eats every day.
 const SOLDIER_EXTRA_FOOD := 1.0     ## A soldier eats this many extra shares.
+const QUARRY_DUST := 0.02           ## Quarry dust slows everyone's work.
+const MINER_EXTRA_FOOD := 1.0       ## A miner eats this many extra shares.
+## Castle parts need iron from this level on, this much more per level.
+const IRON_FROM_LEVEL := 4
+const IRON_PER_LEVEL := 10
 
 const STONE := Color(0.64, 0.64, 0.68)
 const STONE_LIGHT := Color(0.70, 0.70, 0.74)
@@ -65,6 +70,19 @@ const PARTS := {
 		"name": "Keep", "defence": 12, "renown": 1, "cost": {"stone": 30, "wood": 15}, "work": 18.0,
 		"site_x": 30.0, "scaffold": [[-42.0, 42.0]],
 	},
+	# The quarry turns the loose stones east of the stockhouse into a proper
+	# stone supply (see GameState.quarry_rate).
+	"quarry": {
+		"benefit": "Stone appears 0.7 a second faster, and 10 more can pile up, per level", "drawback": "Dust: everyone works 2% slower per level",
+		"name": "Quarry", "defence": 0, "renown": 1, "cost": {"wood": 24, "stone": 6}, "work": 10.0,
+		"site_x": 240.0, "scaffold": [], "village": true, "max_level": 10,
+	},
+	# The mine goes underground for iron, which high castle levels need.
+	"mine": {
+		"benefit": "Lets peasants mine iron: room for 2 miners per level", "drawback": "Each miner eats double",
+		"name": "Mine", "defence": 0, "renown": 2, "cost": {"wood": 40, "stone": 40}, "work": 20.0,
+		"site_x": 494.0, "scaffold": [], "village": true, "max_level": 8,
+	},
 	# Outer defences: cheap wooden works that raiders meet first.
 	"palisade": {
 		"benefit": "+8 defence per level", "drawback": "",
@@ -94,28 +112,30 @@ const PARTS := {
 	"houses": {
 		"benefit": "Room for 4 more peasants per level", "drawback": "",
 		"name": "Houses", "defence": 0, "renown": 0, "cost": {"wood": 12, "stone": 4}, "work": 6.0,
-		"site_x": 608.0, "scaffold": [], "village": true, "max_level": 12,
+		"site_x": 668.0, "scaffold": [], "village": true, "max_level": 12,
 	},
 	# The well and the tavern keep peasants content, which makes them work
 	# faster (see GameState.morale_bonus). Each level serves more peasants.
 	"well": {
 		"benefit": "Up to +15% work speed; each level serves 8 peasants", "drawback": "",
 		"name": "Well", "defence": 0, "renown": 1, "cost": {"stone": 16, "wood": 4}, "work": 8.0,
-		"site_x": 506.0, "scaffold": [], "village": true, "max_level": 10,
+		"site_x": 566.0, "scaffold": [], "village": true, "max_level": 10,
 	},
 	"tavern": {
 		"benefit": "Up to +15% work speed; each level serves 10 peasants", "drawback": "Peasants eat 3% more per level",
 		"name": "Tavern", "defence": 0, "renown": 1, "cost": {"wood": 24, "stone": 8}, "work": 10.0,
-		"site_x": 540.0, "scaffold": [[544.0, 588.0]], "village": true, "max_level": 10,
+		"site_x": 600.0, "scaffold": [[604.0, 648.0]], "village": true, "max_level": 10,
 	},
 }
 ## Back to front.
-const DRAW_ORDER := ["houses", "tavern", "well", "watchtower", "palisade", "keep", "court", "garrison", "walls", "towers", "gate"]
+const DRAW_ORDER := ["houses", "tavern", "well", "mine", "quarry", "watchtower", "palisade", "keep", "court", "garrison", "walls", "towers", "gate"]
 
 ## Where the village stands, relative to the castle's ground-centre point.
-const WELL_X := 520.0
-const TAVERN_X := 566.0
-const FIRST_HOUSE_X := 622.0
+const QUARRY_X := 216.0
+const MINE_X := 512.0
+const WELL_X := 580.0
+const TAVERN_X := 626.0
+const FIRST_HOUSE_X := 682.0
 const HOUSE_SPACING := 26.0
 ## The outer defences, west of the castle.
 const PALISADE_X := -230.0
@@ -196,6 +216,29 @@ static func shapes(part: String, level: int) -> Array:
 			# The sign.
 			out.append([Rect2(TAVERN_X + 20, -h + 2, 6, 1), WOOD_DARK])
 			out.append([Rect2(TAVERN_X + 22, -h + 3, 5, 5), BANNER])
+		"quarry":
+			# A stepped rock face that is cut deeper and wider with each level.
+			var h := 12 + 3 * v
+			out.append([Rect2(QUARRY_X - 22, -h, 44, h), STONE_DARK])
+			out.append([Rect2(QUARRY_X - 22, -h, 44, 3), STONE_LIGHT])
+			out.append([Rect2(QUARRY_X - 14, -h * 0.6, 36, h * 0.6), STONE])
+			out.append([Rect2(QUARRY_X - 2, -h * 0.3, 24, h * 0.3), STONE_LIGHT])
+			if level >= 3:
+				# A wooden hoist on top.
+				out.append([Rect2(QUARRY_X - 18, -h - 12, 2, 12), WOOD_DARK])
+				out.append([Rect2(QUARRY_X - 18, -h - 12, 12, 2), WOOD_DARK])
+		"mine":
+			# A timber-framed entrance, and a shaft and tunnel under the ground
+			# (positive y is below the ground line) that go deeper with each level.
+			var depth := 10 + 3 * v
+			out.append([Rect2(MINE_X - 10, -16, 3, 16), WOOD_DARK])
+			out.append([Rect2(MINE_X + 7, -16, 3, 16), WOOD_DARK])
+			out.append([Rect2(MINE_X - 12, -19, 24, 4), WOOD])
+			out.append([Rect2(MINE_X - 7, -15, 14, 15), SHADOW])
+			out.append([Rect2(MINE_X - 4, 0, 8, depth), SHADOW])
+			out.append([Rect2(MINE_X - 4 - 8 * v, depth - 6, 8 + 16 * v, 6), SHADOW])
+			out.append([Rect2(MINE_X - 2 - 8 * v, depth - 4, 3, 2), IRON])
+			out.append([Rect2(MINE_X + 6 * v, depth - 3, 3, 2), IRON])
 		"palisade":
 			# A row of sharpened stakes; taller and thicker with each level.
 			var h := 16 + 3 * v

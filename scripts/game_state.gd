@@ -24,8 +24,8 @@ const CastleData = preload("res://scripts/castle_data.gd")
 const SkillData = preload("res://scripts/skill_data.gd")
 const JobData = preload("res://scripts/job_data.gd")
 
-const START_JOBS := {"wood": 1, "stone": 1, "hunter": 0, "build": 1, "cook": 0, "soldier": 0, "forester": 0}
-const NO_JOBS := {"wood": 0, "stone": 0, "hunter": 0, "build": 0, "cook": 0, "soldier": 0, "forester": 0}
+const START_JOBS := {"wood": 1, "stone": 1, "hunter": 0, "build": 1, "cook": 0, "soldier": 0, "iron": 0, "forester": 0}
+const NO_JOBS := {"wood": 0, "stone": 0, "hunter": 0, "build": 0, "cook": 0, "soldier": 0, "iron": 0, "forester": 0}
 const START_PEASANTS := 3
 ## How much better a trained peasant does their job.
 const TRAINED_MULT := 2.0
@@ -85,6 +85,20 @@ const WELL_SERVES := 8
 const WELL_BONUS := 0.15
 const TAVERN_SERVES := 10
 const TAVERN_BONUS := 0.15
+
+## Stone: how fast it appears at the stone site and how much can pile up
+## there, before and per level of the quarry.
+const LOOSE_STONE_RATE := 0.6
+const LOOSE_STONE_PILE := 10
+const QUARRY_RATE_PER_LEVEL := 0.7
+const QUARRY_PILE_PER_LEVEL := 10
+const MINERS_PER_MINE_LEVEL := 2
+
+## Cows need the Cattle skill. Each costs more than the last and eats every day.
+const MAX_COWS := 6
+const COW_BASE_COST := {"food": 40, "wood": 25}
+const COW_COST_GROWTH := 1.5
+const COW_FOOD := 2
 const START_TREES := 3
 ## Trees the grove has room for before any skills. The screen fits MAX_TREE_PLOTS.
 const BASE_TREE_PLOTS := 8
@@ -102,10 +116,10 @@ const RENOWN_PER_RANK := 3
 ## No part can go above LEVELS_PER_RANK x castle rank. The rank rises with the
 ## total of all part levels, so the player must spread out before going higher.
 const LEVELS_PER_RANK := 5
-const FIRST_RANK_UP := 22
-const RANK_UP_STEP := 30
+const FIRST_RANK_UP := 20
+const RANK_UP_STEP := 28
 
-const SAVE_VERSION := 10
+const SAVE_VERSION := 11
 const AUTOSAVE_INTERVAL := 10.0
 const MAX_OFFLINE_SECONDS := 8 * 3600
 ## Offline progress is only granted (and reported) after this long away.
@@ -114,11 +128,12 @@ const MIN_OFFLINE_SECONDS := 60
 const INCOME_WINDOW := DAY_LENGTH
 
 ## What is in the stockhouse.
-var resources := {"wood": 0, "stone": 0, "food": START_FOOD}
+var resources := {"wood": 0, "stone": 0, "food": START_FOOD, "iron": 0}
+var cows := 0
 var part_levels := {
 	"walls": 0, "towers": 0, "gate": 0, "keep": 0, "garrison": 0, "court": 0,
 	"palisade": 0, "watchtower": 0,
-	"houses": 0, "well": 0, "tavern": 0,
+	"houses": 0, "well": 0, "tavern": 0, "quarry": 0, "mine": 0,
 }
 var peasants := START_PEASANTS
 ## How many peasants are assigned to each job. The rest are idle.
@@ -154,13 +169,13 @@ var job_work := 0.0       ## Seconds of hammering done.
 var job_work_total := 0.0
 
 ## Measured resources per second brought in by peasants. Used for offline progress.
-var income_rate := {"wood": 0.0, "stone": 0.0, "food": 0.0}
+var income_rate := {"wood": 0.0, "stone": 0.0, "food": 0.0, "iron": 0.0}
 ## Filled in by load_game() when time away earned something:
 ## {"seconds": int, plus the amount gained of each resource}. Empty otherwise.
 var offline_report := {}
 var save_path := "user://save.json"
 
-var _window_income := {"wood": 0, "stone": 0, "food": 0}
+var _window_income := {"wood": 0, "stone": 0, "food": 0, "iron": 0}
 var _was_night := false
 var _raid_timer := 0.0
 var _window_time := 0.0
@@ -253,9 +268,9 @@ func food_needed() -> int:
 	var cook_points: int = mini(jobs.cook + trained.cook, MAX_COOK_POINTS)
 	var saving: float = cook_points * COOK_FOOD_SAVING + skill_total("food_saving")
 	# Drawbacks: soldiers eat extra, the tavern whets appetites, the court has a household.
-	var mouths: float = peasants + jobs.soldier * CastleData.SOLDIER_EXTRA_FOOD
+	var mouths: float = peasants + jobs.soldier * CastleData.SOLDIER_EXTRA_FOOD + jobs.iron * CastleData.MINER_EXTRA_FOOD
 	mouths *= 1.0 + CastleData.TAVERN_EXTRA_EATING * part_levels.tavern
-	return ceili(mouths * FOOD_PER_PEASANT * (1.0 - saving)) + CastleData.COURT_FOOD_UPKEEP * part_levels.court
+	return ceili(mouths * FOOD_PER_PEASANT * (1.0 - saving)) + CastleData.COURT_FOOD_UPKEEP * part_levels.court + COW_FOOD * cows
 
 
 ## Multiplies how fast everyone walks and works: slower when hungry.
@@ -350,7 +365,8 @@ func morale_bonus() -> float:
 	var well_serves := WELL_SERVES + int(skill_total("well_serves"))
 	var watered := clampf(float(part_levels.well * well_serves) / peasants, 0.0, 1.0)
 	var cheered := clampf(float(part_levels.tavern * TAVERN_SERVES) / peasants, 0.0, 1.0)
-	return WELL_BONUS * watered + (TAVERN_BONUS + skill_total("tavern_bonus")) * cheered
+	var dust: float = CastleData.QUARRY_DUST * part_levels.quarry
+	return WELL_BONUS * watered + (TAVERN_BONUS + skill_total("tavern_bonus")) * cheered - dust
 
 
 ## Hires a peasant. They start idle until given a job.
@@ -374,6 +390,8 @@ func job_unlocked(job: String) -> bool:
 func job_limit(job: String) -> int:
 	if job == "soldier":
 		return part_levels.garrison * (SOLDIERS_PER_GARRISON_LEVEL + int(skill_total("soldier_room")))
+	if job == "iron":
+		return part_levels.mine * MINERS_PER_MINE_LEVEL
 	return -1
 
 
@@ -426,6 +444,39 @@ func train(job: String) -> bool:
 	if train_block_reason(job) != "" or not spend(train_cost()):
 		return false
 	trained[job] += 1
+	peasants_changed.emit()
+	return true
+
+
+# --- Stone and cows ---
+
+## Stone appearing per second at the stone site.
+func quarry_rate() -> float:
+	return LOOSE_STONE_RATE + QUARRY_RATE_PER_LEVEL * part_levels.quarry
+
+
+## How much stone can wait at the stone site.
+func quarry_capacity() -> float:
+	return LOOSE_STONE_PILE + QUARRY_PILE_PER_LEVEL * part_levels.quarry
+
+
+func cow_cost() -> Dictionary:
+	return _scaled_cost(COW_BASE_COST, COW_COST_GROWTH, cows)
+
+
+## Why a cow can't be bought right now (apart from cost), or "".
+func cow_block_reason() -> String:
+	if skill_level("cattle") == 0:
+		return "Needs the Cattle skill"
+	if cows >= MAX_COWS:
+		return "The pasture is full"
+	return ""
+
+
+func buy_cow() -> bool:
+	if cow_block_reason() != "" or not spend(cow_cost()):
+		return false
+	cows += 1
 	peasants_changed.emit()
 	return true
 
@@ -491,6 +542,10 @@ func part_cost(id: String) -> Dictionary:
 	var discount := 1.0 - skill_total("part_discount")
 	for type: String in cost:
 		cost[type] = ceili(cost[type] * discount)
+	# The higher levels of the castle itself need iron fittings.
+	var next_level: int = part_levels[id] + 1
+	if not is_village(id) and next_level >= CastleData.IRON_FROM_LEVEL:
+		cost["iron"] = CastleData.IRON_PER_LEVEL * (next_level - CastleData.IRON_FROM_LEVEL + 1)
 	return cost
 
 
@@ -731,6 +786,7 @@ func save_game() -> void:
 		"resources": resources,
 		"part_levels": part_levels,
 		"peasants": peasants,
+		"cows": cows,
 		"jobs": jobs,
 		"trained": trained,
 		"trees": trees,
@@ -781,7 +837,8 @@ func reset_game() -> void:
 
 func _start_over() -> void:
 	var start_stock := LEGACY_START_STOCK * legacy
-	resources = {"wood": start_stock, "stone": start_stock, "food": START_FOOD}
+	resources = {"wood": start_stock, "stone": start_stock, "food": START_FOOD, "iron": 0}
+	cows = 0
 	for id: String in part_levels:
 		part_levels[id] = 0
 	peasants = START_PEASANTS
@@ -828,6 +885,7 @@ func load_game() -> void:
 		trained[job] = mini(trained[job], jobs[job])
 	_load_numbers(income_rate, data.get("income_rate"), false)
 	peasants = maxi(int(data.get("peasants", START_PEASANTS)), START_PEASANTS)
+	cows = clampi(int(data.get("cows", 0)), 0, MAX_COWS)
 	if idle_peasants() < 0:
 		# More workers than peasants: the save is inconsistent, so everyone goes idle.
 		for job: String in jobs:

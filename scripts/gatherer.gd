@@ -5,7 +5,12 @@ extends "res://scripts/worker.gd"
 
 enum State { IDLE, TO_WORK, WORKING, TO_HOME }
 
-const CARRY_COLORS := {"wood": Color(0.48, 0.32, 0.20), "stone": Color(0.62, 0.62, 0.66), "food": Color(0.70, 0.25, 0.30)}
+const CARRY_COLORS := {
+	"wood": Color(0.48, 0.32, 0.20), "stone": Color(0.62, 0.62, 0.66),
+	"food": Color(0.70, 0.25, 0.30), "iron": Color(0.36, 0.38, 0.46),
+}
+## Digging iron out of the mine takes this many times longer than other gathering.
+const IRON_WORK_MULT := 3.0
 const RETRY_TIME := 0.5
 const WORK_TIME := 1.0
 
@@ -35,13 +40,19 @@ func _work(delta: float) -> void:
 			elif _walk_to(_spot.position.x + _spot_offset, delta):
 				_state = State.WORKING
 				_timer = WORK_TIME * GameState.gather_time_mult() / _skill()
+				if _resource == "iron":
+					_timer *= IRON_WORK_MULT
 		State.WORKING:
 			_timer -= delta
 			if _timer <= 0.0:
 				# Take as much as the basket holds, or whatever is left.
 				while _carrying < GameState.carry_amount(job) * _skill() and _spot.take():
 					_carrying += 1
-				# If someone else took the last of it, look for another spot.
+				# A cow's cart nearby saves the walk home.
+				var cow: Node2D = world.cow_for(_resource)
+				if cow != null and _carrying > 0:
+					_carrying -= cow.give(_carrying)
+				# With nothing to carry (or nothing found), look for a spot again.
 				_state = State.TO_HOME if _carrying > 0 else State.IDLE
 				_timer = 0.0
 		State.TO_HOME:

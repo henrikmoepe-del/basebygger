@@ -5,7 +5,7 @@ extends Node2D
 
 @export var resource_type := "stone"
 @export var size := Vector2(40, 26)
-## "rock" or "bushes": which placeholder to draw.
+## "rock", "bushes" or "none": which placeholder to draw.
 @export var look := "rock"
 
 
@@ -20,6 +20,8 @@ func take() -> bool:
 
 
 func _draw() -> void:
+	if look == "none":
+		return
 	var r := _rect()
 	if look == "bushes":
 		# The wilds: thick bushes with berries, where hunters find food.

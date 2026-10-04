@@ -37,6 +37,10 @@ const JOBS := {
 		"name": "Stand guard", "trade": "Man-at-arms", "trade_skill": "t_guard",
 		"color": Color(0.55, 0.14, 0.16), "requires_part": "garrison",
 	},
+	"iron": {
+		"name": "Mine iron", "trade": "Miner", "trade_skill": "t_mine",
+		"color": Color(0.30, 0.30, 0.36), "requires_part": "mine", "gathers": "iron",
+	},
 	# Tending the grove takes know-how: only trained foresters can do it.
 	"forester": {
 		"name": "Tend the grove", "trade": "Forester", "trade_skill": "forester",
