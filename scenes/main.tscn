@@ -100,156 +100,207 @@ script = ExtResource("11_dev")
 [node name="HUD" type="CanvasLayer" parent="."]
 script = ExtResource("2_hud")
 
-[node name="ResourcesLabel" type="Label" parent="HUD"]
-unique_name_in_owner = true
-offset_left = 8.0
-offset_top = 6.0
-offset_right = 520.0
-offset_bottom = 30.0
-mouse_filter = 2
-theme_override_colors/font_color = Color(0.2, 0.2, 0.25, 1)
-theme_override_font_sizes/font_size = 13
-text = "Wood: 0   Stone: 0"
+[node name="TopBar" type="Panel" parent="HUD"]
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 640.0
+offset_bottom = 20.0
 
-[node name="DefenceLabel" type="Label" parent="HUD"]
+[node name="ResourceBar" type="HBoxContainer" parent="HUD/TopBar"]
 unique_name_in_owner = true
-offset_left = 520.0
-offset_top = 6.0
-offset_right = 632.0
-offset_bottom = 30.0
-mouse_filter = 2
-theme_override_colors/font_color = Color(0.2, 0.2, 0.25, 1)
-theme_override_font_sizes/font_size = 13
-text = "Defence: 0"
-horizontal_alignment = 2
+layout_mode = 0
+offset_left = 6.0
+offset_top = 1.0
+offset_right = 400.0
+offset_bottom = 19.0
+theme_override_constants/separation = 12
 
-[node name="RankLabel" type="Label" parent="HUD"]
+[node name="DefenceLabel" type="Label" parent="HUD/TopBar"]
 unique_name_in_owner = true
-offset_left = 330.0
-offset_top = 26.0
-offset_right = 632.0
-offset_bottom = 46.0
-mouse_filter = 2
-theme_override_colors/font_color = Color(0.35, 0.35, 0.3, 1)
+layout_mode = 0
+offset_left = 396.0
+offset_top = 1.0
+offset_right = 480.0
+offset_bottom = 19.0
 theme_override_font_sizes/font_size = 12
-text = "Castle rank 1"
+text = "Defence 0"
 horizontal_alignment = 2
+vertical_alignment = 1
+mouse_filter = 1
+tooltip_text = "The castle's defence: every part's levels plus the soldiers on the walls. A raid is beaten if this is at least its strength."
 
-[node name="DayLabel" type="Label" parent="HUD"]
+[node name="DayLabel" type="Label" parent="HUD/TopBar"]
 unique_name_in_owner = true
-offset_left = 300.0
-offset_top = 42.0
-offset_right = 632.0
-offset_bottom = 62.0
-mouse_filter = 2
-theme_override_colors/font_color = Color(0.2, 0.2, 0.25, 1)
+layout_mode = 0
+offset_left = 484.0
+offset_top = 1.0
+offset_right = 634.0
+offset_bottom = 19.0
 theme_override_font_sizes/font_size = 12
 text = "Day 1"
 horizontal_alignment = 2
+vertical_alignment = 1
+mouse_filter = 1
 
-[node name="RaidLabel" type="Label" parent="HUD"]
-unique_name_in_owner = true
-offset_left = 300.0
-offset_top = 58.0
-offset_right = 632.0
-offset_bottom = 78.0
-mouse_filter = 2
-theme_override_colors/font_color = Color(0.2, 0.2, 0.25, 1)
-theme_override_font_sizes/font_size = 12
-text = "Raid on day 4"
-horizontal_alignment = 2
+[node name="StatusBar" type="Panel" parent="HUD"]
+offset_left = 0.0
+offset_top = 20.0
+offset_right = 640.0
+offset_bottom = 35.0
+self_modulate = Color(1, 1, 1, 0.8)
 
-[node name="GoalLabel" type="Label" parent="HUD"]
+[node name="GoalLabel" type="Label" parent="HUD/StatusBar"]
 unique_name_in_owner = true
-offset_left = 8.0
-offset_top = 24.0
-offset_right = 420.0
-offset_bottom = 42.0
-mouse_filter = 2
-theme_override_colors/font_color = Color(0.2, 0.2, 0.25, 1)
-theme_override_font_sizes/font_size = 11
+layout_mode = 0
+offset_left = 6.0
+offset_top = 0.0
+offset_right = 440.0
+offset_bottom = 15.0
+theme_override_font_sizes/font_size = 10
 text = "Goal"
+vertical_alignment = 1
+theme_override_colors/font_color = Color(1, 0.82, 0.38, 1)
 
-[node name="ToastLabel" type="Label" parent="HUD"]
+[node name="RaidLabel" type="Label" parent="HUD/StatusBar"]
 unique_name_in_owner = true
-visible = false
-offset_left = 12.0
-offset_top = 46.0
-offset_right = 330.0
-offset_bottom = 100.0
+layout_mode = 0
+offset_left = 440.0
+offset_top = 0.0
+offset_right = 634.0
+offset_bottom = 15.0
+theme_override_font_sizes/font_size = 10
+text = "Raid"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="RankLabel" type="Label" parent="HUD"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 6.0
+offset_top = 37.0
+offset_right = 300.0
+offset_bottom = 50.0
+theme_override_font_sizes/font_size = 10
+text = "Castle rank 1"
+vertical_alignment = 1
 mouse_filter = 2
-theme_override_colors/font_color = Color(0.2, 0.2, 0.25, 1)
-theme_override_font_sizes/font_size = 12
-text = "Message"
-horizontal_alignment = 1
-autowrap_mode = 3
+theme_override_colors/font_color = Color(0.2, 0.17, 0.15, 1)
+theme_override_colors/font_outline_color = Color(0.96, 0.95, 0.85, 1)
+theme_override_constants/outline_size = 3
 
 [node name="OfflineLabel" type="Label" parent="HUD"]
 unique_name_in_owner = true
-visible = false
-offset_left = 12.0
-offset_top = 104.0
-offset_right = 400.0
-offset_bottom = 124.0
-mouse_filter = 2
-theme_override_colors/font_color = Color(0.25, 0.4, 0.2, 1)
-theme_override_font_sizes/font_size = 12
+layout_mode = 0
+offset_left = 6.0
+offset_top = 50.0
+offset_right = 430.0
+offset_bottom = 63.0
+theme_override_font_sizes/font_size = 10
 text = "While you were away"
-
-[node name="Jobs" type="VBoxContainer" parent="HUD"]
-unique_name_in_owner = true
-offset_left = 424.0
-offset_top = 80.0
-offset_right = 632.0
-offset_bottom = 180.0
-theme_override_constants/separation = 2
-
-[node name="PeasantsLabel" type="Label" parent="HUD/Jobs"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(0.2, 0.2, 0.25, 1)
-theme_override_font_sizes/font_size = 12
-text = "Peasants: 3"
-
-[node name="BuildCard" type="ColorRect" parent="HUD"]
-unique_name_in_owner = true
+vertical_alignment = 1
 visible = false
-offset_right = 230.0
-offset_bottom = 90.0
 mouse_filter = 2
-color = Color(0.08, 0.1, 0.15, 0.94)
+theme_override_colors/font_color = Color(0.2, 0.17, 0.15, 1)
+theme_override_colors/font_outline_color = Color(0.96, 0.95, 0.85, 1)
+theme_override_constants/outline_size = 3
+
+[node name="ToastPanel" type="Panel" parent="HUD"]
+unique_name_in_owner = true
+offset_left = 110.0
+offset_top = 66.0
+offset_right = 420.0
+offset_bottom = 106.0
+visible = false
+mouse_filter = 2
+
+[node name="ToastLabel" type="Label" parent="HUD/ToastPanel"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 8.0
+offset_top = 2.0
+offset_right = 302.0
+offset_bottom = 38.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 10
+text = "Message"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
+
+[node name="JobsToggle" type="Button" parent="HUD"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 446.0
+offset_top = 38.0
+offset_right = 636.0
+offset_bottom = 53.0
+tooltip_text = "Show or hide the list of jobs."
+focus_mode = 0
+theme_override_font_sizes/font_size = 10
+text = "Peasants"
+
+[node name="JobsPanel" type="Panel" parent="HUD"]
+unique_name_in_owner = true
+offset_left = 446.0
+offset_top = 54.0
+offset_right = 636.0
+offset_bottom = 180.0
+
+[node name="Jobs" type="VBoxContainer" parent="HUD/JobsPanel"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 5.0
+offset_top = 4.0
+offset_right = 185.0
+offset_bottom = 120.0
+theme_override_constants/separation = 3
+
+[node name="BuildCard" type="Panel" parent="HUD"]
+unique_name_in_owner = true
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 236.0
+offset_bottom = 90.0
+visible = false
+mouse_filter = 2
 
 [node name="BuildCardLabel" type="Label" parent="HUD/BuildCard"]
 unique_name_in_owner = true
 layout_mode = 0
 offset_left = 8.0
 offset_top = 5.0
-offset_right = 222.0
+offset_right = 228.0
 offset_bottom = 85.0
 mouse_filter = 2
-theme_override_colors/font_color = Color(0.92, 0.93, 0.96, 1)
 theme_override_font_sizes/font_size = 10
 text = "Part"
 autowrap_mode = 3
 
-[node name="Actions" type="HBoxContainer" parent="HUD"]
-offset_left = 8.0
-offset_top = 318.0
-offset_right = 632.0
-offset_bottom = 356.0
-theme_override_constants/separation = 8
+[node name="BottomBar" type="Panel" parent="HUD"]
+offset_left = 0.0
+offset_top = 322.0
+offset_right = 640.0
+offset_bottom = 360.0
 
-[node name="HireButton" type="Button" parent="HUD/Actions"]
+[node name="Actions" type="HBoxContainer" parent="HUD/BottomBar"]
+layout_mode = 0
+offset_left = 6.0
+offset_top = 4.0
+offset_right = 634.0
+offset_bottom = 34.0
+theme_override_constants/separation = 6
+
+[node name="HireButton" type="Button" parent="HUD/BottomBar/Actions"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
+tooltip_text = "A new peasant arrives idle. Give them a job in the Peasants panel."
 focus_mode = 0
-theme_override_font_sizes/font_size = 11
-text = "Hire Peasant"
+theme_override_font_sizes/font_size = 10
+text = "Hire peasant"
 
-[node name="CowButton" type="Button" parent="HUD/Actions"]
+[node name="CowButton" type="Button" parent="HUD/BottomBar/Actions"]
 unique_name_in_owner = true
-visible = false
 custom_minimum_size = Vector2(110, 0)
 layout_mode = 2
 tooltip_text = "A cow waits with a cart where peasants gather and hauls the loads home. Each cow eats 2 food a day."
@@ -257,37 +308,59 @@ focus_mode = 0
 theme_override_font_sizes/font_size = 10
 text = "Buy cow"
 
-[node name="DefendButton" type="Button" parent="HUD/Actions"]
+[node name="DefendButton" type="Button" parent="HUD/BottomBar/Actions"]
 unique_name_in_owner = true
-visible = false
 custom_minimum_size = Vector2(110, 0)
 layout_mode = 2
 tooltip_text = "Fight this raid yourself in 3D."
 focus_mode = 0
-theme_override_colors/font_color = Color(1, 0.85, 0.8, 1)
-theme_override_font_sizes/font_size = 11
+theme_override_font_sizes/font_size = 10
 text = "Defend the walls!"
 
-[node name="SkillsButton" type="Button" parent="HUD/Actions"]
+[node name="SkillsButton" type="Button" parent="HUD/BottomBar/Actions"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
+tooltip_text = "Open the skill tree."
 focus_mode = 0
-theme_override_font_sizes/font_size = 11
+theme_override_font_sizes/font_size = 10
 text = "Skills"
 
-[node name="CrownButton" type="Button" parent="HUD/Actions"]
+[node name="MenuButton" type="Button" parent="HUD/BottomBar/Actions"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(104, 0)
+custom_minimum_size = Vector2(54, 0)
+layout_mode = 2
+tooltip_text = "Pass the crown, or start a new game."
+focus_mode = 0
+theme_override_font_sizes/font_size = 10
+text = "Menu"
+
+[node name="MenuPanel" type="Panel" parent="HUD"]
+unique_name_in_owner = true
+offset_left = 456.0
+offset_top = 274.0
+offset_right = 636.0
+offset_bottom = 320.0
+visible = false
+
+[node name="MenuBox" type="VBoxContainer" parent="HUD/MenuPanel"]
+layout_mode = 0
+offset_left = 5.0
+offset_top = 5.0
+offset_right = 175.0
+offset_bottom = 41.0
+theme_override_constants/separation = 4
+
+[node name="CrownButton" type="Button" parent="HUD/MenuPanel/MenuBox"]
+unique_name_in_owner = true
 layout_mode = 2
 tooltip_text = "Start a new castle with legacy. Each point of legacy makes everyone work 10% faster, for good."
 focus_mode = 0
 theme_override_font_sizes/font_size = 10
 text = "Pass the crown"
 
-[node name="ResetButton" type="Button" parent="HUD/Actions"]
+[node name="ResetButton" type="Button" parent="HUD/MenuPanel/MenuBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(70, 0)
 layout_mode = 2
 tooltip_text = "Wipe everything, legacy included, and start from the very beginning."
 focus_mode = 0

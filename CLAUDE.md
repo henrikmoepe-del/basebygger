@@ -59,6 +59,9 @@
   - Game feel: chips fly and trees shake when worked, the stockhouse bumps and shows log and stone
     piles, finished castle parts flash with dust and a small screen shake, messages pop in
   - Sound: placeholder effects generated in code (`scripts/sfx.gd`), M to mute. No music yet.
+  - Interface: one theme in `scripts/ui_theme.gd` (dark wood panels, parchment text). Top bar with
+    resource chips, a goal and raid line, a foldable peasants panel, a message banner, a bottom
+    bar, and a Menu for Pass the crown and New game. Details live in tooltips.
   - Cows (Cattle skill) wait with carts at gathering sites and haul loads home
   - Hover to build: point at a part or a signpost for a card (cost, benefit, drawback), click to order
   - Building: builders haul materials from the stockhouse and hammer them in; scaffolding and rope hoist
