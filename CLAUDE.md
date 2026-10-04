@@ -75,7 +75,11 @@
     the site, shaped at the bench there, pulled up by the rope, picked up at the top, carried to its
     place and set in. `GameState` counts how far the pieces have got (`job_hauled`, `job_formed`,
     `job_lifted`, `job_taken`, `job_placed`); `builder.gd` picks which step to do; `castle.gd` draws
-    the yard, piles and hoist and says where to stand. One bench and one rope per site.
+    the yard, piles and hoist and says where to stand. Two benches and one rope per site.
+    Scaffolding and ladders are pieces too: they go up a lift at a time with the wall, and are
+    taken down and carried back when the part stands. Pieces follow their material (`item_for`):
+    stone blocks, planks for timber parts (thin courses), daub panels, thatch, roof tiles.
+    Builders reserve a piece before walking to it, and wait by the yard when there is nothing to do.
     No preview outline. Parts without sections (palisade, watchtower, village) are built from the ground.
   - Wanted next for building (Henrik): pieces that must be made first, e.g. a window made at a
     workstation from gathered materials and then carried to the site. The hook is `BuildPlan.ITEMS`
@@ -85,7 +89,8 @@
     idle peasants stroll around the castle; at night everyone sleeps behind the nearest door.
     Stairs inside towers, keep and garrison are hidden: peasants go in at the door and come out on top.
   - Skill tree: a pannable node map with four arms, levels per skill, hidden "?" nodes; paid with renown
-  - Day and night, food and hunger, trees that run out and regrow, raids every 3 days
+  - Day and night (a day is 5 minutes; Menu > Nights turns night off for playtesting), food and
+    hunger, trees that run out and regrow, raids every 3 days
   - Pass the crown (prestige) with lasting legacy; save/load with offline progress; New game
   - Camera: drag or A/D to pan, drag up/down or W/S to look up at the castle, mouse wheel zooms out
     to a quarter size (the whole world); the world's sounds fade as the view zooms out

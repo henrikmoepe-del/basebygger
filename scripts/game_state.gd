@@ -44,7 +44,7 @@ const HUNTER_CARRY := 4
 
 ## A day lasts DAY_LENGTH seconds; the last part of it is night, when
 ## everyone sleeps. Night begins at NIGHT_START (a fraction of the day).
-const DAY_LENGTH := 120.0
+const DAY_LENGTH := 300.0
 const NIGHT_START := 0.72
 const START_FOOD := 40
 ## Every peasant eats this much at dawn. If there isn't enough, everyone
@@ -159,6 +159,9 @@ var renown := 0
 ## Days start at 1. day_time is the seconds since this day's dawn.
 var day := 1
 var day_time := 0.0
+## For playtesting: when true, night never comes. Dusk turns straight into
+## the next dawn, so days, meals and raids still go by.
+var no_nights := false
 ## False if there wasn't enough food at dawn today.
 var fed := true
 ## Which goal in QuestData.QUESTS the player is on.
@@ -218,6 +221,8 @@ func _process(delta: float) -> void:
 	if siege_active:
 		return
 	day_time += delta
+	if no_nights and day_time >= DAY_LENGTH * night_start():
+		day_time = DAY_LENGTH
 	if day_time >= DAY_LENGTH:
 		day_time -= DAY_LENGTH
 		day += 1
@@ -288,6 +293,12 @@ func day_fraction() -> float:
 ## The fraction of the day at which night begins.
 func night_start() -> float:
 	return NIGHT_START + skill_total("night_shorter")
+
+
+func set_no_nights(on: bool) -> void:
+	no_nights = on
+	daytime_changed.emit()
+	save_game()
 
 
 func is_night() -> bool:
@@ -724,10 +735,16 @@ func job_size() -> int:
 	return job_pieces().size()
 
 
+## How many of the pieces are fetched from the stockhouse. The rest, at the
+## end, are the scaffolding being taken down again.
+func job_fetch() -> int:
+	return job_plan.get("fetch", 0)
+
+
 ## A builder at the stockhouse picks up to max_pieces for the job.
 ## Returns how many they got (0 = nothing left to carry).
 func job_take_load(max_pieces: int) -> int:
-	var pieces := mini(max_pieces, job_size() - job_claimed)
+	var pieces := mini(max_pieces, job_fetch() - job_claimed)
 	job_claimed += pieces
 	return pieces
 
@@ -807,6 +824,10 @@ func job_fraction() -> float:
 ## Pieces that need no shaping or no lifting pass those steps by themselves.
 func _job_advance() -> void:
 	var pieces := job_pieces()
+	if job_hauled >= job_fetch():
+		# Everything has arrived: what is left is taking the scaffolding down.
+		job_hauled = job_size()
+		job_claimed = job_size()
 	while job_formed < job_hauled and not pieces[job_formed].form:
 		job_formed += 1
 	while job_lifted < job_formed and not pieces[job_lifted].lift:
@@ -954,6 +975,7 @@ func save_game() -> void:
 		"quest_index": quest_index,
 		"raids_won": raids_won,
 		"legacy": legacy,
+		"no_nights": no_nights,
 		"skills": skills,
 		"income_rate": income_rate,
 		"job": {
@@ -1058,6 +1080,7 @@ func load_game() -> void:
 	quest_index = clampi(int(data.get("quest_index", 0)), 0, QuestData.QUESTS.size())
 	raids_won = clampi(int(data.get("raids_won", 0)), 0, raids_faced)
 	legacy = maxi(int(data.get("legacy", 0)), 0)
+	no_nights = bool(data.get("no_nights", false))
 	_was_night = is_night()
 	skills.clear()
 	var saved_skills: Variant = data.get("skills")
@@ -1078,6 +1101,7 @@ func load_game() -> void:
 		# Pieces that were being carried when the game closed go back to where they were picked up.
 		job_claimed = job_hauled
 		job_taken = job_placed
+		_job_advance()
 		if job_placed >= job_size():
 			job_part = ""
 			job_plan = {}

@@ -6,11 +6,13 @@ extends "res://scripts/worker.gd"
 ##   2. shaped at the bench there (stone is dressed, fittings are put together)
 ##   3. pulled up to the top by the rope
 ##   4. picked up at the top, carried to its place and set in
+## Scaffolding and ladders are pieces like any other, and when the part
+## stands they are taken down again and carried back to the stockhouse.
 ## Builders share the steps out: each takes whatever is waiting, and a lone
 ## builder does them all in turn. GameState counts how far each piece has
 ## got; castle.gd says where to stand.
 
-enum State { IDLE, TO_STOCK, TO_YARD, FORM, HOIST, TO_PIECE, PLACE }
+enum State { IDLE, TO_STOCK, TO_YARD, FORM, HOIST, TO_PIECE, PLACE, RETURN }
 
 ## Seconds to shape one piece at the bench, pull one up the rope, and set one in place.
 const FORM_TIME := 2.5
@@ -29,6 +31,8 @@ var _carry_color := Color.WHITE
 ## The piece being carried to its place (its number in the plan), or -1.
 var _piece := -1
 var _offset := randf_range(-6.0, 6.0)
+## Which bench this builder is shaping at.
+var _bench := 0
 ## Seconds spent on the step in hand.
 var _timer := 0.0
 var _swing := randf() * TAU
@@ -40,11 +44,11 @@ func _work(delta: float) -> void:
 	_hammering = false
 	_pulling = false
 	if GameState.job_part == "":
-		# No job: put down anything carried and wait by the castle.
-		_carrying = 0
+		# No job: bring back anything carried and wait by the castle.
 		_piece = -1
 		_state = State.IDLE
-		_walk_to(home_x, delta)
+		if _walk_to(world.stock_x + _offset if _carrying > 0 else home_x, delta):
+			_carrying = 0
 		return
 
 	var castle: Node2D = world.castle
@@ -52,6 +56,9 @@ func _work(delta: float) -> void:
 	match _state:
 		State.IDLE:
 			_state = _choose_task()
+			if _state == State.IDLE and position.y > -0.5:
+				# Nothing to do yet: wait by the yard, where the next work will be.
+				_walk_to(castle.yard_x() + 14.0 + _offset * 2.0, delta)
 		State.TO_STOCK:
 			if _walk_to(world.stock_x + _offset, delta):
 				_carry_color = castle.item_color(GameState.job_claimed)
@@ -65,7 +72,7 @@ func _work(delta: float) -> void:
 		State.FORM:
 			if GameState.job_rough() <= 0:
 				_state = State.IDLE
-			elif _walk_to(castle.bench_x(), delta) and _toil(delta, FORM_TIME, "mine"):
+			elif _walk_to(castle.bench_x(_bench), delta) and _toil(delta, FORM_TIME, "mine"):
 				GameState.job_form()
 				_state = State.IDLE
 		State.HOIST:
@@ -89,8 +96,16 @@ func _work(delta: float) -> void:
 				_state = State.PLACE if _piece >= 0 else State.IDLE
 		State.PLACE:
 			if _go_to(castle.stand_spot(_piece), delta) and _toil(delta, PLACE_TIME, "hammer"):
+				# Scaffolding that was taken down is carried back to the stockhouse.
+				var taken_down: bool = castle.is_removal(_piece)
+				_carry_color = castle.item_color(_piece)
 				_piece = -1
 				GameState.job_place()
+				_carrying = 1 if taken_down else 0
+				_state = State.RETURN if taken_down else State.IDLE
+		State.RETURN:
+			if _walk_to(world.stock_x + _offset, delta):
+				_carrying = 0
 				_state = State.IDLE
 	if _state != before:
 		_timer = 0.0
@@ -100,7 +115,7 @@ func _exit_tree() -> void:
 	# Reassigned while carrying: what is carried goes back where it came from.
 	if GameState.job_part == "":
 		return
-	if _carrying > 0:
+	if _carrying > 0 and _state != State.RETURN:
 		GameState.job_return_load(_carrying)
 	if _piece >= 0:
 		GameState.job_untake()
@@ -117,6 +132,10 @@ func is_hoisting() -> bool:
 
 func is_forming() -> bool:
 	return _state == State.FORM
+
+
+func is_picking() -> bool:
+	return _state == State.TO_PIECE
 
 
 ## Hammers away at the step in hand. Returns true when it is done.
@@ -136,11 +155,14 @@ func _toil(delta: float, seconds: float, sound: String) -> bool:
 ## otherwise shapes pieces at the bench or fetches more.
 func _choose_task() -> State:
 	var pieces: Array = GameState.job_pieces()
-	var can_place := GameState.job_landed() > 0
+	# Only as many builders set off for a step as there are pieces waiting for it.
+	var can_place: bool = GameState.job_landed() > world.builders_picking(self)
 	var place_above: bool = can_place and pieces[GameState.job_taken].lift
 	var can_hoist: bool = GameState.job_ready() > 0 and not world.hoist_manned(self)
-	var can_form: bool = GameState.job_rough() > 0 and not world.bench_manned(self)
-	var to_fetch := GameState.job_claimed < GameState.job_size()
+	var forming: int = world.builders_forming(self)
+	var can_form: bool = GameState.job_rough() > forming and forming < world.castle.BENCHES
+	_bench = forming
+	var to_fetch := GameState.job_claimed < GameState.job_fetch()
 	if position.y < -0.5:
 		if can_place:
 			return State.TO_PIECE

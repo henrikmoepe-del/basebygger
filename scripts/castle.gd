@@ -28,7 +28,9 @@ const MAX_PILE := 6
 ## shaped pieces wait by the rope, then the bench, then the rough pile.
 const READY_PILE := 8.0
 const BENCH := 30.0
-const ROUGH_PILE := 44.0
+const BENCH_GAP := 14.0
+const BENCHES := 2
+const ROUGH_PILE := 58.0
 const BENCH_COLOR := Color(0.40, 0.27, 0.17)
 const FLASH_TIME := 0.5
 const DUST := Color(0.85, 0.82, 0.72)
@@ -188,17 +190,22 @@ func yard_x() -> float:
 	return hoist_x() + ROUGH_PILE
 
 
-## Where a builder stands to shape a piece at the bench.
-func bench_x() -> float:
-	return hoist_x() + BENCH - 7.0
+## Where a builder stands to shape a piece at one of the benches.
+func bench_x(bench: int) -> float:
+	return hoist_x() + BENCH + bench * BENCH_GAP - 7.0
 
 
 ## Where the next piece to be placed waits for a builder: at the top beside
 ## the hoist if it was lifted, else with the shaped pieces at the foot.
 func pickup_spot() -> Vector2:
 	var pieces := _plan
-	if GameState.job_taken < pieces.size() and pieces[GameState.job_taken].lift:
-		return hoist_spot()
+	if GameState.job_taken < pieces.size():
+		var piece: Dictionary = pieces[GameState.job_taken]
+		if piece.kind == BuildPlan.Kind.REMOVE:
+			# Scaffolding to take down: nothing to pick up, go straight to it.
+			return piece.stand
+		if piece.lift:
+			return hoist_spot()
 	return Vector2(hoist_x() + READY_PILE, 0)
 
 
@@ -209,7 +216,12 @@ func stand_spot(index: int) -> Vector2:
 
 ## What a builder carrying a piece holds: the colour of its material.
 func item_color(index: int) -> Color:
-	return BuildPlan.ITEMS[_plan[mini(index, _plan.size() - 1)].kind].color
+	return _plan[clampi(index, 0, _plan.size() - 1)].color
+
+
+## True if the piece is scaffolding being taken down.
+func is_removal(index: int) -> bool:
+	return _plan[index].kind == BuildPlan.Kind.REMOVE
 
 
 ## Where the builder who pulls the rope stands: at the top, beside the hoist.
@@ -350,78 +362,78 @@ func _draw_clipped(canvas: CanvasItem, shape: Array, area: Rect2) -> void:
 		canvas.draw_rect(piece, shape[1])
 
 
-## The part being built: the old level, then the new stone laid so far, then
-## the fittings in place.
+## The part being built: the old level, then what is laid of the new one so
+## far, then the fittings in place.
 func _draw_job(canvas: CanvasItem) -> void:
-	_draw_shapes(canvas, GameState.job_plan.old)
-	var done := _placed >= _plan.size()
+	var plan: Dictionary = GameState.job_plan
+	_draw_shapes(canvas, plan.old)
+	# Once only the scaffolding is left to take down, everything stands.
+	var built := mini(_placed, plan.fetch)
+	var done: bool = built >= plan.fetch
 	var piece := _next_piece()
 	for i in _plan_sections.size():
 		if done or i < piece.section:
-			_draw_shapes(canvas, GameState.job_plan.solid[i])
+			_draw_shapes(canvas, plan.solid[i])
 		elif i == piece.section:
-			for shape: Array in GameState.job_plan.solid[i]:
+			for shape: Array in plan.solid[i]:
 				_draw_clipped(canvas, shape, Rect2(-FAR, piece.line, FAR * 2.0, FAR))
 				_draw_clipped(canvas, shape, piece.partial)
-	_draw_shapes(canvas, GameState.job_plan.same)
-	for i in _plan_sections.size():
-		if done or i < piece.section:
-			_draw_shapes(canvas, GameState.job_plan.fit[i])
-	if not done:
-		for i in range(GameState.job_plan.first[piece.section], _placed):
-			if _plan[i].kind == BuildPlan.Kind.FITTING:
-				canvas.draw_rect(_plan[i].rect, _plan[i].color)
+	_draw_shapes(canvas, plan.same)
+	for i in built:
+		var placed: Dictionary = _plan[i]
+		if placed.kind == BuildPlan.Kind.FITTING:
+			canvas.draw_rect(placed.rect, placed.color)
+		elif placed.kind == BuildPlan.Kind.LADDER and placed.removed_by == -1:
+			_draw_ladder(canvas, placed.rect.get_center().x, placed.rect.position.y, placed.rect.end.y)
 
 
-## A ladder from the ground up to top.
-func _draw_ladder(canvas: CanvasItem, x: float, top: float) -> void:
-	canvas.draw_rect(Rect2(x - 3, top, 1, -top), CastleData.WOOD_DARK)
-	canvas.draw_rect(Rect2(x + 2, top, 1, -top), CastleData.WOOD_DARK)
-	var y := -RUNG_SPACING
+## A ladder from bottom up to top.
+func _draw_ladder(canvas: CanvasItem, x: float, top: float, bottom := 0.0) -> void:
+	canvas.draw_rect(Rect2(x - 3, top, 1, bottom - top), CastleData.WOOD_DARK)
+	canvas.draw_rect(Rect2(x + 2, top, 1, bottom - top), CastleData.WOOD_DARK)
+	var y := bottom - RUNG_SPACING
 	while y > top:
 		canvas.draw_rect(Rect2(x - 2, y, 4, 1), CastleData.WOOD)
 		y -= RUNG_SPACING
 
 
-## The bays of scaffolding put up so far on the section being worked on: a
-## pole at each side and planks across, and the ladder the builders climb.
+## The scaffolding standing right now: every bay and length of ladder that
+## has been put up and not yet taken down again. A bay is a pole at its side
+## and the planks the builders stand on.
 func _draw_scaffold(canvas: CanvasItem) -> void:
-	if not _plan_scaffolded or _placed >= _plan.size():
-		return
-	var piece := _next_piece()
-	var lift := BuildPlan.LIFT_ROWS * CastleData.course(GameState.job_part)
-	for i in range(GameState.job_plan.first[piece.section], _placed):
-		var bay: Dictionary = _plan[i]
-		if bay.kind != BuildPlan.Kind.SCAFFOLD:
+	for i in mini(_placed, GameState.job_fetch()):
+		var piece: Dictionary = _plan[i]
+		if piece.removed_by < 0 or piece.removed_by < _placed:
 			continue
-		var area: Rect2 = bay.rect
+		var area: Rect2 = piece.rect
+		if piece.kind == BuildPlan.Kind.LADDER:
+			_draw_ladder(canvas, area.get_center().x, area.position.y, area.end.y)
+			continue
 		canvas.draw_rect(Rect2(area.position.x - 2, area.position.y, 2, area.size.y), SCAFFOLD_COLOR)
-		if bay.end:
+		if piece.end:
 			canvas.draw_rect(Rect2(area.end.x, area.position.y, 2, area.size.y), SCAFFOLD_COLOR)
-		var y := area.position.y
-		while y < -0.5:
-			canvas.draw_rect(Rect2(area.position.x - 2, y, area.size.x + 2, 1), SCAFFOLD_COLOR)
-			y += lift
-	if piece.stand.y < -0.5:
-		var section: Array = _plan_sections[piece.section]
-		_draw_ladder(canvas, _ladder_x(section, hoist_x()), piece.stand.y)
+		if area.end.y < -0.5:
+			canvas.draw_rect(Rect2(area.position.x - 2, area.end.y, area.size.x + 2, 1), SCAFFOLD_COLOR)
 
 
 ## The yard at the foot of the site: the rough pile where carriers drop
-## their loads, the bench where each piece is shaped, and the shaped pieces
+## their loads, the benches where each piece is shaped, and the shaped pieces
 ## waiting by the rope. Lifted pieces wait at the top beside the hoist.
 func _draw_yard(canvas: CanvasItem) -> void:
+	if _placed >= GameState.job_fetch():
+		return
 	var x := hoist_x()
-	var pieces := _plan
 	_draw_pile(canvas, Vector2(x + ROUGH_PILE, 0), GameState.job_formed, GameState.job_rough())
-	# The bench: a heavy table, with the piece being shaped on top.
-	canvas.draw_rect(Rect2(x + BENCH - 6, -7, 12, 2), BENCH_COLOR)
-	canvas.draw_rect(Rect2(x + BENCH - 5, -5, 2, 5), BENCH_COLOR)
-	canvas.draw_rect(Rect2(x + BENCH + 3, -5, 2, 5), BENCH_COLOR)
+	for bench in BENCHES:
+		# A heavy table.
+		var at := x + BENCH + bench * BENCH_GAP
+		canvas.draw_rect(Rect2(at - 6, -7, 12, 2), BENCH_COLOR)
+		canvas.draw_rect(Rect2(at - 5, -5, 2, 5), BENCH_COLOR)
+		canvas.draw_rect(Rect2(at + 3, -5, 2, 5), BENCH_COLOR)
 	if GameState.job_rough() > 0:
-		canvas.draw_rect(Rect2(x + BENCH - 3, -11, 6, 4), BuildPlan.ITEMS[pieces[GameState.job_formed].kind].color)
+		canvas.draw_rect(Rect2(x + BENCH - 3, -11, 6, 4), item_color(GameState.job_formed))
 	_draw_pile(canvas, Vector2(x + READY_PILE, 0), GameState.job_lifted, GameState.job_ready())
-	if GameState.job_landed() > 0 and pieces[GameState.job_taken].lift:
+	if GameState.job_landed() > 0 and _plan[GameState.job_taken].lift:
 		_draw_pile(canvas, hoist_spot() + Vector2(-14, 0), GameState.job_taken, GameState.job_landed())
 	elif GameState.job_landed() > 0:
 		_draw_pile(canvas, Vector2(x + READY_PILE, 0), GameState.job_taken, GameState.job_landed())
@@ -430,15 +442,13 @@ func _draw_yard(canvas: CanvasItem) -> void:
 ## A small stack of pieces standing at foot: count of them, starting with
 ## piece number first of the plan (each in its material's colour).
 func _draw_pile(canvas: CanvasItem, foot: Vector2, first: int, count: int) -> void:
-	var pieces := _plan
 	for i in mini(count, MAX_PILE):
-		var color: Color = BuildPlan.ITEMS[pieces[mini(first + i, pieces.size() - 1)].kind].color
-		canvas.draw_rect(Rect2(foot.x + (i % 3) * 6 + (i / 3) * 3, foot.y - 4 - (i / 3) * 4, 5, 3), color)
+		canvas.draw_rect(Rect2(foot.x + (i % 3) * 6 + (i / 3) * 3, foot.y - 4 - (i / 3) * 4, 5, 3), item_color(first + i))
 
 
 ## A beam sticking out above the builders, with stones rising on a rope.
 func _draw_hoists(canvas: CanvasItem) -> void:
-	if not _plan_scaffolded or _placed >= _plan.size() or _next_piece().stand.y > -0.5:
+	if not _plan_scaffolded or _placed >= GameState.job_fetch() or _next_piece().stand.y > -0.5:
 		return
 	var x := hoist_x()
 	var top: float = _next_piece().stand.y - HOIST_RISE

@@ -193,9 +193,14 @@ func builders_aloft(except: Node) -> int:
 	return _builders(except).filter(func(b: Node) -> bool: return b.is_top_crew()).size()
 
 
-## True if a builder other than this one is shaping a piece at the bench.
-func bench_manned(except: Node) -> bool:
-	return _builders(except).any(func(b: Node) -> bool: return b.is_forming())
+## How many builders other than this one are shaping a piece at a bench.
+func builders_forming(except: Node) -> int:
+	return _builders(except).filter(func(b: Node) -> bool: return b.is_forming()).size()
+
+
+## How many builders other than this one are on their way to pick up a piece to place.
+func builders_picking(except: Node) -> int:
+	return _builders(except).filter(func(b: Node) -> bool: return b.is_picking()).size()
 
 
 ## True if a builder other than this one is at the rope.

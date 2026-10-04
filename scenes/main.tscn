@@ -348,7 +348,7 @@ text = "Menu"
 [node name="MenuPanel" type="Panel" parent="HUD"]
 unique_name_in_owner = true
 offset_left = 456.0
-offset_top = 274.0
+offset_top = 254.0
 offset_right = 636.0
 offset_bottom = 320.0
 visible = false
@@ -358,8 +358,17 @@ layout_mode = 0
 offset_left = 5.0
 offset_top = 5.0
 offset_right = 175.0
-offset_bottom = 41.0
+offset_bottom = 61.0
 theme_override_constants/separation = 4
+
+[node name="NightButton" type="Button" parent="HUD/MenuPanel/MenuBox"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "For playtesting: dusk turns straight into the next dawn, so nobody stops to sleep. Days, meals and raids still go by."
+focus_mode = 0
+toggle_mode = true
+theme_override_font_sizes/font_size = 10
+text = "Nights: on"
 
 [node name="CrownButton" type="Button" parent="HUD/MenuPanel/MenuBox"]
 unique_name_in_owner = true

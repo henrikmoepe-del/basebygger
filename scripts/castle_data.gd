@@ -183,8 +183,9 @@ const BODY_MIN_SIZE := 12.0
 ## Details narrower than this are fittings: windows, doors, battlements,
 ## posts, flags. Builders put each one in place whole.
 const FITTING_MAX_WIDTH := 40.0
-## Stone is laid in blocks this wide.
+## Stone is laid in blocks this wide, timber in planks this long.
 const BLOCK_WIDTH := 24.0
+const PLANK_WIDTH := 12.0
 
 
 ## The towers that stand at a level, each {"x", "w", "h", "kind"}: the two
@@ -227,8 +228,13 @@ static func height(part: String, level: int) -> float:
 	return 0.0
 
 
-## How tall one course of a part's stonework is: builders raise it a course
-## at a time.
+## The parts built of stone (or, for the court, of daub panels): they go up
+## in big blocks. Everything else is timber, built of planks.
+const BLOCK_BUILT := ["walls", "towers", "gate", "keep", "garrison", "court", "quarry", "well"]
+
+
+## How tall one course of a part is: builders raise it a course at a time.
+## Planks are much thinner than blocks of stone.
 static func course(part: String) -> float:
 	match part:
 		"walls", "garrison":
@@ -239,7 +245,12 @@ static func course(part: String) -> float:
 			return 14.0
 		"court":
 			return 9.0
-	return 8.0
+	return 8.0 if part in BLOCK_BUILT else 4.0
+
+
+## How wide one block or plank of a part is.
+static func block_width(part: String) -> float:
+	return BLOCK_WIDTH if part in BLOCK_BUILT else PLANK_WIDTH
 
 
 ## The stretches of a part that get scaffolding while it is raised to a

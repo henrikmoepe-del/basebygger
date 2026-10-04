@@ -43,6 +43,7 @@ const PREVIEW_GROUND := Color(0.45, 0.68, 0.38)
 @onready var skills_button: Button = %SkillsButton
 @onready var menu_button: Button = %MenuButton
 @onready var menu_panel: Panel = %MenuPanel
+@onready var night_button: Button = %NightButton
 @onready var crown_button: Button = %CrownButton
 @onready var reset_button: Button = %ResetButton
 @onready var skill_tree: Control = %SkillTree
@@ -86,6 +87,7 @@ func _ready() -> void:
 		jobs_panel.visible = not jobs_panel.visible
 		_refresh())
 	menu_button.pressed.connect(func() -> void: menu_panel.visible = not menu_panel.visible)
+	night_button.toggled.connect(GameState.set_no_nights)
 	reset_button.pressed.connect(_on_reset_pressed)
 	crown_button.pressed.connect(_on_crown_pressed)
 	build_hover.hovered_changed.connect(func(_part: String) -> void: _refresh_build_card())
@@ -246,6 +248,8 @@ func _refresh() -> void:
 	# The 3D siege is parked for now; the dev key F7 still opens it.
 	defend_button.visible = false
 
+	night_button.set_pressed_no_signal(GameState.no_nights)
+	night_button.text = "Nights: off (testing)" if GameState.no_nights else "Nights: on"
 	var gain := GameState.legacy_gain()
 	crown_button.disabled = gain <= 0
 	if _crown_armed:
