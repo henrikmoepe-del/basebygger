@@ -18,15 +18,13 @@ extends RefCounted
 ## "cost" and "work" are for level 1; each further level multiplies them by
 ## COST_GROWTH and WORK_GROWTH. "work" is seconds of hammering for one builder.
 ## "site_x" is where the part's circle floats in build mode, and where builders
-## work on parts that need no scaffolding. "scaffold" lists the left and right
-## edge of each section that gets scaffolding while it is built: builders
-## climb it and work from the top. "hoist_x" is where the rope hangs that
-## lifts the materials up to them. All are relative to the castle's
-## ground-centre point.
+## work on parts that need no scaffolding. All positions are relative to the
+## castle's ground-centre point.
 ##
 ## The castle is seen from the side with its front wall cut away: the curtain
 ## wall and gate stand at the back, and the buildings in FRONT stand in the
-## courtyard before it. floors() lists where peasants can walk up there.
+## courtyard before it. floors() lists where peasants can walk up there, and
+## sections() where the scaffolding goes while a part is raised.
 
 const COST_GROWTH := 1.55
 const WORK_GROWTH := 1.45
@@ -64,84 +62,84 @@ const PARTS := {
 	"walls": {
 		"benefit": "+10 defence per level", "drawback": "",
 		"name": "Walls", "defence": 10, "renown": 1, "cost": {"stone": 12, "wood": 4}, "work": 8.0,
-		"site_x": 205.0, "scaffold": [[-270.0, 270.0]], "hoist_x": 215.0,
+		"site_x": 300.0,
 	},
 	"towers": {
-		"benefit": "+15 defence per level", "drawback": "",
+		"benefit": "+15 defence per level. More towers rise at levels 3 and 5", "drawback": "",
 		"name": "Towers", "defence": 15, "renown": 1, "cost": {"stone": 20, "wood": 8}, "work": 12.0,
-		"site_x": 302.0, "scaffold": [[-334.0, -270.0], [270.0, 334.0]], "hoist_x": 342.0,
+		"site_x": 395.0,
 	},
 	"gate": {
 		"benefit": "+5 defence per level", "drawback": "",
 		"name": "Gate", "defence": 5, "renown": 1, "cost": {"wood": 18, "stone": 4}, "work": 8.0,
-		"site_x": 0.0, "scaffold": [[-36.0, 36.0]], "hoist_x": 44.0,
+		"site_x": 0.0,
 	},
 	"keep": {
 		"benefit": "+12 defence per level", "drawback": "Raids grow 3% stronger per level",
 		"name": "Keep", "defence": 12, "renown": 1, "cost": {"stone": 30, "wood": 15}, "work": 18.0,
-		"site_x": -95.0, "scaffold": [[-150.0, -40.0]], "hoist_x": -32.0,
+		"site_x": -135.0,
 	},
 	# The quarry turns the loose stones east of the stockhouse into a proper
 	# stone supply (see GameState.quarry_rate).
 	"quarry": {
 		"benefit": "Stone appears 0.7 a second faster, and 10 more can pile up, per level", "drawback": "Dust: everyone works 2% slower per level",
 		"name": "Quarry", "defence": 0, "renown": 1, "cost": {"wood": 24, "stone": 6}, "work": 10.0,
-		"site_x": 460.0, "scaffold": [], "village": true, "max_level": 10,
+		"site_x": 560.0, "village": true, "max_level": 10,
 	},
 	# The farm's fields add to what the hunting grounds give (see GameState.site_rate).
 	"farm": {
 		"benefit": "Food appears 0.3 a second faster, and 12 more can wait, per level", "drawback": "",
 		"name": "Farm", "defence": 0, "renown": 1, "cost": {"wood": 20, "stone": 4}, "work": 8.0,
-		"site_x": 650.0, "scaffold": [], "village": true, "max_level": 10,
+		"site_x": 750.0, "village": true, "max_level": 10,
 	},
 	# The mine goes underground for iron, which high castle levels need.
 	"mine": {
 		"benefit": "Lets peasants mine iron: room for 2 miners per level", "drawback": "Each miner eats double",
 		"name": "Mine", "defence": 0, "renown": 2, "cost": {"wood": 40, "stone": 40}, "work": 20.0,
-		"site_x": 768.0, "scaffold": [], "village": true, "max_level": 8,
+		"site_x": 868.0, "village": true, "max_level": 8,
 	},
 	# Outer defences: cheap wooden works that raiders meet first.
 	"palisade": {
 		"benefit": "+8 defence per level", "drawback": "",
 		"name": "Palisade", "defence": 8, "renown": 1, "cost": {"wood": 20}, "work": 8.0,
-		"site_x": -396.0, "scaffold": [],
+		"site_x": -520.0,
 	},
 	"watchtower": {
 		"benefit": "+6 defence per level", "drawback": "",
 		"name": "Watchtower", "defence": 6, "renown": 1, "cost": {"wood": 22, "stone": 6}, "work": 10.0,
-		"site_x": -496.0, "scaffold": [],
+		"site_x": -586.0,
 	},
 	# The garrison is the castle's strongest defence per level. Its soldiers
 	# will man the walls in the 3D mode.
 	"garrison": {
 		"benefit": "+20 defence and room for 2 soldiers per level", "drawback": "Each soldier eats double",
 		"name": "Garrison", "defence": 20, "renown": 1, "cost": {"stone": 25, "wood": 20}, "work": 14.0,
-		"site_x": 95.0, "scaffold": [[50.0, 140.0]], "hoist_x": 148.0,
+		"site_x": 122.0,
 	},
 	# The court adds no defence, but gives double renown and draws people in:
 	# each level makes peasants COURT_HIRE_DISCOUNT cheaper to hire.
 	"court": {
 		"benefit": "Double renown, and hiring costs 4% less per level", "drawback": "Its household eats 2 food a day per level",
 		"name": "Court", "defence": 0, "renown": 2, "cost": {"wood": 25, "stone": 15}, "work": 12.0,
-		"site_x": -201.0, "scaffold": [[-236.0, -166.0]], "hoist_x": -158.0,
+		"site_x": -305.0,
 	},
 	# Houses raise how many peasants can live here (see GameState.max_peasants).
 	"houses": {
 		"benefit": "Room for 4 more peasants per level", "drawback": "",
 		"name": "Houses", "defence": 0, "renown": 0, "cost": {"wood": 12, "stone": 4}, "work": 6.0,
-		"site_x": 938.0, "scaffold": [], "village": true, "max_level": 12,
+		"site_x": 1038.0, "village": true, "max_level": 12,
 	},
 	# The well and the tavern keep peasants content, which makes them work
 	# faster (see GameState.morale_bonus). Each level serves more peasants.
 	"well": {
 		"benefit": "Up to +15% work speed; each level serves 8 peasants", "drawback": "",
 		"name": "Well", "defence": 0, "renown": 1, "cost": {"stone": 16, "wood": 4}, "work": 8.0,
-		"site_x": 836.0, "scaffold": [], "village": true, "max_level": 10,
+		"site_x": 950.0, "village": true, "max_level": 10,
 	},
 	"tavern": {
 		"benefit": "Up to +15% work speed; each level serves 10 peasants", "drawback": "Peasants eat 3% more per level",
 		"name": "Tavern", "defence": 0, "renown": 1, "cost": {"wood": 24, "stone": 8}, "work": 10.0,
-		"site_x": 870.0, "scaffold": [], "village": true, "max_level": 10,
+		"site_x": 996.0, "village": true, "max_level": 10,
 	},
 }
 ## Back to front.
@@ -151,56 +149,126 @@ const DRAW_ORDER := ["houses", "tavern", "well", "mine", "farm", "quarry", "watc
 const FRONT := ["court", "garrison", "keep", "towers"]
 
 ## Where the village stands, relative to the castle's ground-centre point.
-const QUARRY_X := 436.0
-const FARM_X := 672.0
-const MINE_X := 786.0
-const WELL_X := 850.0
-const TAVERN_X := 896.0
-const FIRST_HOUSE_X := 952.0
+const QUARRY_X := 536.0
+const FARM_X := 772.0
+const MINE_X := 886.0
+const WELL_X := 950.0
+const TAVERN_X := 996.0
+const FIRST_HOUSE_X := 1052.0
 const HOUSE_SPACING := 26.0
 ## The outer defences, west of the castle.
-const PALISADE_X := -430.0
-const WATCHTOWER_X := -520.0
+const PALISADE_X := -520.0
+const WATCHTOWER_X := -610.0
 
-## The castle itself: the curtain wall runs between the two towers, and the
-## court, keep and garrison stand in the courtyard from west to east.
-const WALL_HALF := 270.0
-const TOWER_WIDTH := 64.0
-const TOWER_LEFTS := [-334.0, 270.0]
-const KEEP_LEFT := -150.0
-const KEEP_WIDTH := 110.0
-const COURT_LEFT := -236.0
-const COURT_WIDTH := 70.0
-const GARRISON_LEFT := 50.0
-const GARRISON_WIDTH := 90.0
+## The castle itself: the curtain wall runs between the two end towers, and
+## the court, keep and garrison stand in the courtyard from west to east.
+## More towers rise along the wall and beside the gate as Towers is levelled.
+const WALL_HALF := 360.0
+const WALL_STAIRS := [-260.0, 245.0]
+const END_TOWER_WIDTH := 70.0
+const WALL_TOWER_WIDTH := 44.0
+const GATE_TOWER_WIDTH := 24.0
+const WALL_TOWERS_FROM := 3
+const GATE_TOWERS_FROM := 5
+const KEEP_LEFT := -200.0
+const KEEP_WIDTH := 130.0
+const COURT_LEFT := -345.0
+const COURT_WIDTH := 80.0
+const GARRISON_LEFT := 72.0
+const GARRISON_WIDTH := 100.0
 ## Shapes thinner than this are details (windows, courses, battlements), not
 ## the body of a part.
 const BODY_MIN_SIZE := 12.0
+## Details narrower than this are fittings: windows, doors, battlements,
+## posts, flags. Builders put each one in place whole.
+const FITTING_MAX_WIDTH := 40.0
+## Stone is laid in blocks this wide.
+const BLOCK_WIDTH := 16.0
+
+
+## The towers that stand at a level, each {"x", "w", "h", "kind"}: the two
+## "end" towers first, then the "wall" towers, then the "gate" towers.
+static func towers(level: int) -> Array:
+	var out := []
+	if level <= 0:
+		return out
+	var v := mini(level, MAX_VISUAL_LEVEL)
+	for x: float in [WALL_HALF, -WALL_HALF - END_TOWER_WIDTH]:
+		out.append({"x": x, "w": END_TOWER_WIDTH, "h": 90.0 + 18.0 * v, "kind": "end"})
+	if level >= WALL_TOWERS_FROM:
+		for x: float in [186.0, -255.0]:
+			out.append({"x": x, "w": WALL_TOWER_WIDTH, "h": 70.0 + 16.0 * v, "kind": "wall"})
+	if level >= GATE_TOWERS_FROM:
+		for x: float in [34.0, -58.0]:
+			out.append({"x": x, "w": GATE_TOWER_WIDTH, "h": 56.0 + 12.0 * v, "kind": "gate"})
+	return out
 
 
 ## How tall the main body of a castle part is at a level. Its top is where
-## peasants stand, and where builders work while it is raised. 0 for parts
-## that are not built upwards (see build_y).
+## peasants stand. 0 for parts nobody stands on.
 static func height(part: String, level: int) -> float:
 	if level <= 0:
 		return 0.0
 	var v := mini(level, MAX_VISUAL_LEVEL)
 	match part:
 		"walls":
-			return 40.0 + 9.0 * v
-		"towers":
-			return 70.0 + 14.0 * v
+			return 40.0 + 10.0 * v
 		"gate":
 			return 34.0 + 4.0 * mini(v, 7) + (8.0 if level >= 2 else 0.0)
 		"keep":
-			return 90.0 + 16.0 * v
+			return 100.0 + 20.0 * v
 		"garrison":
-			return 48.0 + 9.0 * v
+			return 50.0 + 10.0 * v
 		"court":
-			return 44.0 + 8.0 * v
+			return 46.0 + 9.0 * v
 		"watchtower":
 			return 44.0 + 7.0 * v
 	return 0.0
+
+
+## How tall one course of a part's stonework is: builders raise it a course
+## at a time.
+static func course(part: String) -> float:
+	match part:
+		"walls", "garrison":
+			return 10.0
+		"towers":
+			return 12.0
+		"keep":
+			return 14.0
+		"court":
+			return 9.0
+	return 8.0
+
+
+## The stretches of a part that get scaffolding while it is raised to a
+## level, each [left, right]. Builders finish one before starting the next.
+## Parts with none are built from the ground.
+static func sections(part: String, level: int) -> Array:
+	match part:
+		"walls":
+			return [[-WALL_HALF, WALL_HALF]]
+		"towers":
+			var out := []
+			for tower: Dictionary in towers(level):
+				out.append([tower.x, tower.x + tower.w])
+			return out
+		"gate":
+			return [[-37.0, 37.0]]
+		"keep":
+			return [[KEEP_LEFT, KEEP_LEFT + KEEP_WIDTH]]
+		"garrison":
+			return [[GARRISON_LEFT, GARRISON_LEFT + GARRISON_WIDTH]]
+		"court":
+			return [[COURT_LEFT, COURT_LEFT + COURT_WIDTH]]
+	return []
+
+
+## Where the rope hangs that lifts materials to the top of a section.
+static func hoist_x(part: String, section: Array) -> float:
+	if part == "walls":
+		return PARTS.walls.site_x
+	return section[1] + 8.0
 
 
 ## The floors of a part that peasants can stand on, each
@@ -215,10 +283,11 @@ static func floors(part: String, level: int) -> Array:
 	var y := -height(part, level)
 	match part:
 		"walls":
-			out.append({"x0": -WALL_HALF, "x1": WALL_HALF, "y": y, "stairs": [-254.0, 254.0], "hidden": false})
+			out.append({"x0": -WALL_HALF, "x1": WALL_HALF, "y": y, "stairs": WALL_STAIRS, "hidden": false})
 		"towers":
-			for x: float in TOWER_LEFTS:
-				out.append({"x0": x + 3.0, "x1": x + TOWER_WIDTH - 3.0, "y": y, "stairs": [x + TOWER_WIDTH / 2.0], "hidden": true})
+			for tower: Dictionary in towers(level):
+				if tower.kind != "gate":
+					out.append({"x0": tower.x + 3.0, "x1": tower.x + tower.w - 3.0, "y": -tower.h, "stairs": [tower.x + tower.w / 2.0], "hidden": true})
 		"keep":
 			out.append({"x0": KEEP_LEFT + 3.0, "x1": KEEP_LEFT + KEEP_WIDTH - 3.0, "y": y, "stairs": [KEEP_LEFT + KEEP_WIDTH / 2.0], "hidden": true})
 		"garrison":
@@ -230,25 +299,26 @@ static func floors(part: String, level: int) -> Array:
 
 ## The doors at ground level that peasants can go in by, as x positions.
 static func doors(part: String, level: int) -> Array:
+	var out := []
 	if level <= 0:
-		return []
+		return out
 	match part:
 		"towers":
-			return [TOWER_LEFTS[0] + TOWER_WIDTH / 2.0, TOWER_LEFTS[1] + TOWER_WIDTH / 2.0]
+			for tower: Dictionary in towers(level):
+				if tower.kind != "gate":
+					out.append(tower.x + tower.w / 2.0)
 		"keep":
-			return [KEEP_LEFT + KEEP_WIDTH / 2.0]
+			out.append(KEEP_LEFT + KEEP_WIDTH / 2.0)
 		"garrison":
-			return [GARRISON_LEFT + GARRISON_WIDTH / 2.0]
+			out.append(GARRISON_LEFT + GARRISON_WIDTH / 2.0)
 		"court":
-			return [COURT_LEFT + COURT_WIDTH / 2.0]
+			out.append(COURT_LEFT + COURT_WIDTH / 2.0)
 		"houses":
-			var out := []
 			for i in mini(level, MAX_VISUAL_LEVEL):
 				out.append(FIRST_HOUSE_X + HOUSE_SPACING * i)
-			return out
 		"tavern":
-			return [TAVERN_X]
-	return []
+			out.append(TAVERN_X)
+	return out
 
 
 ## True for the main bodies of a part, false for its small details.
@@ -256,13 +326,90 @@ static func is_body(area: Rect2) -> bool:
 	return minf(area.size.x, area.size.y) >= BODY_MIN_SIZE
 
 
+## True for the details builders put in place whole (see FITTING_MAX_WIDTH).
+## Everything else is laid block by block.
+static func is_fitting(area: Rect2) -> bool:
+	return not is_body(area) and area.size.y > 1.5 and area.size.x < FITTING_MAX_WIDTH
+
+
 ## A stone body with the lines between its courses.
-static func _masonry(out: Array, area: Rect2, color: Color, course: float) -> void:
+static func _masonry(out: Array, area: Rect2, color: Color, course_height: float) -> void:
 	out.append([area, color])
-	var y := area.end.y - course
+	var y := area.end.y - course_height
 	while y > area.position.y:
 		out.append([Rect2(area.position.x, y, area.size.x, 1), color.darkened(COURSE_SHADE)])
-		y -= course
+		y -= course_height
+
+
+## Battlements along the top of a body, spread evenly.
+static func _merlons(out: Array, x: float, width: float, top: float, color: Color) -> void:
+	var count := int((width - 10.0) / 18.0) + 1
+	var start := x + (width - ((count - 1) * 18.0 + 10.0)) / 2.0
+	for i in count:
+		out.append([Rect2(roundf(start + i * 18.0), top - 8, 10, 8), color])
+
+
+## A pointed roof, as steps that narrow towards the top. Returns its tip.
+static func _cone(out: Array, centre: float, width: float, base: float, color: Color) -> float:
+	var half := width / 2.0 + 4.0
+	var y := base
+	while half > 1.0:
+		out.append([Rect2(centre - half, y - 6, half * 2, 6), color])
+		half -= 5.0
+		y -= 6.0
+	return y
+
+
+## Rows of windows that start a fixed height above the ground, so they stay
+## where they are when the part grows taller.
+static func _windows(out: Array, left: float, offsets: Array, size: Vector2, first_top: float, spacing: float, body_top: float, color: Color) -> void:
+	var y := first_top
+	while y > body_top + 10.0:
+		for offset: float in offsets:
+			out.append([Rect2(left + offset, y, size.x, size.y), color])
+		y -= spacing
+
+
+static func _tower(out: Array, tower: Dictionary, level: int) -> void:
+	var x: float = tower.x
+	var w: float = tower.w
+	var h: float = tower.h
+	var middle := x + w / 2.0
+	match tower.kind:
+		"end":
+			_masonry(out, Rect2(x, -h, w, h), STONE_LIGHT, 12.0)
+			out.append([Rect2(x - 3, -10, w + 6, 10), STONE])
+			_windows(out, x, [w / 2.0 - 3.0], Vector2(6, 16), -64.0, 48.0, -h, SHADOW)
+			out.append([Rect2(middle - 7, -18, 14, 18), WOOD_DARK])
+			if level >= 3:
+				# The top juts out over the tower.
+				out.append([Rect2(x - 4, -h, w + 8, 7), STONE])
+			if level >= 2:
+				_merlons(out, x, w, -h, STONE_LIGHT)
+			if level >= 6:
+				# A pointed roof on posts, with room to stand under it.
+				out.append([Rect2(x + 3, -h - 26, 2, 26), WOOD_DARK])
+				out.append([Rect2(x + w - 5, -h - 26, 2, 26), WOOD_DARK])
+				var tip := _cone(out, middle, w, -h - 26, ROOF_BLUE)
+				out.append([Rect2(middle - 1, tip - 20, 2, 20), WOOD_DARK])
+				out.append([Rect2(middle + 1, tip - 20, 16, 9), BANNER])
+		"wall":
+			_masonry(out, Rect2(x, -h, w, h), STONE_LIGHT.darkened(0.05), 12.0)
+			out.append([Rect2(x - 2, -8, w + 4, 8), STONE])
+			_windows(out, x, [w / 2.0 - 3.0], Vector2(6, 14), -58.0, 44.0, -h, SHADOW)
+			out.append([Rect2(middle - 6, -16, 12, 16), WOOD_DARK])
+			_merlons(out, x, w, -h, STONE_LIGHT.darkened(0.05))
+			if level >= 8:
+				out.append([Rect2(x + 2, -h - 24, 2, 24), WOOD_DARK])
+				out.append([Rect2(x + w - 4, -h - 24, 2, 24), WOOD_DARK])
+				_cone(out, middle, w, -h - 24, ROOF_BLUE)
+		"gate":
+			_masonry(out, Rect2(x, -h, w, h), STONE, 12.0)
+			_windows(out, x, [w / 2.0 - 2.0], Vector2(4, 12), -52.0, 40.0, -h, SHADOW)
+			if level >= 7:
+				_cone(out, middle, w, -h, ROOF_RED)
+			else:
+				_merlons(out, x, w, -h, STONE)
 
 
 ## Placeholder art for a part at a level: a list of [Rect2, Color], relative to
@@ -276,40 +423,22 @@ static func shapes(part: String, level: int) -> Array:
 	match part:
 		"walls":
 			# The curtain wall, with a walk along its top.
-			_masonry(out, Rect2(-WALL_HALF, -h, WALL_HALF * 2, h), STONE, 9.0)
+			_masonry(out, Rect2(-WALL_HALF, -h, WALL_HALF * 2, h), STONE, 10.0)
 			out.append([Rect2(-WALL_HALF - 6, -8, WALL_HALF * 2 + 12, 8), STONE_DARK])
 			if level >= 2:
-				for i in 30:
-					out.append([Rect2(-WALL_HALF + i * 18, -h - 7, 10, 7), STONE])
+				_merlons(out, -WALL_HALF, WALL_HALF * 2, -h, STONE)
 		"towers":
-			for x: float in TOWER_LEFTS:
-				_masonry(out, Rect2(x, -h, TOWER_WIDTH, h), STONE_LIGHT, 14.0)
-				out.append([Rect2(x - 3, -10, TOWER_WIDTH + 6, 10), STONE])
-				# An arrow slit on every storey.
-				var slit := -h + 22.0
-				while slit < -44.0:
-					out.append([Rect2(x + 29, slit, 6, 16), SHADOW])
-					slit += 44.0
-				out.append([Rect2(x + 25, -18, 14, 18), WOOD_DARK])
-				if level >= 3:
-					# The top juts out over the tower.
-					out.append([Rect2(x - 4, -h, TOWER_WIDTH + 8, 7), STONE])
-				if level >= 2:
-					for j in 4:
-						out.append([Rect2(x + j * 18, -h - 8, 10, 8), STONE_LIGHT])
-				if level >= 6:
-					out.append([Rect2(x + 56, -h - 34, 2, 34), WOOD_DARK])
-					out.append([Rect2(x + 58, -h - 34, 16, 9), BANNER])
+			for tower: Dictionary in towers(level):
+				_tower(out, tower, level)
 		"gate":
 			var steps := mini(v, 7)
-			var w := 40.0 + 3.0 * steps
+			var w := 44.0 + 3.0 * steps
 			var door := 34.0 + 4.0 * steps
 			if level >= 2:
 				# Stone arch around the doors, which grows into a gatehouse.
 				out.append([Rect2(-w / 2.0 - 7, -h, w + 14, h), STONE_DARK])
 			if level >= 5:
-				for j in 3:
-					out.append([Rect2(-w / 2.0 - 7 + j * (w + 4) / 2.0, -h - 7, 10, 7), STONE_DARK])
+				_merlons(out, -w / 2.0 - 7, w + 14, -h, STONE_DARK)
 			out.append([Rect2(-w / 2.0, -door, w, door), WOOD])
 			# Wooden bands at first, iron once the gate is reinforced.
 			var band := IRON if level >= 4 else WOOD_DARK
@@ -317,21 +446,36 @@ static func shapes(part: String, level: int) -> Array:
 			out.append([Rect2(-w / 2.0, -door * 0.32, w, 3), band])
 			out.append([Rect2(-1, -door, 2, door), band])
 		"keep":
-			_masonry(out, Rect2(KEEP_LEFT, -h, KEEP_WIDTH, h), STONE_DARK, 16.0)
+			var middle := KEEP_LEFT + KEEP_WIDTH / 2.0
+			_masonry(out, Rect2(KEEP_LEFT, -h, KEEP_WIDTH, h), STONE_DARK, 14.0)
 			out.append([Rect2(KEEP_LEFT - 4, -12, KEEP_WIDTH + 8, 12), SHADOW])
+			_windows(out, KEEP_LEFT, [20.0, 61.0, 102.0], Vector2(8, 16), -62.0, 42.0, -h, SHADOW)
+			out.append([Rect2(middle - 8, -26, 16, 26), WOOD_DARK])
 			if level >= 2:
-				for j in 6:
-					out.append([Rect2(KEEP_LEFT + j * 20, -h - 8, 10, 8), STONE_DARK])
-			# A row of windows on every storey.
-			var row := -h + 18.0
-			while row < -48.0:
-				for x: float in [18.0, 51.0, 84.0]:
-					out.append([Rect2(KEEP_LEFT + x, row, 8, 16), SHADOW])
-				row += 40.0
-			out.append([Rect2(KEEP_LEFT + 47, -24, 16, 24), WOOD_DARK])
+				_merlons(out, KEEP_LEFT, KEEP_WIDTH, -h, STONE_DARK)
+			var top := -h - 8.0
+			if level >= 4:
+				# A turret on each corner of the roof.
+				for x: float in [KEEP_LEFT - 6.0, KEEP_LEFT + KEEP_WIDTH - 22.0]:
+					out.append([Rect2(x, -h - 36, 28, 36), STONE_DARK.lightened(0.08)])
+					out.append([Rect2(x + 11, -h - 28, 6, 12), SHADOW])
+					if level >= 8:
+						_cone(out, x + 14, 28, -h - 36, ROOF_BLUE)
+					else:
+						_merlons(out, x, 28, -h - 36, STONE_DARK.lightened(0.08))
+			if level >= 7:
+				# The great tower rises from the middle of the roof.
+				var rise := 50.0 + 8.0 * (v - 7)
+				out.append([Rect2(middle - 25, -h - rise, 50, rise), STONE_DARK.lightened(0.04)])
+				out.append([Rect2(middle - 4, -h - rise + 14, 8, 16), SHADOW])
+				top = -h - rise - 8.0
+				if level >= 10:
+					top = _cone(out, middle, 50, -h - rise, ROOF_RED)
+				else:
+					_merlons(out, middle - 25, 50, -h - rise, STONE_DARK.lightened(0.04))
 			if level >= 5:
-				out.append([Rect2(KEEP_LEFT + 100, -h - 44, 2, 44), WOOD_DARK])
-				out.append([Rect2(KEEP_LEFT + 102, -h - 44, 24, 13), BANNER])
+				out.append([Rect2(middle - 1, top - 36, 2, 36), WOOD_DARK])
+				out.append([Rect2(middle + 1, top - 36, 24, 13), BANNER])
 		"houses":
 			# One hut per level, in a row going east.
 			for i in v:
@@ -409,18 +553,14 @@ static func shapes(part: String, level: int) -> Array:
 			out.append([Rect2(WATCHTOWER_X - 20, -h - 27, 40, 5), THATCH])
 		"garrison":
 			# Barracks in the courtyard, east of the gate, with a flat roof.
-			_masonry(out, Rect2(GARRISON_LEFT, -h, GARRISON_WIDTH, h), STONE_WARM, 9.0)
+			_masonry(out, Rect2(GARRISON_LEFT, -h, GARRISON_WIDTH, h), STONE_WARM, 10.0)
 			out.append([Rect2(GARRISON_LEFT - 4, -h, GARRISON_WIDTH + 8, 6), ROOF_RED])
-			var row := -h + 14.0
-			while row < -34.0:
-				for x: float in [10.0, 30.0, 54.0, 74.0]:
-					out.append([Rect2(GARRISON_LEFT + x, row, 6, 10), SHADOW])
-				row += 22.0
-			out.append([Rect2(GARRISON_LEFT + 38, -20, 14, 20), WOOD_DARK])
+			_windows(out, GARRISON_LEFT, [12.0, 34.0, 60.0, 82.0], Vector2(6, 10), -44.0, 24.0, -h, SHADOW)
+			out.append([Rect2(GARRISON_LEFT + 43, -20, 14, 20), WOOD_DARK])
 			if level >= 4:
 				# Weapon rack on the roof once the garrison is established.
-				out.append([Rect2(GARRISON_LEFT + 80, -h - 16, 1, 16), WOOD_DARK])
-				out.append([Rect2(GARRISON_LEFT + 74, -h - 13, 13, 1), IRON])
+				out.append([Rect2(GARRISON_LEFT + 88, -h - 16, 2, 16), WOOD_DARK])
+				out.append([Rect2(GARRISON_LEFT + 82, -h - 13, 14, 2), IRON])
 		"court":
 			# The great hall in the courtyard, west of the keep: timber and plaster.
 			out.append([Rect2(COURT_LEFT, -h, COURT_WIDTH, h), PLASTER])
@@ -433,14 +573,11 @@ static func shapes(part: String, level: int) -> Array:
 			out.append([Rect2(COURT_LEFT - 5, -h - 8, COURT_WIDTH + 10, 8), ROOF_BLUE])
 			out.append([Rect2(COURT_LEFT + 5, -h - 15, COURT_WIDTH - 10, 7), ROOF_BLUE])
 			out.append([Rect2(COURT_LEFT + 17, -h - 21, COURT_WIDTH - 34, 6), ROOF_BLUE])
-			out.append([Rect2(COURT_LEFT + 31, -h + 8, 8, 14), ROOF_BLUE])
-			if level >= 3:
-				out.append([Rect2(COURT_LEFT + 12, -h + 8, 8, 14), ROOF_BLUE])
-				out.append([Rect2(COURT_LEFT + 50, -h + 8, 8, 14), ROOF_BLUE])
-			out.append([Rect2(COURT_LEFT + 28, -20, 14, 20), WOOD_DARK])
+			_windows(out, COURT_LEFT, [36.0] if level < 3 else [14.0, 36.0, 58.0], Vector2(8, 14), -46.0, 26.0, -h - 6.0, ROOF_BLUE)
+			out.append([Rect2(COURT_LEFT + 33, -20, 14, 20), WOOD_DARK])
 			if level >= 5:
-				out.append([Rect2(COURT_LEFT + 34, -h - 39, 1, 18), WOOD_DARK])
-				out.append([Rect2(COURT_LEFT + 35, -h - 39, 12, 7), ROOF_BLUE])
+				out.append([Rect2(COURT_LEFT + 39, -h - 39, 2, 18), WOOD_DARK])
+				out.append([Rect2(COURT_LEFT + 41, -h - 39, 12, 7), ROOF_BLUE])
 	return out
 
 
@@ -450,10 +587,3 @@ static func top_y(part: String, level: int) -> float:
 	for shape: Array in shapes(part, level):
 		top = minf(top, shape[0].position.y)
 	return top
-
-
-## How high builders have to work to raise a part to a level: the top of its
-## body, or of everything in it for parts that are not built upwards.
-static func build_y(part: String, level: int) -> float:
-	var tall := height(part, level)
-	return -tall if tall > 0.0 else top_y(part, level)

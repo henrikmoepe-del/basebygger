@@ -1,7 +1,7 @@
 extends "res://scripts/worker.gd"
 ## A peasant who builds. Materials are carried from the stockhouse to the foot
-## of the site, pulled up to the top of the scaffold by rope, and hammered in
-## up there. Builders share the work out: some carry, one pulls the rope, and
+## of the site, pulled up to the top by rope, and put in place up there piece
+## by piece (castle.gd decides which piece is next and where to stand for it). Builders share the work out: some carry, one pulls the rope, and
 ## the rest lay stone. A lone builder does each in turn.
 ## Parts without a scaffold are built from the ground, with no rope.
 
@@ -13,6 +13,10 @@ const HOIST_TIME := 1.2
 const HOIST_LOADS := 2
 ## A lone builder carries this many loads to the site before climbing up.
 const SOLO_PILE_LOADS := 3
+## A builder this close to the piece being placed can work on it from where they stand.
+const WORK_REACH := 40.0
+## Following the work along the top is quicker than walking with a load.
+const SHUFFLE_SPEED := 2.0
 
 var _state := State.IDLE
 var _carrying := 0
@@ -28,6 +32,7 @@ var _pull_time := 0.0
 func _work(delta: float) -> void:
 	_hammering = false
 	_pulling = false
+	_hurry = 1.0
 	if GameState.job_part == "":
 		# No job: put down anything carried and wait by the castle.
 		_carrying = 0
@@ -63,7 +68,11 @@ func _work(delta: float) -> void:
 					GameState.job_lift(int(GameState.builder_load() * _skill()) * HOIST_LOADS)
 					_state = State.IDLE
 		State.HAMMER:
-			if _go_to(castle.work_spot(_along), delta):
+			var spot: Vector2 = castle.work_spot(_along)
+			var level := absf(position.y - spot.y) < 0.5
+			if absf(position.y - spot.y) <= castle.FLOOR_SNAP:
+				_hurry = SHUFFLE_SPEED
+			if (level and absf(position.x - spot.x) <= WORK_REACH) or _go_to(spot, delta):
 				if GameState.job_can_hammer():
 					_hammering = true
 					# One clink each time the hammer comes down.

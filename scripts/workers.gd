@@ -20,7 +20,7 @@ const MAX_PILE_PIECES := 6
 const FLOAT_TIME := 1.2
 const MAX_FLOATS := 12
 ## Idle peasants stroll on floors no further than this from the castle's middle.
-const STROLL_REACH := 340.0
+const STROLL_REACH := 440.0
 const FLOAT_COLORS := {
 	"wood": Color(0.40, 0.26, 0.15), "stone": Color(0.36, 0.38, 0.46),
 	"food": Color(0.70, 0.20, 0.25), "iron": Color(0.20, 0.22, 0.30),
@@ -35,7 +35,7 @@ const JOB_SCRIPTS := {
 @export var wilds: Node2D
 @export var mine: Node2D
 @export var castle: Node2D
-@export var stock_x := 390.0
+@export var stock_x := 490.0
 
 ## Numbers floating up from the stockhouse as loads arrive:
 ## each is {"text": String, "color": Color, "age": float, "x": float}.

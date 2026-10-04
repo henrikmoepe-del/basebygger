@@ -119,7 +119,7 @@ const PLANT_TIME_GROWTH := 1.35
 ## How much each forester speeds up regrowth by tending the grove.
 const FORESTER_TEND_BONUS := 0.15
 ## How many units of material a builder carries per trip.
-const BUILDER_BASE_LOAD := 12
+const BUILDER_BASE_LOAD := 30
 ## Renown pays for skills. It is earned by building the castle.
 const RENOWN_PER_RANK := 3
 
@@ -724,7 +724,7 @@ func job_return_load(units: int) -> void:
 
 func job_deliver(units: int) -> void:
 	job_hauled += units
-	if CastleData.PARTS[job_part].scaffold.is_empty():
+	if CastleData.sections(job_part, part_levels[job_part] + 1).is_empty():
 		job_lifted = job_hauled
 	job_delivered.emit()
 	job_progress_changed.emit()
