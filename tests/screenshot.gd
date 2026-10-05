@@ -32,6 +32,10 @@ const PLANS := {
 	"mood_tip": {"levels": {"walls": 2, "well": 2, "tavern": 2, "quarry": 1}, "part": "", "camera": [100, 0, 1.0], "shots": 1, "happiness": 80.0, "policies": ["rations"], "mouse": [252, 9]},
 	"stockhouse": {"levels": {"walls": 1, "stockhouse": 0}, "part": "stockhouse", "camera": [610, -40, 2.0], "shots": 4},
 	"stores_full": {"levels": {"walls": 1, "stockhouse": 3}, "part": "", "camera": [610, -40, 2.0], "shots": 1, "stock": {"wood": 583, "stone": 200, "food": 90, "planks": 0, "iron": 0}},
+	"spring": {"levels": {"walls": 2, "keep": 2, "houses": 3, "well": 1, "stockhouse": 2}, "stock": {"wood": 214, "stone": 187, "food": 96, "planks": 0, "iron": 0}, "part": "", "camera": [300, 0, 1.0], "shots": 1, "day": 1},
+	"summer": {"levels": {"walls": 2, "keep": 2, "houses": 3, "well": 1, "stockhouse": 2}, "stock": {"wood": 214, "stone": 187, "food": 96, "planks": 0, "iron": 0}, "part": "", "camera": [300, 0, 1.0], "shots": 1, "day": 4},
+	"autumn": {"levels": {"walls": 2, "keep": 2, "houses": 3, "well": 1, "stockhouse": 2}, "stock": {"wood": 214, "stone": 187, "food": 96, "planks": 0, "iron": 0}, "part": "", "camera": [300, 0, 1.0], "shots": 1, "day": 7},
+	"winter": {"levels": {"walls": 2, "keep": 2, "houses": 3, "well": 1, "stockhouse": 2}, "stock": {"wood": 214, "stone": 187, "food": 96, "planks": 0, "iron": 0}, "part": "", "camera": [300, 0, 1.0], "shots": 1, "day": 10},
 	"rooms_picker": {"levels": {"walls": 3, "keep": 2}, "part": "", "camera": [-205, 10, 1.5], "shots": 1, "picker": true},
 	"gate": {"levels": {"walls": 2}, "part": "gate", "camera": [30, -40, 2.0], "shots": 5},
 	"tavern": {"levels": {"walls": 1}, "part": "tavern", "camera": [1170, -45, 2.0], "shots": 5},
@@ -75,6 +79,7 @@ func _run() -> void:
 	if not plan.levels.has("stockhouse"):
 		gs.part_levels.stockhouse = 15
 	gs.keep_picks = plan.get("picks", []).duplicate(true)
+	gs.day = plan.get("day", gs.day)
 	change_scene_to_file("res://scenes/main.tscn")
 	await process_frame
 	await process_frame

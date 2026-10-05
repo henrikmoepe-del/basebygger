@@ -56,7 +56,7 @@ func _run() -> void:
 	gs.happiness = 10.0
 	print("unhappy: work x%.2f, merry allowed %s, strike allowed %s" % [gs.work_mult(), gs.event_allowed("merry"), gs.event_allowed("strike")])
 	ok = ok and gs.morale_bonus() < 0.0 and not gs.event_allowed("merry") and gs.event_allowed("strike")
-	ok = ok and gs.pick_event() in ["strike", "badger"]
+	ok = ok and gs.pick_event() in ["strike", "badger", "drought"]
 
 	gs.save_game()
 	gs.happiness = 50.0

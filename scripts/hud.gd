@@ -56,6 +56,8 @@ const PREVIEW_GROUND := Color(0.45, 0.68, 0.38)
 ## Resource id -> the Label on its chip in the top bar.
 var _chips := {}
 var _mood_label := Label.new()
+## Resource id -> the small Label with how much its store holds.
+var _caps := {}
 ## Job id -> {"row", "label", "minus", "plus", "train"}.
 var _job_rows := {}
 var _toast_tween: Tween
@@ -94,7 +96,7 @@ func _ready() -> void:
 		GameState.resources_changed, GameState.castle_changed, GameState.job_progress_changed,
 		GameState.peasants_changed, GameState.trees_changed, GameState.skills_changed,
 		GameState.daytime_changed, GameState.raid_started, GameState.raid_progress,
-		GameState.policies_changed, GameState.mood_changed,
+		GameState.policies_changed, GameState.mood_changed, GameState.season_changed,
 	]:
 		changed.connect(_refresh)
 	_preview.position = Vector2(8, 8)
@@ -168,12 +170,22 @@ func _make_chips() -> void:
 		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		chip.add_child(swatch)
 		chip.add_child(label)
+		if type in GameState.resources:
+			# How much the store holds, small and dim beside the amount.
+			var cap := Label.new()
+			cap.add_theme_font_size_override("font_size", 8)
+			cap.add_theme_color_override("font_color", UiTheme.PARCHMENT_DIM)
+			cap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			chip.add_child(cap)
+			_caps[type] = cap
 		resource_bar.add_child(chip)
 		_chips[type] = label
-	# How happy the peasants are; the tooltip says why.
+	# How happy the peasants are; the tooltip says why. It stands with the
+	# defence and the day on the right (see _place_right_labels).
 	_mood_label.add_theme_font_size_override("font_size", 12)
 	_mood_label.mouse_filter = Control.MOUSE_FILTER_PASS
-	resource_bar.add_child(_mood_label)
+	_mood_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	defence_label.get_parent().add_child(_mood_label)
 
 
 ## One row per job in JobData.JOBS: a square in the job's tunic colour, its
@@ -466,7 +478,8 @@ func _refresh_top_bar() -> void:
 				# Iron only matters once there is a mine, planks once there is a sawmill.
 				chip.visible = (type != "iron" or GameState.part_levels.mine > 0) and (type != "planks" or GameState.part_levels.sawmill > 0)
 				var full: bool = GameState.store_full(type)
-				label.text = "%d/%d" % [GameState.resources[type], GameState.store_capacity()]
+				label.text = str(GameState.resources[type])
+				_caps[type].text = "/%d" % GameState.store_capacity()
 				label.add_theme_color_override("font_color", UiTheme.BAD if full else UiTheme.PARCHMENT)
 				chip.tooltip_text = "%s: +%.1f a second (averaged over a day)\nThe store holds %d%s. A bigger stockhouse holds more." % [
 					type.capitalize(), GameState.income_rate[type], GameState.store_capacity(), ": FULL, the rest is lost" if full else ""]
@@ -488,12 +501,15 @@ func _refresh_top_bar() -> void:
 	_mood_label.tooltip_text = "\n".join(why)
 
 	defence_label.text = "Defence %d" % GameState.total_defence()
-	day_label.text = "Day %d, %s  -  %s" % [
-		GameState.day, "night" if GameState.is_night() else "day",
-		"fed" if GameState.fed else "HUNGRY"]
+	day_label.text = "%s, day %d%s%s" % [
+		GameState.season().name, GameState.day, ", night" if GameState.is_night() else "",
+		"" if GameState.fed else "  HUNGRY"]
 	day_label.add_theme_color_override("font_color", UiTheme.PARCHMENT if GameState.fed else UiTheme.BAD)
-	day_label.tooltip_text = "Peasants eat %d food at dawn. Without enough they work at %d%% for the day, and are unhappy." % [
-		GameState.food_needed(), roundi(GameState.HUNGRY_WORK_MULT * 100)]
+	day_label.tooltip_text = "%s (%d more day%s): %s.\nPeasants eat %d food at dawn. Without enough they work at %d%% for the day, and are unhappy." % [
+		GameState.season().name, GameState.season_days_left(), "" if GameState.season_days_left() == 1 else "s",
+		GameState.season().text.to_lower(), GameState.food_needed(), roundi(GameState.HUNGRY_WORK_MULT * 100)]
+
+	_place_right_labels()
 
 	var quest := GameState.current_quest()
 	goal_label.text = "Goal: %s  (+%d renown)" % [quest.text, quest.renown] if not quest.is_empty() else "All goals reached"
@@ -505,6 +521,17 @@ func _refresh_top_bar() -> void:
 	raid_label.add_theme_color_override("font_color", UiTheme.BAD if GameState.raid_incoming else UiTheme.PARCHMENT)
 	rank_label.text = "Castle rank %d  (%d of %d levels to the next)" % [
 		GameState.castle_rank(), GameState.total_levels(), GameState.levels_for_next_rank()]
+
+
+## The day, the defence and the mood stand at the right of the top bar,
+## each as wide as its text, so they never run into each other.
+func _place_right_labels() -> void:
+	var right := 634.0
+	for label: Label in [day_label, defence_label, _mood_label]:
+		var width := label.get_minimum_size().x
+		label.size = Vector2(width, 18)
+		label.position = Vector2(right - width, 1)
+		right -= width + 12.0
 
 
 func _refresh_jobs() -> void:

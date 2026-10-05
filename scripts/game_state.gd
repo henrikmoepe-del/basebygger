@@ -29,6 +29,8 @@ signal events_changed
 signal policies_changed
 ## Happiness moved by a whole point.
 signal mood_changed
+## A new season began.
+signal season_changed
 
 const CastleData = preload("res://scripts/castle_data.gd")
 const SkillData = preload("res://scripts/skill_data.gd")
@@ -37,6 +39,7 @@ const BuildPlan = preload("res://scripts/build_plan.gd")
 const QuestData = preload("res://scripts/quest_data.gd")
 const EventData = preload("res://scripts/event_data.gd")
 const PolicyData = preload("res://scripts/policy_data.gd")
+const SeasonData = preload("res://scripts/season_data.gd")
 
 const START_JOBS := {"wood": 1, "stone": 1, "hunter": 0, "build": 1, "cook": 0, "soldier": 0, "iron": 0, "sawyer": 0, "forester": 0}
 const NO_JOBS := {"wood": 0, "stone": 0, "hunter": 0, "build": 0, "cook": 0, "soldier": 0, "iron": 0, "sawyer": 0, "forester": 0}
@@ -277,8 +280,7 @@ func _process(delta: float) -> void:
 		day_time = DAY_LENGTH
 	if day_time >= DAY_LENGTH:
 		day_time -= DAY_LENGTH
-		day += 1
-		_eat()
+		_new_day()
 	if is_night() != _was_night:
 		_was_night = is_night()
 		daytime_changed.emit()
@@ -382,6 +384,31 @@ func set_no_nights(on: bool) -> void:
 	no_nights = on
 	daytime_changed.emit()
 	save_game()
+
+
+## Dawn: a new day begins, everyone eats, and sometimes a new season starts.
+func _new_day() -> void:
+	var season_before := season_index()
+	day += 1
+	_eat()
+	if season_index() != season_before:
+		announced.emit("%s has come: %s" % [season().name, season().text.to_lower()])
+		season_changed.emit()
+
+
+## Which season it is, 0 (spring) to 3 (winter).
+func season_index() -> int:
+	return ((day - 1) / SeasonData.DAYS_PER_SEASON) % SeasonData.SEASONS.size()
+
+
+## The season now (see SeasonData).
+func season() -> Dictionary:
+	return SeasonData.SEASONS[season_index()]
+
+
+## How many days are left of this season, today included.
+func season_days_left() -> int:
+	return SeasonData.DAYS_PER_SEASON - (day - 1) % SeasonData.DAYS_PER_SEASON
 
 
 func is_night() -> bool:
@@ -597,6 +624,8 @@ func event_allowed(id: String) -> bool:
 		return false
 	if needs.get("unhappy", false) and happiness >= MOOD_UNHAPPY:
 		return false
+	if needs.has("season") and needs.season != season().id:
+		return false
 	return day >= info.get("from_day", 1)
 
 
@@ -661,6 +690,7 @@ func effect_total(effect: String) -> float:
 		total += EventData.EVENTS[id].effects.get(effect, 0.0)
 	for id: String in policies:
 		total += PolicyData.POLICIES[id].effects.get(effect, 0.0)
+	total += season().effects.get(effect, 0.0)
 	return total
 
 
@@ -732,6 +762,9 @@ func happiness_parts() -> Array:
 		var points: float = EventData.EVENTS[id].effects.get("happiness", 0.0)
 		if points != 0.0:
 			parts.append([EventData.EVENTS[id].name, points])
+	var season_points: float = season().effects.get("happiness", 0.0)
+	if season_points != 0.0:
+		parts.append([season().name, season_points])
 	return parts
 
 
@@ -1310,8 +1343,7 @@ func dev_skip(seconds: float) -> void:
 	var days_passed := int(total / DAY_LENGTH)
 	day_time = fmod(total, DAY_LENGTH)
 	for i in days_passed:
-		day += 1
-		_eat()
+		_new_day()
 	if job_part != "":
 		_finish_job()
 	resources_changed.emit()

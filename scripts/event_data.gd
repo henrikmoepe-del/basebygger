@@ -20,7 +20,8 @@ extends RefCounted
 ##               GameState.effect_total (the same effects policies use);
 ##               "happiness" is points of happiness while it goes on
 ##   needs       optional: {"happy": true} only while the peasants are happy,
-##               {"unhappy": true} only while they are unhappy
+##               {"unhappy": true} only while they are unhappy,
+##               {"season": "winter"} only in that season (see season_data.gd)
 ##   site        where in the world it happens: a gathering site's node name
 ##   click       optional: clicking it in the world ends it early, for
 ##               "reward" (resources) and with "click_text"
@@ -71,5 +72,42 @@ const EVENTS := {
 		"lasts": 90.0,
 		"effects": {"work_speed": -0.5},
 		"needs": {"unhappy": true},
+	},
+	"flowers": {
+		"name": "Spring flowers",
+		"start_text": "The meadows are full of flowers, and everyone is in a good mood",
+		"end_text": "The flowers have faded",
+		"from_day": 2,
+		"weight": 1.0,
+		"lasts": 150.0,
+		"effects": {"happiness": 10.0},
+		"needs": {"season": "spring"},
+	},
+	"drought": {
+		"name": "Drought",
+		"start_text": "A drought! The wilds and the fields dry up, and less food grows",
+		"end_text": "Rain at last: the drought is over",
+		"weight": 1.0,
+		"lasts": 120.0,
+		"effects": {"food_site_rate": -0.5},
+		"needs": {"season": "summer"},
+	},
+	"harvest": {
+		"name": "Rich harvest",
+		"start_text": "A rich harvest! Food grows twice as fast for a while",
+		"end_text": "The harvest is in",
+		"weight": 1.0,
+		"lasts": 120.0,
+		"effects": {"food_site_rate": 1.0},
+		"needs": {"season": "autumn"},
+	},
+	"cold_snap": {
+		"name": "Cold snap",
+		"start_text": "A bitter cold snap: everyone works slower and is unhappy until it passes",
+		"end_text": "The cold snap has passed",
+		"weight": 1.0,
+		"lasts": 120.0,
+		"effects": {"work_speed": -0.2, "happiness": -10.0},
+		"needs": {"season": "winter"},
 	},
 }

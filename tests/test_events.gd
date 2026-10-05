@@ -25,7 +25,8 @@ func _run() -> void:
 	print("day 1, an event that may start: '%s'" % gs.pick_event())
 	ok = ok and gs.pick_event() == ""
 	gs.day = 5
-	ok = ok and gs.pick_event() == "badger"
+	# Day 5 is in summer: the badger, or a drought.
+	ok = ok and gs.pick_event() in ["badger", "drought"]
 
 	var rate_before: float = gs.site_rate("food")
 	ok = ok and gs.start_event("badger") and not gs.start_event("badger")
