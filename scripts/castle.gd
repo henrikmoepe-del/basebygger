@@ -22,6 +22,8 @@ const RUNG_SPACING := 5.0
 const HOIST_RISE := 20.0
 ## Seconds for a hoisted stone to reach the top.
 const HOIST_TIME := 1.2
+## Seconds for the empty rope to be let down again.
+const HOIST_LOWER_TIME := 0.45
 ## The most pieces shown in each pile at the site.
 const MAX_PILE := 6
 ## The yard at the foot of the site, as distances east of the rope: the
@@ -60,7 +62,8 @@ const STAIR_HALF := 10.0
 ## Goes up whenever the floors change, so peasants know to find their way again.
 var version := 0
 
-## One entry per stone on its way up: seconds since it left the ground.
+## One entry per stone on its way up: seconds since it left the ground. The
+## entry stays a little longer, while the empty rope is let down again.
 var _hoists: Array[float] = []
 ## Pieces knocked off the old level, on their way to the ground:
 ## {"rect": Rect2, "color": Color, "speed": float}.
@@ -216,7 +219,7 @@ func _process(delta: float) -> void:
 		return
 	for i in _hoists.size():
 		_hoists[i] += delta
-	_hoists = _hoists.filter(func(age: float) -> bool: return age < HOIST_TIME)
+	_hoists = _hoists.filter(func(age: float) -> bool: return age < HOIST_TIME + HOIST_LOWER_TIME)
 	_redraw()
 
 
@@ -508,10 +511,14 @@ func job_floors() -> Array:
 				})
 	for platform: Dictionary in plan.platforms:
 		if _placed >= platform.from and _placed <= platform.until:
-			out.append({
+			var flat := {
 				"x0": platform.x0, "x1": platform.x1, "y": platform.y, "stairs": [platform.ladder],
-				"hidden": false, "back": back,
-			})
+				"hidden": platform.get("hidden", false), "back": back,
+			}
+			# A perch whose ladder stands on the deck, not on the ground.
+			if platform.has("base"):
+				flat["base"] = platform.base
+			out.append(flat)
 	return out
 
 
@@ -520,7 +527,9 @@ func job_floors() -> Array:
 ## along the ground, along a floor, or up and down a stair. Every floor is
 ## reached from the ground by its stairs, so the way is: along the floor to a
 ## stair, down, along the ground, up the other stair, along that floor (or
-## straight up or down a stair the two floors share). "hidden" steps are
+## straight up or down a stair the two floors share). The one exception is a
+## floor with a "base": its ladder stands on the floor at that height, so the
+## way to it goes by there. "hidden" steps are
 ## walked inside a building. A point with no floor under it can't be
 ## reached: the way then ends on the ground below it.
 func route(from: Vector2, to: Vector2) -> Array:
@@ -564,6 +573,35 @@ func _plain_route(from: Vector2, to: Vector2) -> Array:
 	var end_in: bool = goal >= 0 and all[goal].get("inside", false)
 	var steps := []
 	var x := from.x
+	if start != goal and start >= 0 and all[start].has("base"):
+		# Down the ladder to the floor it stands on (or along it to another
+		# perch on the same ladder), and on from there.
+		var flat: Dictionary = all[start]
+		var ladder: float = flat.stairs[0]
+		steps.append(_step(Vector2(ladder, flat.y), false, flat.back))
+		if goal >= 0 and all[goal].get("base", 1.0) == flat.base and all[goal].stairs[0] == ladder:
+			steps.append(_step(Vector2(ladder, all[goal].y), false, end_back))
+			steps.append(_step(end, false, end_back))
+			return steps
+		var foot := Vector2(ladder, flat.base)
+		steps.append(_step(foot, false, flat.back))
+		return steps + _plain_route(foot, to)
+	if start != goal and goal >= 0 and all[goal].has("base"):
+		# To the foot of its ladder first, then up.
+		var flat: Dictionary = all[goal]
+		var ladder: float = flat.stairs[0]
+		steps = _plain_route(from, Vector2(ladder, flat.base))
+		steps.append(_step(Vector2(ladder, flat.y), false, end_back))
+		steps.append(_step(end, false, end_back))
+		return steps
+	if start < 0 and from.y < -0.5:
+		# Part way up a ladder that stands on a deck: off it at one end or the other.
+		for flat: Dictionary in all:
+			if flat.has("base") and flat.stairs[0] == from.x and from.y < flat.base - 0.5:
+				if goal >= 0 and all[goal].get("base", 1.0) == flat.base and all[goal].stairs[0] == from.x:
+					return [_step(Vector2(from.x, all[goal].y), false, end_back), _step(end, false, end_back)]
+				var foot := Vector2(from.x, flat.base)
+				return [_step(foot, false, flat.back)] + _plain_route(foot, to)
 	if start < 0 and from.y < -0.5:
 		# Part way up a stair: carry on if it leads to the goal, else go back
 		# down it first.
@@ -863,7 +901,12 @@ func _draw_scaffold(canvas) -> void:
 			continue
 		var area: Rect2 = piece.rect
 		if piece.kind == BuildPlan.Kind.LADDER:
-			_draw_ladder(canvas, area.get_center().x, area.position.y, area.end.y)
+			# A ladder up from the deck reaches as high as the work has got.
+			var top := area.end.y
+			for j in range(i + 1, mini(_placed + 1, _plan.size())):
+				if _plan[j].get("via", -1) == i:
+					top = minf(top, _plan[j].stand.y)
+			_draw_ladder(canvas, area.get_center().x, area.position.y if top >= area.end.y else top, area.end.y)
 			continue
 		if piece.kind == BuildPlan.Kind.BENCH:
 			# A heavy table.
@@ -928,6 +971,11 @@ func _draw_hoists(canvas) -> void:
 			canvas.draw_rect(Rect2(x + 2, top + 2, 1, 4), ROPE_COLOR)
 		if piece.section == active:
 			for age in _hoists:
+				if age >= HOIST_TIME:
+					# The piece is off: the empty rope runs back down.
+					var end := lerpf(top + 8.0, -4.0, (age - HOIST_TIME) / HOIST_LOWER_TIME)
+					canvas.draw_rect(Rect2(x + 2, top + 2, 1, end - top - 2), ROPE_COLOR)
+					continue
 				var y := lerpf(-4.0, top + 8.0, age / HOIST_TIME)
 				canvas.draw_rect(Rect2(x + 2, top + 2, 1, y - top - 2), ROPE_COLOR)
 				canvas.draw_rect(Rect2(x - 1, y, 7, 5), item_color(GameState.job_lifted))

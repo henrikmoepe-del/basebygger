@@ -14,6 +14,12 @@ extends RefCounted
 ##      scaffolding: it is put up in front of the wall a lift at a time with
 ##      one ladder, the details are set from its platforms, and it is taken
 ##      down again from the top.
+##   4. What rises too high above the deck to reach from it (a turret's
+##      battlements, the great tower, a pointed roof) is built from a "perch":
+##      the top of what is laid of it so far. Builders climb to it by the
+##      building's own stairs where they run up inside it, or else by a ladder
+##      stood on the deck. The old level's great tower is knocked down the
+##      same way, by builders standing in it.
 ## Parts without sections (the palisade, the village) are low enough to build
 ## entirely from the ground.
 ##
@@ -34,9 +40,11 @@ extends RefCounted
 ##   "access"      per section: {"x", "hidden"}, the stair up to its deck; and
 ##                 "ladder", the x of the ladder used instead while the walls
 ##                 are still lower than START_LADDER
-##   "platforms"   the scaffold platforms, each {"x0", "x1", "y", "ladder",
-##                 "from", "until"}: it can be stood on while the number of
-##                 pieces placed is from "from" to "until"
+##   "platforms"   the scaffold platforms and the perches, each {"x0", "x1",
+##                 "y", "ladder", "from", "until"}: it can be stood on while the
+##                 number of pieces placed is from "from" to "until". A perch
+##                 also has "hidden" (true if its stair is inside the building)
+##                 or "base" (the height of the deck its ladder stands on)
 ##
 ## Each piece is a Dictionary:
 ##   "kind"     Kind.BLOCK     one block of stone, plank, panel of daub, bundle of thatch...
@@ -65,6 +73,7 @@ extends RefCounted
 ##   "removed_by"  for scaffolding, ladders, benches and the hoist: the REMOVE
 ##              piece that takes it away again (-1 if it stays)
 ##   "target"   for REMOVE pieces: the piece that is taken down
+##   "via"      for pieces set from a perch with a ladder: that ladder's piece
 ##
 ## Later, an item can become something made at a workstation (a window from
 ## the glazier, say): have builders fetch it from there instead of from the
@@ -264,6 +273,9 @@ static func _plan_section(plan: Dictionary, part: String, index: int, old_solid:
 		deck_x = [body.position.x, body.end.x]
 		access.x = clampf(access.x, deck_x[0] + 4.0, deck_x[1] - 4.0)
 	for flat: Dictionary in floors:
+		# The rooms inside are floors too, but the deck is the roof.
+		if flat.get("inside", false):
+			continue
 		if flat.x1 > section[0] and flat.x0 < section[1]:
 			deck = flat.y
 			deck_x = [maxf(flat.x0, section[0]), minf(flat.x1, section[1])]
@@ -291,7 +303,7 @@ static func _plan_section(plan: Dictionary, part: String, index: int, old_solid:
 			var made_of := _new_shape(cell, solid, old_solid)
 			if made_of >= 0:
 				var item := item_for(solid[made_of][1])
-				cells.append([cell, solid[made_of][1], "boulder" if foundation and item == "stone" else item])
+				cells.append([cell, solid[made_of][1], "boulder" if foundation and item == "stone" else item, solid[made_of][0].intersection(cell)])
 		new_cells.append(cells)
 
 	# Fittings are set from the ground, from the deck, or from scaffolding.
@@ -316,7 +328,7 @@ static func _plan_section(plan: Dictionary, part: String, index: int, old_solid:
 	# walls have risen.
 	var state := {
 		"floor": 0.0, "ladder": own_stair and access.hidden and not access.has("ladder"), "hoist": false, "line": 0.0,
-		"permanent": own_stair and not access.has("ladder"), "deck": deck_x,
+		"permanent": own_stair and not access.has("ladder"), "deck": deck_x, "ladders": {}, "perches": {},
 	}
 	var any_work := not fittings.is_empty() or not gone.is_empty()
 	for cells: Array in new_cells:
@@ -351,7 +363,11 @@ static func _plan_section(plan: Dictionary, part: String, index: int, old_solid:
 		chunks.sort_custom(func(a: Array, b: Array) -> bool:
 			return a[0].position.y < b[0].position.y or (a[0].position.y == b[0].position.y and a[0].position.x < b[0].position.x))
 		for chunk: Array in chunks:
-			_add(plan, Kind.DISMANTLE, "rubble", chunk[0], chunk[1], index, Vector2(chunk[0].get_center().x, state.floor), plan.scaffolded, state, Rect2())
+			# A tall tower with stairs inside is knocked down by builders standing in it.
+			var spot := _perch(plan, index, state, chunk[0], gone, state.floor, Rect2(), false) if plan.scaffolded else Vector2.INF
+			_add(plan, Kind.DISMANTLE, "rubble", chunk[0], chunk[1], index, Vector2(chunk[0].get_center().x, state.floor), plan.scaffolded and spot == Vector2.INF, state, Rect2())
+			if spot != Vector2.INF:
+				plan.pieces[-1].stand = spot
 			plan.pieces[-1].fetch = false
 			plan.pieces[-1].lift = false
 			plan.gone.append([chunk[0], chunk[1], plan.pieces.size() - 1])
@@ -372,7 +388,11 @@ static func _plan_section(plan: Dictionary, part: String, index: int, old_solid:
 			for cell: Array in cells:
 				var area: Rect2 = cell[0]
 				var partial := Rect2(left, row_top, area.position.x - left, row_bottom - row_top) if forward else Rect2(area.end.x, row_top, right - area.end.x, row_bottom - row_top)
-				_add(plan, Kind.BLOCK, cell[2], area, cell[1], index, Vector2(stand_x, state.floor), plan.scaffolded, state, partial)
+				# What is too high to reach from the finished deck is laid from a perch.
+				var spot := _perch(plan, index, state, cell[3], solid, deck, partial, true) if plan.scaffolded and row_bottom < deck - 0.5 else Vector2.INF
+				_add(plan, Kind.BLOCK, cell[2], area, cell[1], index, Vector2(stand_x, state.floor), plan.scaffolded and spot == Vector2.INF, state, partial)
+				if spot != Vector2.INF:
+					_from_perch(plan, state, spot)
 				stand_x = area.get_center().x
 			cursor = right if forward else left
 		state.line = row_top
@@ -387,7 +407,10 @@ static func _plan_section(plan: Dictionary, part: String, index: int, old_solid:
 		state.floor = deck
 		_rise(plan, part, index, state, deck)
 		for shape: Array in crown:
-			_add(plan, Kind.FITTING, "fitting", shape[0], shape[1], index, Vector2(shape[0].get_center().x, deck), true, state, Rect2())
+			var spot := _perch(plan, index, state, shape[0], solid, deck, Rect2(), true)
+			_add(plan, Kind.FITTING, "fitting", shape[0], shape[1], index, Vector2(shape[0].get_center().x, deck), spot == Vector2.INF, state, Rect2())
+			if spot != Vector2.INF:
+				_from_perch(plan, state, spot)
 	if own_stair and not access.hidden and not plan.scaffolded:
 		# A part built from the ground that has a ladder of its own (the watchtower).
 		state.floor = deck
@@ -425,6 +448,81 @@ static func _rise(plan: Dictionary, part: String, index: int, state: Dictionary,
 		_add(plan, Kind.HOIST, "hoist", Rect2(x - 4.0, floor_now - 20.0, 16.0, 20.0), SCAFFOLD_COLOR, index, Vector2(x, floor_now), true, state, Rect2())
 		plan.pieces[-1].lift = false
 		plan.pieces[-1].removed_by = TO_REMOVE
+
+
+## Where a builder stands to set (or knock down) something that is too high
+## to reach from the deck: on a perch, the top of what stands under it. The
+## perch is added to the plan's platforms, with the way up to it: the stairs
+## inside the building if they come up there, else a ladder stood on the deck
+## (only if ladders is true). shapes are the walls and roofs to stand on.
+## Returns Vector2.INF if it is set from the deck after all.
+static func _perch(plan: Dictionary, index: int, state: Dictionary, area: Rect2, shapes: Array, deck: float, partial: Rect2, ladders: bool) -> Vector2:
+	if area.end.y >= deck - LIFT_HEIGHT - 0.01:
+		return Vector2.INF
+	var x := area.get_center().x
+	# What it sits on or is set into, or else the highest thing below it.
+	var host := Rect2()
+	var y := deck
+	for shape: Array in shapes:
+		var body: Rect2 = shape[0]
+		if CastleData.is_fitting_shape(shape) or body.size.y < 1.5 or body.position.y > deck - 0.5:
+			continue
+		if body.position.x > x or body.end.x < x:
+			continue
+		if body.position.y <= area.end.y + 1.0 and body.end.y >= area.end.y + 1.0:
+			host = body
+			y = area.end.y
+			break
+		if body.position.y >= area.end.y - 0.01 and body.position.y < y:
+			host = body
+			y = body.position.y
+	if not host.has_area() or y >= deck - 0.5:
+		return Vector2.INF
+	var x0 := host.position.x + 1.0
+	var x1 := host.end.x - 1.0
+	var way: Dictionary = plan.access[index]
+	var perch := {"x0": x0, "x1": x1, "y": y, "bays": []}
+	var ladder := -1
+	if way.hidden and way.x >= x0 and way.x <= x1:
+		# The stairs inside come up here.
+		perch["ladder"] = way.x
+		perch["hidden"] = true
+	elif not ladders:
+		return Vector2.INF
+	else:
+		var at := clampf(host.get_center().x, state.deck[0] + 2.0, state.deck[1] - 2.0)
+		var key := roundi(at)
+		if not state.ladders.has(key):
+			_add(plan, Kind.LADDER, "ladder", Rect2(at - 3.0, y, 6.0, deck - y), SCAFFOLD_COLOR, index, Vector2(at, deck), true, state, partial)
+			plan.pieces[-1].lift = false
+			plan.pieces[-1].removed_by = TO_REMOVE
+			state.ladders[key] = plan.pieces.size() - 1
+		ladder = state.ladders[key]
+		# One ladder per turret, as tall as the highest perch on it.
+		var rect: Rect2 = plan.pieces[ladder].rect
+		var top := minf(rect.position.y, y)
+		plan.pieces[ladder].rect = Rect2(rect.position.x, top, rect.size.x, deck - top)
+		perch["ladder"] = at
+		perch["base"] = deck
+		perch["bays"] = [ladder]
+		perch.x0 = minf(x0, at)
+		perch.x1 = maxf(x1, at)
+	var name := "%s:%s:%s" % [perch.x0, perch.x1, y]
+	if not state.perches.has(name):
+		state.perches[name] = true
+		perch["from"] = plan.pieces.size()
+		plan.platforms.append(perch)
+	state["via"] = ladder
+	return Vector2(clampf(x, minf(x0 + 2.0, host.get_center().x), maxf(x1 - 2.0, host.get_center().x)), y)
+
+
+## Makes the piece just added one that is set from a perch: pulled up to the
+## deck by the rope, then carried up to where the builder stands.
+static func _from_perch(plan: Dictionary, state: Dictionary, spot: Vector2) -> void:
+	var piece: Dictionary = plan.pieces[-1]
+	piece.stand = spot
+	piece.lift = true
+	piece["via"] = state.via
 
 
 ## Scaffolding in front of a section's face, for the details set into it. It

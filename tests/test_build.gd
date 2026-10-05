@@ -77,6 +77,25 @@ func _run() -> void:
 	gs.peasants += 2
 	gs.jobs.build += 2
 	gs.peasants_changed.emit()
+	# "-- --from=keep:6,walls:3 --parts=keep,keep" builds just those, from those levels.
+	var only := ""
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--from="):
+			for pair in arg.trim_prefix("--from=").split(","):
+				gs.part_levels[pair.get_slice(":", 0)] = int(pair.get_slice(":", 1))
+			gs.castle_changed.emit()
+		elif arg.begins_with("--parts="):
+			only = arg.trim_prefix("--parts=")
+	if only != "":
+		gs.peasants += 12
+		gs.jobs.build += 5
+		gs.peasants_changed.emit()
+		for part in only.split(","):
+			all_ok = await _build(part, 6000.0) and all_ok
+		print("ALL OK" if all_ok else "SOMETHING FAILED")
+		Engine.time_scale = 1.0
+		quit()
+		return
 	all_ok = await _build("walls", 6000.0) and all_ok
 	gs.peasants += 12
 	gs.jobs.build += 5
