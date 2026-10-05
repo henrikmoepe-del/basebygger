@@ -9,6 +9,15 @@ extends RefCounted
 ##   work       how well they work (1 = as usual), on top of being trained
 ##   happiness  points of everyone's happiness, for each peasant with it
 
+## Children (while the "Have children" policy is on): every couple has this
+## chance of a child each dawn; a child grows up after CHILD_DAYS days, eats
+## CHILD_FOOD times what a grown peasant eats (their keep, and the small sum
+## their parents get), and their parents work at RAISING_WORK meanwhile.
+const BIRTH_CHANCE := 0.15
+const CHILD_DAYS := 3
+const CHILD_FOOD := 1.0
+const RAISING_WORK := 0.9
+
 const NAMES := [
 	"Ada", "Alric", "Agnes", "Bertram", "Beatrix", "Cedric", "Cecily", "Dunstan", "Edith", "Edmund",
 	"Elsbeth", "Fulk", "Gilda", "Godwin", "Hawise", "Hugh", "Ida", "Isolde", "Jocelyn", "Juliana",

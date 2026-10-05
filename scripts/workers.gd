@@ -187,6 +187,11 @@ func _draw_tag() -> void:
 		return
 	var someone: Dictionary = _pointed.person
 	var work: String = "Idle" if someone.job == "" else JobData.JOBS[someone.job].name
+	if someone.get("child", false):
+		var left: int = GameState.PeopleData.CHILD_DAYS - (GameState.day - int(someone.get("born", GameState.day)))
+		work = "A child, grown up in %d day%s" % [left, "" if left == 1 else "s"]
+	elif someone.get("raising", false):
+		work += ", raising a child"
 	if someone.trained:
 		work += ", trained " + JobData.JOBS[someone.job].trade.to_lower()
 	var lines: Array = [GameState.person_title(someone), "%s; %s" % [work, GameState.PeopleData.TRAITS[someone.trait].text]]

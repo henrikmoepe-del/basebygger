@@ -5,6 +5,7 @@ extends RefCounted
 ##   food_saving  a share less food eaten at dawn (negative: more)
 ##   work_speed   a share faster everyone walks and works (negative: slower)
 ##   happiness    points of happiness (see GameState.happiness_parts)
+##   births       while above 0, couples have children (see GameState._births)
 ##
 ## Adding an entry here is all a new policy needs, if it only uses effects
 ## that already exist. Later ones (child labour, bathing, religion, cults)
@@ -16,6 +17,12 @@ const POLICIES := {
 		"benefit": "Peasants eat 25% less",
 		"drawback": "Everyone works 10% slower, and is less happy",
 		"effects": {"food_saving": 0.25, "work_speed": -0.10, "happiness": -15.0},
+	},
+	"children": {
+		"name": "Have children",
+		"benefit": "Couples have children, who grow up into peasants after 3 days",
+		"drawback": "Each child eats like a grown-up, and their parents work 10% slower",
+		"effects": {"births": 1.0},
 	},
 	"long_days": {
 		"name": "Long days",

@@ -404,6 +404,8 @@ func _new_day() -> void:
 	var season_before := season_index()
 	day += 1
 	_eat()
+	_grow_up()
+	_births()
 	if season_index() != season_before:
 		announced.emit("%s has come: %s" % [season().name, season().text.to_lower()])
 		season_changed.emit()
@@ -433,7 +435,7 @@ func food_needed() -> int:
 	var cook_points: int = mini(jobs.cook + trained.cook, MAX_COOK_POINTS)
 	var saving: float = cook_points * COOK_FOOD_SAVING + skill_total("food_saving") + effect_total("food_saving")
 	# Drawbacks: soldiers eat extra, the tavern whets appetites, the court has a household.
-	var mouths: float = peasants + jobs.soldier * CastleData.SOLDIER_EXTRA_FOOD + jobs.iron * CastleData.MINER_EXTRA_FOOD
+	var mouths: float = peasants + children().size() * PeopleData.CHILD_FOOD + jobs.soldier * CastleData.SOLDIER_EXTRA_FOOD + jobs.iron * CastleData.MINER_EXTRA_FOOD
 	mouths *= 1.0 + CastleData.TAVERN_EXTRA_EATING * part_levels.tavern
 	return ceili(mouths * FOOD_PER_PEASANT * maxf(1.0 - saving, 0.0)) + CastleData.COURT_FOOD_UPKEEP * part_levels.court + COW_FOOD * cows
 
@@ -936,7 +938,7 @@ func _update_mood(delta: float) -> void:
 
 ## Hires a peasant. They start idle until given a job.
 func hire_peasant() -> bool:
-	if peasants >= max_peasants() or not spend(peasant_cost()):
+	if peasants + children().size() >= max_peasants() or not spend(peasant_cost()):
 		return false
 	peasants += 1
 	peasants_changed.emit()
@@ -988,12 +990,17 @@ func assign(job: String, change: int) -> bool:
 ## It moves as few people as it can: the newest leave first, and the
 ## untrained leave a job before the trained.
 func _fit_people() -> void:
-	while people.size() < peasants:
-		people.append(_new_person())
-	while people.size() > peasants:
-		var idle := people.filter(func(person: Dictionary) -> bool: return person.job == "")
-		people.erase(idle.back() if not idle.is_empty() else people.back())
-	for person: Dictionary in people:
+	# Children are people too, but not peasants yet: only the grown-ups are fitted.
+	var adults := grown_ups()
+	while adults.size() < peasants:
+		adults.append(_new_person())
+		people.append(adults.back())
+	while adults.size() > peasants:
+		var idle := adults.filter(func(person: Dictionary) -> bool: return person.job == "")
+		var leaving: Dictionary = idle.back() if not idle.is_empty() else adults.back()
+		adults.erase(leaving)
+		people.erase(leaving)
+	for person: Dictionary in adults:
 		if person.job != "" and not jobs.has(person.job):
 			person.job = ""
 	# Too many in a job: the untrained, newest first, become idle.
@@ -1005,14 +1012,14 @@ func _fit_people() -> void:
 	# Too few in a job: idle people take it.
 	for job: String in jobs:
 		var missing: int = jobs[job] - _people_in(job).size()
-		for person: Dictionary in people:
+		for person: Dictionary in adults:
 			if missing <= 0:
 				break
 			if person.job == "":
 				person.job = job
 				person.trained = false
 				missing -= 1
-	for person: Dictionary in people:
+	for person: Dictionary in adults:
 		if person.job == "":
 			person.trained = false
 	for job: String in jobs:
@@ -1028,7 +1035,65 @@ func _fit_people() -> void:
 
 
 func _people_in(job: String) -> Array:
-	return people.filter(func(person: Dictionary) -> bool: return person.job == job)
+	return people.filter(func(person: Dictionary) -> bool: return person.job == job and not person.get("child", false))
+
+
+## Everyone who is not a child.
+func grown_ups() -> Array:
+	return people.filter(func(person: Dictionary) -> bool: return not person.get("child", false))
+
+
+## The children, who grow up into peasants (see _births and _grow_up).
+func children() -> Array:
+	return people.filter(func(person: Dictionary) -> bool: return person.get("child", false))
+
+
+## At dawn, while a policy wants children ("births"), every couple may have
+## one, if the houses have room for them.
+func _births() -> void:
+	var wish := effect_total("births")
+	if wish <= 0.0:
+		return
+	var adults := grown_ups()
+	for couple in adults.size() / 2:
+		if peasants + children().size() >= max_peasants():
+			return
+		if randf() < PeopleData.BIRTH_CHANCE * wish:
+			var parents: Array = adults.filter(func(p: Dictionary) -> bool: return not p.get("raising", false))
+			if parents.size() < 2:
+				return
+			parents.shuffle()
+			have_child(parents[0], parents[1])
+
+
+## A child is born to two grown-ups, who raise them until they grow up.
+func have_child(parent_a: Dictionary, parent_b: Dictionary) -> Dictionary:
+	var child := _new_person()
+	child.child = true
+	child.born = day
+	child.parents = [parent_a.id, parent_b.id]
+	people.append(child)
+	parent_a.raising = true
+	parent_b.raising = true
+	announced.emit("%s and %s have a child: %s" % [parent_a.name, parent_b.name, child.name])
+	peasants_changed.emit()
+	return child
+
+
+## Children old enough grow up: they become peasants, idle until given a job,
+## and their parents work as before.
+func _grow_up() -> void:
+	for child: Dictionary in children():
+		if day - int(child.get("born", day)) < PeopleData.CHILD_DAYS:
+			continue
+		child.child = false
+		peasants += 1
+		for parent_id: Variant in child.get("parents", []):
+			var parent := person(int(parent_id))
+			if not parent.is_empty():
+				parent.raising = children().any(func(c: Dictionary) -> bool: return int(parent.id) in c.get("parents", []))
+		announced.emit("%s has grown up and can work now" % child.name)
+		peasants_changed.emit()
 
 
 func _new_person() -> Dictionary:
@@ -1810,7 +1875,9 @@ func load_game() -> void:
 				var id := int(someone.get("id", 0))
 				people.append({"id": id, "name": someone.name, "trait": someone.trait,
 					"job": str(someone.get("job", "")), "trained": bool(someone.get("trained", false)),
-					"hurt": bool(someone.get("hurt", false))})
+					"hurt": bool(someone.get("hurt", false)), "child": bool(someone.get("child", false)),
+					"born": int(someone.get("born", day)), "raising": bool(someone.get("raising", false)),
+					"parents": someone.parents.map(func(id: Variant) -> int: return int(id)) if someone.get("parents") is Array else []})
 				_next_person = maxi(_next_person, id + 1)
 	_fit_people()
 	boosts.clear()

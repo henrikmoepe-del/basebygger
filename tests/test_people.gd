@@ -18,11 +18,11 @@ func _count(job: String) -> int:
 
 
 func _check(what: String) -> bool:
-	var ok: bool = gs.people.size() == gs.peasants
+	var ok: bool = gs.grown_ups().size() == gs.peasants
 	for job: String in gs.jobs:
 		var trained: int = gs.people.filter(func(p: Dictionary) -> bool: return p.job == job and p.trained).size()
 		ok = ok and _count(job) == gs.jobs[job] and trained == gs.trained[job]
-	print("%s %s: %d people for %d peasants" % ["ok  " if ok else "FAIL", what, gs.people.size(), gs.peasants])
+	print("%s %s: %d grown-ups for %d peasants" % ["ok  " if ok else "FAIL", what, gs.grown_ups().size(), gs.peasants])
 	return ok
 
 
@@ -61,6 +61,30 @@ func _run() -> void:
 	var loaded: Array = gs.people.map(func(p: Dictionary) -> String: return p.name)
 	print("names saved %s, loaded %s" % [names, loaded])
 	ok = ok and names == loaded and _check("after loading")
+
+	# Children: none without the policy; with it, couples have them.
+	gs.policies.clear()
+	gs.part_levels.houses = 6
+	gs._births()
+	ok = ok and gs.children().is_empty()
+	gs.toggle_policy("children")
+	for i in 30:
+		gs._births()
+	var young: Array = gs.children()
+	print("with the policy, after 30 dawns' chances: %d children" % young.size())
+	ok = ok and not young.is_empty() and _check("children are not peasants")
+	var child: Dictionary = young[0]
+	var parent: Dictionary = gs.person(int(child.parents[0]))
+	print("%s, child of %s (raising: %s)" % [gs.person_title(child), parent.name, parent.raising])
+	ok = ok and parent.raising
+	var peasants: int = gs.peasants
+	gs.toggle_policy("children")
+	gs.day += gs.PeopleData.CHILD_DAYS
+	gs._grow_up()
+	print("after %d days: %d children left, peasants %d -> %d, %s is a child: %s" % [
+		gs.PeopleData.CHILD_DAYS, gs.children().size(), peasants, gs.peasants, child.name, child.child])
+	ok = ok and gs.children().is_empty() and gs.peasants == peasants + young.size() and not child.child
+	ok = ok and not parent.raising and _check("the children grown up")
 
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(gs.save_path))
 	print("ALL OK" if ok else "SOMETHING FAILED")

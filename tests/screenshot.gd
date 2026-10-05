@@ -45,6 +45,7 @@ const PLANS := {
 	"hurt_close": {"levels": {"stockhouse": 2}, "part": "walls", "camera": [330, -10, 6.0], "shots": 40, "events": ["accident"], "follow_hurt": true},
 	"warband": {"levels": {"walls": 2, "palisade": 1, "watchtower": 1}, "part": "", "camera": [-800, -40, 2.0], "shots": 1, "raid_kind": "warband", "events": ["raid"]},
 	"bandits": {"levels": {"walls": 2, "palisade": 1, "watchtower": 1}, "part": "", "camera": [-720, -40, 2.0], "shots": 1, "raid_kind": "bandits", "events": ["raid"]},
+	"children": {"levels": {"walls": 1, "stockhouse": 2, "houses": 4}, "stock": {"wood": 150, "stone": 80, "food": 150, "planks": 0, "iron": 0}, "part": "", "camera": [610, -40, 2.0], "shots": 1, "kids": 3, "point_peasant": true},
 	"rooms_picker": {"levels": {"walls": 3, "keep": 2}, "part": "", "camera": [-205, 10, 1.5], "shots": 1, "picker": true},
 	"gate": {"levels": {"walls": 2}, "part": "gate", "camera": [30, -40, 2.0], "shots": 5},
 	"tavern": {"levels": {"walls": 1}, "part": "tavern", "camera": [1170, -45, 2.0], "shots": 5},
@@ -126,6 +127,10 @@ func _run() -> void:
 		for policy: String in plan.policies:
 			gs.toggle_policy(policy)
 		current_scene.get_node("HUD").policies_button.button_pressed = true
+	for i in plan.get("kids", 0):
+		var adults: Array = gs.grown_ups()
+		adults.shuffle()
+		gs.have_child(adults[0], adults[1])
 	if plan.has("raid_kind"):
 		gs.next_raid_kind = plan.raid_kind
 	for event: String in plan.get("events", []):
@@ -160,7 +165,7 @@ func _run() -> void:
 				t += root.get_process_delta_time()
 				gs.day_time = gs.DAY_LENGTH * 0.85 if plan.get("night", false) else 10.0
 			if plan.get("point_peasant", false):
-				_point_at_peasant()
+				_point_at_peasant(plan.has("kids"))
 				await process_frame
 			await _shoot("%s/%s_%d.png" % [out, name, shot])
 	else:
@@ -188,12 +193,14 @@ func _run() -> void:
 
 
 ## Moves the mouse onto the peasant nearest the middle of the screen.
-func _point_at_peasant() -> void:
+func _point_at_peasant(plan_kids := false) -> void:
 	var camera: Camera2D = current_scene.get_node("Camera")
 	var workers: Node2D = current_scene.get_node("Workers")
 	var best: Node2D = null
 	for worker in workers.get_children():
-		if worker.get("person") != null and worker.visible and worker.position.y > -0.5 and (best == null \
+		if worker.get("person") == null or (plan_kids and not worker.person.get("child", false)):
+			continue
+		if worker.visible and worker.position.y > -0.5 and (best == null \
 				or absf(worker.global_position.x - camera.position.x) < absf(best.global_position.x - camera.position.x)):
 			best = worker
 	if best != null:

@@ -494,7 +494,7 @@ func _refresh() -> void:
 	_refresh_jobs()
 
 	var hire_title := "Hire peasant"
-	if GameState.peasants >= GameState.max_peasants():
+	if GameState.peasants + GameState.children().size() >= GameState.max_peasants():
 		hire_button.text = "%s\nBuild more houses" % hire_title
 		hire_button.disabled = true
 	else:
@@ -605,9 +605,10 @@ func _place_right_labels() -> void:
 
 func _refresh_jobs() -> void:
 	var idle := GameState.idle_peasants()
-	jobs_toggle.text = "%s Peasants %d/%d%s" % [
-		"v" if jobs_panel.visible else ">", GameState.peasants, GameState.max_peasants(),
-		"  (%d idle)" % idle if idle > 0 else ""]
+	var young := GameState.children().size()
+	jobs_toggle.text = "%s Peasants %d/%d%s%s" % [
+		"v" if jobs_panel.visible else ">", GameState.peasants + young, GameState.max_peasants(),
+		"  (%d idle)" % idle if idle > 0 else "", "  %d child%s" % [young, "" if young == 1 else "ren"] if young > 0 else ""]
 	jobs_toggle.add_theme_color_override("font_color", UiTheme.GOLD if idle > 0 else UiTheme.PARCHMENT)
 	for id: String in _job_rows:
 		var row: Dictionary = _job_rows[id]

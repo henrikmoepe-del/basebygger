@@ -29,6 +29,8 @@ const MEET_GAP := 10.0
 const BUBBLE := Color(0.97, 0.96, 0.90)
 const BALL := Color(0.80, 0.25, 0.22)
 const BANDAGE := Color(0.97, 0.97, 0.94)
+## How big a child is next to a grown-up.
+const CHILD_SIZE := 0.65
 
 ## The job id from JobData.JOBS, or "" for idle.
 var job := ""
@@ -234,13 +236,15 @@ func _draw() -> void:
 		return
 	var bob := _bob()
 	var hop := -sin(clampf(_age / HOP_TIME, 0.0, 1.0) * PI) * 7.0
-	draw_set_transform(Vector2(0, hop))
+	# Children are drawn smaller.
+	var grown := Vector2.ONE * (CHILD_SIZE if person.get("child", false) else 1.0)
+	draw_set_transform(Vector2(0, hop), 0.0, grown)
 	# Legs: while walking, they take turns stepping.
 	var step := int(Time.get_ticks_msec() / 140.0 + position.x) % 2 if _walking else -1
 	draw_rect(Rect2(-2, -3, 2, 2 if step == 0 else 3), LEGS)
 	draw_rect(Rect2(1, -3, 2, 2 if step == 1 else 3), LEGS)
 	# The body sits on top of the legs.
-	draw_set_transform(Vector2(0, hop - LEG_HEIGHT))
+	draw_set_transform(Vector2(0, hop - LEG_HEIGHT * grown.y), 0.0, grown)
 	draw_rect(Rect2(-3, bob - 10, 6, 10), tunic())
 	draw_rect(Rect2(-2, bob - 14, 4, 4), Color(0.93, 0.76, 0.62))
 	if trained:
@@ -267,7 +271,8 @@ func _draw_extra(_bob_y: float) -> void:
 ## How well the peasant does their job: twice as well when trained, and
 ## better or worse for their trait.
 func _skill() -> float:
-	return (GameState.TRAINED_MULT if trained else 1.0) * _trait().get("work", 1.0) * _hurt_pace()
+	var raising: float = GameState.PeopleData.RAISING_WORK if person.get("raising", false) else 1.0
+	return (GameState.TRAINED_MULT if trained else 1.0) * _trait().get("work", 1.0) * _hurt_pace() * raising
 
 
 ## Slower while hurt (see the "accident" event).
