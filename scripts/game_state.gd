@@ -182,8 +182,10 @@ const INCOME_WINDOW := DAY_LENGTH
 ## What is in the stockhouse.
 var resources := {"wood": 0, "stone": 0, "food": START_FOOD, "iron": 0, "planks": 0}
 var cows := 0
+## The castle a new game begins with: a first wall and a small keep already stand.
+const START_PARTS := {"walls": 1, "keep": 1}
 var part_levels := {
-	"walls": 0, "towers": 0, "gate": 0, "keep": 0, "garrison": 0, "court": 0,
+	"walls": 1, "towers": 0, "gate": 0, "keep": 1, "garrison": 0, "court": 0,
 	"palisade": 0, "watchtower": 0,
 	"houses": 0, "well": 0, "tavern": 0, "quarry": 0, "farm": 0, "mine": 0, "sawmill": 0, "stockhouse": 0, "bakery": 0,
 }
@@ -1747,7 +1749,7 @@ func _start_over() -> void:
 	resources = {"wood": start_stock, "stone": start_stock, "food": START_FOOD, "iron": 0, "planks": 0}
 	cows = 0
 	for id: String in part_levels:
-		part_levels[id] = 0
+		part_levels[id] = START_PARTS.get(id, 0)
 	keep_picks.clear()
 	peasants = START_PEASANTS
 	jobs = START_JOBS.duplicate()
@@ -1800,6 +1802,9 @@ func load_game() -> void:
 	# Missing or out-of-range values fall back to something safe.
 	_load_numbers(resources, data.get("resources"), true)
 	_load_numbers(part_levels, data.get("part_levels"), true)
+	# A save from before the castle began with a wall and a keep gets them too.
+	for id: String in START_PARTS:
+		part_levels[id] = maxi(part_levels[id], START_PARTS[id])
 	_load_numbers(jobs, data.get("jobs"), true)
 	_load_numbers(trained, data.get("trained"), true)
 	for job: String in trained:

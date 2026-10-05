@@ -14,14 +14,14 @@ extends RefCounted
 ##   "cows"      at least "amount" cows
 
 const QUESTS := [
-	{"text": "Build the walls: press B, then click the circle by the castle", "kind": "part", "id": "walls", "amount": 1, "renown": 1},
+	{"text": "Raise the walls a level: press B, then click the circle on the wall", "kind": "part", "id": "walls", "amount": 2, "renown": 1},
 	{"text": "Hire a fourth peasant and set them to find food", "kind": "job", "id": "hunter", "amount": 1, "renown": 1},
 	{"text": "Buy your first skill (the Skills button)", "kind": "skills", "amount": 1, "renown": 1},
 	{"text": "Raise the towers and a gate", "kind": "parts", "ids": ["towers", "gate"], "amount": 1, "renown": 2},
 	{"text": "Build a farm, east of the grove", "kind": "part", "id": "farm", "amount": 1, "renown": 2},
 	{"text": "Have 8 peasants", "kind": "peasants", "amount": 8, "renown": 2},
 	{"text": "Buy a trade in the skill tree and train a peasant", "kind": "trained", "amount": 1, "renown": 2},
-	{"text": "Build a keep", "kind": "part", "id": "keep", "amount": 1, "renown": 2},
+	{"text": "Add a storey to the keep and choose its rooms", "kind": "part", "id": "keep", "amount": 2, "renown": 2},
 	{"text": "Beat a raid", "kind": "raids_won", "amount": 1, "renown": 2},
 	{"text": "Build a quarry, by the loose stones", "kind": "part", "id": "quarry", "amount": 1, "renown": 2},
 	{"text": "Build a house in the village to the east", "kind": "part", "id": "houses", "amount": 1, "renown": 2},
