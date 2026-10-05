@@ -23,6 +23,9 @@ const PLANS := {
 	"rooms_pick": {"levels": {"walls": 3, "keep": 4, "towers": 2, "garrison": 2}, "picks": [["armoury", "store"], ["store", "store"], ["armoury", "beds"]], "part": "", "camera": [-205, 40, 1.5], "shots": 2, "open": true},
 	"keep_card": {"levels": {"walls": 3, "keep": 4, "towers": 2, "garrison": 2}, "picks": [["armoury", "store"], ["store", "store"]], "part": "", "camera": [-205, 40, 1.5], "shots": 1, "mouse": [180, 200]},
 	"keep_build_card": {"levels": {"walls": 3, "keep": 4, "towers": 2, "garrison": 2}, "picks": [["armoury", "store"], ["store", "store"]], "part": "", "camera": [-205, 40, 1.5], "shots": 1, "hover": "keep"},
+	"badger": {"levels": {"walls": 1}, "part": "", "camera": [1068, -45, 2.0], "shots": 2, "events": ["badger"], "jobs": {"hunter": 2}},
+	"badger_close": {"levels": {"walls": 1}, "part": "", "camera": [1095, 5, 6.0], "shots": 2, "events": ["badger"]},
+	"badger_hover": {"levels": {"walls": 1}, "part": "", "camera": [1068, -45, 2.0], "shots": 1, "events": ["badger"], "mouse": [388, 172]},
 	"rooms_picker": {"levels": {"walls": 3, "keep": 2}, "part": "", "camera": [-205, 10, 1.5], "shots": 1, "picker": true},
 	"gate": {"levels": {"walls": 2}, "part": "gate", "camera": [30, -40, 2.0], "shots": 5},
 	"tavern": {"levels": {"walls": 1}, "part": "tavern", "camera": [1170, -45, 2.0], "shots": 5},
@@ -96,6 +99,8 @@ func _run() -> void:
 		var hover: Node2D = current_scene.get_node("BuildHover")
 		hover.set_active(true)
 		hover._set_hovered(plan.hover)
+	for event: String in plan.get("events", []):
+		gs.start_event(event)
 	if plan.has("mouse"):
 		# The mouse at a point on screen (in the 640x360 view).
 		Input.warp_mouse(Vector2(plan.mouse[0], plan.mouse[1]) * 2.0)

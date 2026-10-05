@@ -23,12 +23,15 @@ signal raid_progress
 signal raid_resolved(won: bool)
 ## Something happened that the player should be told about.
 signal announced(text: String)
+## An event started or ended (see EventData).
+signal events_changed
 
 const CastleData = preload("res://scripts/castle_data.gd")
 const SkillData = preload("res://scripts/skill_data.gd")
 const JobData = preload("res://scripts/job_data.gd")
 const BuildPlan = preload("res://scripts/build_plan.gd")
 const QuestData = preload("res://scripts/quest_data.gd")
+const EventData = preload("res://scripts/event_data.gd")
 
 const START_JOBS := {"wood": 1, "stone": 1, "hunter": 0, "build": 1, "cook": 0, "soldier": 0, "iron": 0, "sawyer": 0, "forester": 0}
 const NO_JOBS := {"wood": 0, "stone": 0, "hunter": 0, "build": 0, "cook": 0, "soldier": 0, "iron": 0, "sawyer": 0, "forester": 0}
@@ -195,6 +198,8 @@ var siege_share := 1.0
 var siege_active := false
 ## How many levels of each skill the player owns (skills not bought are left out).
 var skills := {}
+## The events going on now: event id -> seconds left (see EventData).
+var events := {}
 
 ## The building job: the one part being raised a level right now ("" = none).
 ## Its materials are paid for when ordered. The job is then a list of pieces
@@ -225,6 +230,7 @@ var _was_night := false
 var _quest_timer := 0.0
 var _window_time := 0.0
 var _autosave_time := 0.0
+var _event_timer := 0.0
 
 
 func _ready() -> void:
@@ -249,6 +255,7 @@ func _process(delta: float) -> void:
 		_was_night = is_night()
 		daytime_changed.emit()
 	_update_raid(delta)
+	_update_events(delta)
 	_quest_timer += delta
 	if _quest_timer >= QUEST_CHECK_TIME:
 		_quest_timer = 0.0
@@ -490,6 +497,73 @@ func _resolve_raid(won: bool) -> void:
 	skills_changed.emit()
 
 
+# --- Events ---
+
+## Every so often an event may start; the ones going on run out.
+func _update_events(delta: float) -> void:
+	for id: String in events.keys():
+		events[id] -= delta
+		if events[id] <= 0.0:
+			end_event(id, false)
+	_event_timer += delta
+	if _event_timer >= EventData.CHECK_TIME:
+		_event_timer = 0.0
+		if randf() < EventData.CHANCE:
+			start_event(pick_event())
+
+
+## A random event that may start today (by weight), or "" if there is none.
+func pick_event() -> String:
+	var total := 0.0
+	var allowed := []
+	for id: String in EventData.EVENTS:
+		var info: Dictionary = EventData.EVENTS[id]
+		if not events.has(id) and day >= info.from_day:
+			allowed.append(id)
+			total += info.weight
+	var roll := randf() * total
+	for id: String in allowed:
+		roll -= EventData.EVENTS[id].weight
+		if roll <= 0.0:
+			return id
+	return ""
+
+
+func start_event(id: String) -> bool:
+	if id == "" or events.has(id):
+		return false
+	events[id] = EventData.EVENTS[id].lasts
+	announced.emit(EventData.EVENTS[id].start_text)
+	events_changed.emit()
+	return true
+
+
+## Ends an event: by itself when its time runs out, or clicked away early
+## by the player for its reward.
+func end_event(id: String, clicked: bool) -> void:
+	if not events.has(id):
+		return
+	events.erase(id)
+	var info: Dictionary = EventData.EVENTS[id]
+	if clicked:
+		for type: String in info.get("reward", {}):
+			resources[type] += info.reward[type]
+		resources_changed.emit()
+		announced.emit(info.click_text)
+	else:
+		announced.emit(info.end_text)
+	events_changed.emit()
+
+
+## The sum of an effect over everything going on that changes how the
+## castle works: the events now, and the policies chosen.
+func effect_total(effect: String) -> float:
+	var total := 0.0
+	for id: String in events:
+		total += EventData.EVENTS[id].effects.get(effect, 0.0)
+	return total
+
+
 # --- Peasants and their jobs ---
 
 func idle_peasants() -> int:
@@ -609,7 +683,8 @@ func train(job: String) -> bool:
 ## How much of a resource appears per second at its gathering site.
 func site_rate(type: String) -> float:
 	if type == "food":
-		return WILD_FOOD_RATE + FARM_RATE_PER_LEVEL * part_levels.farm
+		var rate: float = WILD_FOOD_RATE + FARM_RATE_PER_LEVEL * part_levels.farm
+		return rate * maxf(1.0 + effect_total("food_site_rate"), 0.0)
 	return LOOSE_STONE_RATE + QUARRY_RATE_PER_LEVEL * part_levels.quarry
 
 
@@ -1110,6 +1185,7 @@ func save_game() -> void:
 		"legacy": legacy,
 		"no_nights": no_nights,
 		"skills": skills,
+		"events": events,
 		"income_rate": income_rate,
 		"job": {
 			"part": job_part, "hauled": job_hauled, "formed": job_formed,
@@ -1161,6 +1237,8 @@ func _start_over() -> void:
 	planting_work = 0.0
 	renown = 0
 	skills.clear()
+	events.clear()
+	_event_timer = 0.0
 	day = 1
 	day_time = 0.0
 	fed = true
@@ -1223,6 +1301,13 @@ func load_game() -> void:
 			# Skip anything that is no longer in the skill tree.
 			if SkillData.SKILLS.has(id):
 				skills[id] = clampi(int(saved_skills[id]), 0, SkillData.SKILLS[id].max_level)
+
+	events.clear()
+	var saved_events: Variant = data.get("events")
+	if saved_events is Dictionary:
+		for id: String in saved_events:
+			if EventData.EVENTS.has(id):
+				events[id] = clampf(float(saved_events[id]), 0.0, EventData.EVENTS[id].lasts)
 
 	var job: Variant = data.get("job")
 	if job is Dictionary and part_levels.has(job.get("part", "")):

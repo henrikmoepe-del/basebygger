@@ -9,10 +9,11 @@ extends CanvasLayer
 ##   F4  +1000 wood, stone and food, +20 renown
 ##   F6  +5 idle peasants (ignores the housing limit)
 ##   F7  start a 3D siege now
+##   F8  start a random event now
 
 const SPEEDS := [1.0, 5.0, 20.0, 50.0]
 const SKIP_SECONDS := 600.0
-const HELP := "DEV  F1 help  F2 speed  F3 skip 10 min  F4 resources  F6 peasants  F7 siege"
+const HELP := "DEV  F1 help  F2 speed  F3 skip 10 min  F4 resources  F6 peasants  F7 siege  F8 event"
 
 var _speed_index := 0
 var _label := Label.new()
@@ -54,6 +55,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			GameState.peasants_changed.emit()
 		KEY_F7:
 			GameState.start_siege()
+		KEY_F8:
+			if not GameState.start_event(GameState.pick_event()):
+				GameState.announced.emit("DEV: no event can start now")
 
 
 func _exit_tree() -> void:
