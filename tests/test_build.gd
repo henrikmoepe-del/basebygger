@@ -1,5 +1,8 @@
 extends SceneTree
 
+## The stockhouse level the test builds with, so the stores hold enough.
+const TEST_STOCKHOUSE := 15
+
 var gs: Node
 
 
@@ -16,6 +19,9 @@ func _wait(seconds: float) -> void:
 
 
 func _build(part: String, limit: float) -> bool:
+	# Stores big enough for the materials of any level.
+	if part != "stockhouse":
+		gs.part_levels.stockhouse = maxi(gs.part_levels.stockhouse, TEST_STOCKHOUSE)
 	for type in gs.resources:
 		gs.resources[type] = 100000
 	if not gs.order_part(part):

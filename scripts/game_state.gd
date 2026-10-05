@@ -177,7 +177,7 @@ var cows := 0
 var part_levels := {
 	"walls": 0, "towers": 0, "gate": 0, "keep": 0, "garrison": 0, "court": 0,
 	"palisade": 0, "watchtower": 0,
-	"houses": 0, "well": 0, "tavern": 0, "quarry": 0, "farm": 0, "mine": 0, "sawmill": 0,
+	"houses": 0, "well": 0, "tavern": 0, "quarry": 0, "farm": 0, "mine": 0, "sawmill": 0, "stockhouse": 0,
 }
 ## The rooms the player chose for each storey of the keep above the first
 ## keep's own, lowest first, each [left room, right room] (see CastleData.ROOMS).
@@ -320,12 +320,33 @@ func take_wood(logs: int) -> int:
 	return taken
 
 
-## Peasants deliver to the stockhouse through this, so income can be measured.
+## Peasants deliver to the stockhouse through this, so income can be
+## measured. What does not fit in a full store is lost.
 func add_income(type: String, amount: int) -> void:
+	amount = mini(amount, store_room(type))
 	_window_income[type] += amount
 	resources[type] += amount
 	resources_changed.emit()
 	income_delivered.emit(type, amount)
+
+
+## How much each store of the stockyard holds (raised by the stockhouse).
+func store_capacity() -> int:
+	return roundi(CastleData.STORE_BASE * pow(CastleData.STORE_GROWTH, part_levels.stockhouse))
+
+
+## How much more fits in a resource's store.
+func store_room(type: String) -> int:
+	return maxi(store_capacity() - resources[type], 0)
+
+
+func store_full(type: String) -> bool:
+	return store_room(type) <= 0
+
+
+## Adds to a store as far as it has room (gifts, rewards, offline work).
+func _add_to_store(type: String, amount: int) -> void:
+	resources[type] += mini(amount, store_room(type))
 
 
 func can_afford(cost: Dictionary) -> bool:
@@ -619,7 +640,7 @@ func end_event(id: String, how: String) -> void:
 	var info: Dictionary = EventData.EVENTS[id]
 	if how == "clicked":
 		for type: String in info.get("reward", {}):
-			resources[type] += info.reward[type]
+			_add_to_store(type, info.reward[type])
 		resources_changed.emit()
 		announced.emit(_event_text(info.click_text))
 	elif how == "ran_out":
@@ -932,11 +953,16 @@ func part_block_reason(id: String) -> String:
 	if job_part != "":
 		return "Builders are busy"
 	if is_village(id):
-		return "Fully built" if part_levels[id] >= CastleData.PARTS[id].max_level else ""
-	if id != "walls" and part_levels.walls == 0:
+		if part_levels[id] >= CastleData.PARTS[id].max_level:
+			return "Fully built"
+	elif id != "walls" and part_levels.walls == 0:
 		return "Needs Walls first"
-	if part_levels[id] >= level_cap():
+	elif part_levels[id] >= level_cap():
 		return "Raise castle rank"
+	# The materials must fit in the stores at once.
+	for type: String in part_cost(id):
+		if part_cost(id)[type] > store_capacity():
+			return "Needs a bigger stockhouse (stores hold %d)" % store_capacity()
 	return ""
 
 
@@ -1360,7 +1386,7 @@ func reset_game() -> void:
 
 
 func _start_over() -> void:
-	var start_stock := LEGACY_START_STOCK * legacy
+	var start_stock := mini(LEGACY_START_STOCK * legacy, CastleData.STORE_BASE)
 	resources = {"wood": start_stock, "stone": start_stock, "food": START_FOOD, "iron": 0, "planks": 0}
 	cows = 0
 	for id: String in part_levels:
@@ -1514,7 +1540,7 @@ func _grant_offline_progress(seconds_away: float) -> void:
 	var report := {"seconds": int(seconds)}
 	var earned_any := false
 	for type: String in ["wood", "stone"]:
-		var gained := int(income_rate[type] * seconds)
+		var gained := mini(int(income_rate[type] * seconds), store_room(type))
 		resources[type] += gained
 		report[type] = gained
 		earned_any = earned_any or gained > 0

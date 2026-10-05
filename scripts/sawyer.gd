@@ -1,8 +1,8 @@
 extends "res://scripts/worker.gd"
 ## A peasant who saws planks. They carry logs from the wood stack to the
 ## sawmill, saw them there, and carry the planks back to the plank stack in
-## the stockyard. One log makes one plank. With no wood to saw, the time is
-## their own.
+## the stockyard. One log makes one plank. With no wood to saw, or no room
+## for more planks, the time is their own.
 
 enum State { TO_WOOD, TO_MILL, SAW, TO_STACK }
 
@@ -26,7 +26,7 @@ func _work(delta: float) -> void:
 	_sawing = false
 	match _state:
 		State.TO_WOOD:
-			if GameState.resources.wood <= 0:
+			if GameState.resources.wood <= 0 or GameState.store_full("planks"):
 				_relax(delta, world.store_x("wood"), 60.0)
 			elif _walk_to(world.store_x("wood") + _offset, delta):
 				_carrying = GameState.take_wood(int(LOAD * _skill()))

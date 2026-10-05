@@ -63,6 +63,9 @@ func _run() -> void:
 	var out := _arg("out", "user://")
 	for part: String in plan.levels:
 		gs.part_levels[part] = plan.levels[part]
+	# Stores big enough for the materials of any level, unless the plan says.
+	if not plan.levels.has("stockhouse"):
+		gs.part_levels.stockhouse = 15
 	change_scene_to_file("res://scenes/main.tscn")
 	await process_frame
 	await process_frame

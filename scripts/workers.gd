@@ -32,6 +32,7 @@ const STORES := {
 const STACK_GROWTH := 1.5
 const POST := Color(0.33, 0.21, 0.13)
 const NUMBER := Color(0.20, 0.17, 0.15)
+const FULL_COLOR := Color(0.70, 0.12, 0.10)
 const SKIN := Color(0.93, 0.76, 0.62)
 const FLOAT_TIME := 1.2
 const MAX_FLOATS := 12
@@ -89,12 +90,14 @@ func _draw() -> void:
 		# Iron only has a place once there is a mine, planks once there is a sawmill.
 		if (type != "iron" or GameState.part_levels.mine > 0) and (type != "planks" or GameState.part_levels.sawmill > 0):
 			_draw_store(type)
-	# The shed, for tools and everything small. It swells for a moment each
+	# The shed, for tools and everything small, until the stockhouse's barn
+	# (drawn by the castle) takes its place. It swells for a moment each
 	# time a load comes in.
-	var swell := 2.0 * maxf(_bump, 0.0) / BUMP_TIME
-	draw_rect(Rect2(stock_x - 14 - swell, -18 - swell, 28 + swell * 2, 18 + swell), Color(0.48, 0.32, 0.20))
-	draw_rect(Rect2(stock_x - 17 - swell, -24 - swell, 34 + swell * 2, 7), Color(0.33, 0.21, 0.13))
-	draw_rect(Rect2(stock_x - 4, -11, 8, 11), Color(0.20, 0.13, 0.08))
+	if GameState.part_levels.stockhouse == 0:
+		var swell := 2.0 * maxf(_bump, 0.0) / BUMP_TIME
+		draw_rect(Rect2(stock_x - 14 - swell, -18 - swell, 28 + swell * 2, 18 + swell), Color(0.48, 0.32, 0.20))
+		draw_rect(Rect2(stock_x - 17 - swell, -24 - swell, 34 + swell * 2, 7), Color(0.33, 0.21, 0.13))
+		draw_rect(Rect2(stock_x - 4, -11, 8, 11), Color(0.20, 0.13, 0.08))
 	for number in _floats:
 		var fade: float = 1.0 - number.age / FLOAT_TIME
 		draw_string(_font, Vector2(number.x, -28.0 - number.age * 14.0), number.text,
@@ -146,9 +149,11 @@ func _draw_store(type: String) -> void:
 		draw_rect(Rect2(left + column * (piece.x + 1.0), -(row + 1) * piece.y, piece.x, piece.y - 1.0), color)
 	if type == "food":
 		draw_rect(Rect2(left - 4, -full - 6, width + 7, 4), CastleData.THATCH)
-	var text := str(amount)
+	# The amount, and FULL in red when the store can take no more.
+	var full_store := GameState.store_full(type)
+	var text := "%d FULL" % amount if full_store else str(amount)
 	var text_width := _font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
-	draw_string(_font, Vector2(left + (width - text_width) / 2.0, -full - 9.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, NUMBER)
+	draw_string(_font, Vector2(left + (width - text_width) / 2.0, -full - 9.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, FULL_COLOR if full_store else NUMBER)
 
 
 ## Peasants climbing the stairs inside a building show through its windows:

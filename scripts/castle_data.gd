@@ -107,6 +107,13 @@ const PARTS := {
 	},
 	# The sawmill turns logs into planks, which finer buildings and later
 	# levels need on top of wood (see GameState.part_cost).
+	# The stockhouse: a barn at the stockyard. Each store there holds
+	# STORE_BASE, times STORE_GROWTH for every level (see GameState.store_capacity).
+	"stockhouse": {
+		"benefit": "Every store in the stockyard holds 80% more per level", "drawback": "",
+		"name": "Stockhouse", "defence": 0, "renown": 1, "cost": {"wood": 20, "stone": 6}, "work": 8.0,
+		"site_x": 610.0, "village": true, "max_level": 25,
+	},
 	"sawmill": {
 		"benefit": "Lets peasants saw wood into planks: room for 2 sawyers per level", "drawback": "",
 		"name": "Sawmill", "defence": 0, "renown": 1, "cost": {"wood": 30, "stone": 10}, "work": 10.0,
@@ -157,7 +164,7 @@ const PARTS := {
 	},
 }
 ## Back to front.
-const DRAW_ORDER := ["houses", "tavern", "well", "sawmill", "mine", "farm", "quarry", "watchtower", "palisade", "walls", "gate", "court", "garrison", "keep", "towers"]
+const DRAW_ORDER := ["stockhouse", "houses", "tavern", "well", "sawmill", "mine", "farm", "quarry", "watchtower", "palisade", "walls", "gate", "court", "garrison", "keep", "towers"]
 ## The parts that stand in the courtyard, in front of the curtain wall. A
 ## peasant up on the wall walks behind them.
 const FRONT := ["court", "garrison", "keep", "towers"]
@@ -167,6 +174,12 @@ const QUARRY_X := 776.0
 const FARM_X := 1012.0
 const MINE_X := 1126.0
 const SAWMILL_X := 1185.0
+## The stockyard's barn stands at the same place as Workers.stock_x.
+const STOCKHOUSE_X := 610.0
+## How much each store of the stockyard holds before the stockhouse is built,
+## and how much more each level of it holds.
+const STORE_BASE := 100
+const STORE_GROWTH := 1.8
 const WELL_X := 1250.0
 const TAVERN_X := 1296.0
 const FIRST_HOUSE_X := 1352.0
@@ -632,6 +645,17 @@ static func shapes(part: String, level: int) -> Array:
 			# The sign.
 			out.append([Rect2(TAVERN_X + 20, -h + 2, 6, 1), WOOD_DARK])
 			out.append([Rect2(TAVERN_X + 22, -h + 3, 5, 5), BANNER])
+		"stockhouse":
+			# A timber barn between the stores, taller with each level, with a
+			# loft door under the roof once it has two floors.
+			h = 22.0 + 4.0 * mini(v, 6)
+			out.append([Rect2(STOCKHOUSE_X - 17, -h, 34, h), WOOD])
+			out.append([Rect2(STOCKHOUSE_X - 17, -h, 2, h), WOOD_DARK])
+			out.append([Rect2(STOCKHOUSE_X + 15, -h, 2, h), WOOD_DARK])
+			out.append([Rect2(STOCKHOUSE_X - 20, -h - 7, 40, 8), ROOF_RED if level >= 4 else THATCH])
+			out.append([Rect2(STOCKHOUSE_X - 6, -14, 12, 14), WOOD_DARK])
+			if level >= 2:
+				out.append([Rect2(STOCKHOUSE_X - 4, -h + 4, 8, 7), WOOD_DARK])
 		"sawmill":
 			# An open shed over a saw bench, with a stack of sawn planks beside it.
 			h = 18.0 + 2.0 * mini(v, 4)

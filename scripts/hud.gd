@@ -465,8 +465,11 @@ func _refresh_top_bar() -> void:
 			_:
 				# Iron only matters once there is a mine, planks once there is a sawmill.
 				chip.visible = (type != "iron" or GameState.part_levels.mine > 0) and (type != "planks" or GameState.part_levels.sawmill > 0)
-				label.text = str(GameState.resources[type])
-				chip.tooltip_text = "%s: +%.1f a second (averaged over a day)" % [type.capitalize(), GameState.income_rate[type]]
+				var full: bool = GameState.store_full(type)
+				label.text = "%d/%d" % [GameState.resources[type], GameState.store_capacity()]
+				label.add_theme_color_override("font_color", UiTheme.BAD if full else UiTheme.PARCHMENT)
+				chip.tooltip_text = "%s: +%.1f a second (averaged over a day)\nThe store holds %d%s. A bigger stockhouse holds more." % [
+					type.capitalize(), GameState.income_rate[type], GameState.store_capacity(), ": FULL, the rest is lost" if full else ""]
 
 	var mood := roundi(GameState.happiness)
 	_mood_label.text = "Mood %d" % mood
