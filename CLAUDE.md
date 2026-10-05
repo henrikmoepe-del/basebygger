@@ -40,10 +40,17 @@
 - If you believe a tool/program/pluggen would be of good use, for example to create pixel 2d art, to create sound, etc, then say so 
 
 ## Where we left off (2026-10-05)
-- Done last: the player chooses the rooms of each new keep storey, and rooms do something (see
-  "Choosing rooms" under Current status). Natural next steps, none approved yet: more room kinds
-  (workshop, chapel, larder, a second kitchen), drawbacks for rooms, a place to see what the
-  keep's rooms add up to, and "a store that holds more" once resources have storage limits.
+- Done last (in this order, one commit each): a summary of what the keep's rooms add up to; an
+  event system with a first event (a badger in the crops, click it to chase it off); a policy list
+  with two policies (Smaller rations, Long days). See "Events" and "Policies" under Current status.
+- Balance is NOT important for now (Henrik, 2026-10-05): many systems will be added and reworked,
+  so numbers will go out of balance anyway. Get systems in place with first-guess numbers; tune later.
+- Henrik's answers: the keep fading whenever the mouse passes over it is good, keep it. Room
+  drawbacks: yes, but as a system first, balance later.
+- Natural next steps, none approved yet: more room kinds (workshop, chapel, larder), room
+  drawbacks, more events (traders, fire, a fall accident) and moving the raids into the event
+  system, more policies (work during the night, child labour), "a store that holds more" once
+  resources have storage limits.
 - Also done (Henrik's notes after trying it): rooms are twice as tall and 50% wider, so the keep
   is 260 wide with 48-high storeys and the west wall is longer to fit it; builders climb to work
   on turrets and the spire; the hoist rope is lowered. Only the keep was made wider: ask Henrik
@@ -52,12 +59,15 @@
   two floors closer than `castle.FLOOR_SNAP` (16) above each other get mixed up while a peasant
   walks. Perches are therefore never nearer than `BuildPlan.PERCH_MIN` to the deck, and the old
   tower's perches end when it is down. A deck also never drops during a job (`state.floor`).
-- Open questions Henrik has not answered: should the keep need a click or held key to turn
-  see-through, instead of fading whenever the mouse passes over it? Which buildings count as
-  "fine" and need planks early (now: court and tavern)?
 - Nothing is balanced on purpose (building is slow, raids and planks are first guesses).
-- How to work: after any change to how building or peasants look, run `tests/screenshot.gd`
-  and LOOK at the pictures, both the close-up and the `_wide` one, then run the four tests.
+- How to work: after any change to how anything looks (building, peasants, the HUD), run
+  `tests/screenshot.gd` in a real window and LOOK at the pictures, both the close-up and the
+  `_wide` one, then run the tests. Henrik: Godot must NOT run headless when that means not seeing
+  what was made; headless is only for the logic tests. A headless logic test does not catch a
+  parse error in `hud.gd` or other scripts it never loads: the screenshot does, and so does
+  running the game once (`--quit-after 30`) and reading the errors.
+- In a cloud container with no screen: `xvfb-run -a -s "-screen 0 1280x720x24" godot
+  --rendering-driver opengl3 --path . -s tests/screenshot.gd -- ...` (there is no Vulkan there).
 
 ## Future ideas (Henrik's list, 2026-10-05)
 Not started. Keep them in mind when building features, so new systems can connect to them later.
@@ -83,11 +93,11 @@ Not started. Keep them in mind when building features, so new systems can connec
 - Rooms inside the main castle building that you build, seen through see-through walls.
 
 What this means for the design now (Claude's notes):
+- Events and policies now have their homes (`event_data.gd`, `policy_data.gd`, both summed by
+  `GameState.effect_total`); new ones should go there. The raid still has its own timer.
 - Peasants will become individuals (parents, children, sleeping, bathing, striking, traitors), so
   avoid new code that treats them only as a count per job. `workers.gd` re-making peasant nodes
   when jobs change will have to go.
-- Events and policies need one place to live: plan for a small event system and a policy list in
-  `GameState` rather than one-off timers like the raid.
 - Buildings will be many and placed by choice: keep building data in `castle_data.gd` style
   entries, and don't hard-code more x positions than needed.
 
@@ -192,6 +202,20 @@ What this means for the design now (Claude's notes):
     Room kinds are entries in `CastleData.ROOMS`. What they do, per finished room
     (`GameState.room_count`): bedchamber = room for 2 more peasants, storeroom = building costs
     3% less, armoury = soldiers hit 10% harder (`soldier.might`). Not balanced.
+  - Keep summary: pointing at the keep (outside build mode) shows a card with what its rooms
+    add up to ("Bedchamber x3: room for 6 more peasants"); the keep's build card lists the same
+    (`GameState.keep_summary`, `hud.gd` `_refresh_keep_card`, `castle.pointed_changed`).
+  - Events (`scripts/event_data.gd`, `GameState.events`, drawn by `scripts/events.gd`): every
+    45 s there is a 30% chance one starts, picked by weight from those allowed today. An event
+    lasts a while and has "effects" while it goes on; some can be clicked away for a reward.
+    First event: a badger digs at the wilds from day 2 (food site refills 60% slower for 2
+    minutes); click it to chase it off for +5 food (a hand cursor shows over it). Saved. Dev key
+    F8 starts one. Raids are not part of it yet.
+  - Policies (`scripts/policy_data.gd`, `GameState.policies`, the Policies button): rules the
+    player turns on and off any time, each with a benefit and a drawback. Smaller rations (eat
+    25% less, work 10% slower) and Long days (work 15% faster, eat 20% more). Saved; cleared when
+    the crown passes. Effects so far: `food_saving`, `work_speed`, `food_site_rate`, read with
+    `GameState.effect_total` (events and policies together).
   - Perches (`BuildPlan._perch`): what is too high to reach from the roof (more than
     `LIFT_HEIGHT` above it: a turret's battlements, the great tower, pointed roofs, flags) is set
     from the top of what stands under it. Builders get there by the stairs inside where they
@@ -231,7 +255,7 @@ What this means for the design now (Claude's notes):
   - Pass the crown (prestige) with lasting legacy; save/load with offline progress; New game
   - Camera: drag or A/D to pan, drag up/down or W/S to look up at the castle, mouse wheel zooms out
     to a quarter size (the whole world); the world's sounds fade as the view zooms out
-  - Dev shortcuts (editor runs only): F2 speed, F3 skip 10 min, F4 resources, F6 peasants, F1 hide
+  - Dev shortcuts (editor runs only): F2 speed, F3 skip 10 min, F4 resources, F6 peasants, F8 start an event, F1 hide
 - Henrik's list from the last round is built. Wanted later: more minerals than iron, better food
   from trained cooks, buildings only trained builders can raise, individual peasant traits
 - Known balance issues: iron piles up late (costs are low); food is now tight in the mid game;
@@ -278,7 +302,8 @@ What this means for the design now (Claude's notes):
   from given levels (use the levels from a save to reproduce what Henrik sees).
 - Tests: `tests/test_build.gd` (builds every part and checks no builder is ever in the air),
   `tests/test_raid.gd` (a defended and an undefended raid), `tests/test_sawmill.gd` and
-  `tests/test_rooms.gd` (choosing the keep's rooms and what they do). Run with
+  `tests/test_rooms.gd` (choosing the keep's rooms and what they do), `tests/test_events.gd`
+  and `tests/test_policies.gd`. Run with
   `godot --headless --path . -s tests/<name>.gd -- --save=user://test_save.json`.
 - Testing: run Godot with `--headless` and `-- --save=user://test_save.json` so tests
   open no window and never touch the real save (`user://save.json`). After changing
