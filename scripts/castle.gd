@@ -13,6 +13,9 @@ extends Node2D
 ## it here, and the courtyard buildings (CastleData.FRONT) on a child node in
 ## front. Peasants up on the wall are drawn between the two (see worker.gd).
 
+## The mouse moved onto another building with an inside ("" for none).
+signal pointed_changed(part: String)
+
 const CastleData = preload("res://scripts/castle_data.gd")
 const BuildPlan = preload("res://scripts/build_plan.gd")
 const SCAFFOLD_COLOR := Color(0.48, 0.32, 0.20)
@@ -83,6 +86,9 @@ var _floors: Array = []
 var _open: Array = []
 ## True while every building is see-through (the X key).
 var _all_open := false
+## The part of the building with an inside under the mouse, or "" (the HUD
+## shows what the keep's rooms add up to while it is the keep).
+var pointed := ""
 var _painting_front := false
 ## The windows of the courtyard buildings: peasants on the stairs inside
 ## can be seen through them.
@@ -201,7 +207,13 @@ func shows_inside(point: Vector2) -> bool:
 func _process(delta: float) -> void:
 	# The building under the mouse turns see-through; X does it for all of them.
 	var mouse := get_local_mouse_position()
-	var open := interiors().filter(func(inside: Dictionary) -> bool: return _all_open or inside.rect.grow(4.0).has_point(mouse))
+	var inside_now := interiors()
+	var under := inside_now.filter(func(inside: Dictionary) -> bool: return inside.rect.grow(4.0).has_point(mouse))
+	var open := inside_now if _all_open else under
+	var part: String = under[0].part if not under.is_empty() else ""
+	if part != pointed:
+		pointed = part
+		pointed_changed.emit(part)
 	if open != _open:
 		_open = open
 		_redraw()

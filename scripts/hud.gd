@@ -63,10 +63,15 @@ var _room_picker := Panel.new()
 var _room_choice: Array = CastleData.KEEP_DEFAULT_ROOMS.duplicate()
 var _room_info := Label.new()
 var _room_build: Button
+## Says what the keep's rooms add up to while the mouse is over the keep.
+var _keep_card := Panel.new()
+var _keep_info := Label.new()
+var _castle: Node2D
 
 
 func _ready() -> void:
 	_make_room_picker()
+	_make_keep_card()
 	var theme := UiTheme.build()
 	for child in get_children():
 		if child is Control:
@@ -88,6 +93,7 @@ func _ready() -> void:
 		build_button.set_pressed_no_signal(build_hover.active)
 		if not build_hover.active:
 			_room_picker.hide()
+		_refresh_keep_card()
 		build_button.text = "Building...\nB to stop" if build_hover.active else "Build (B)")
 	hire_button.pressed.connect(GameState.hire_peasant)
 	inside_button.pressed.connect(func() -> void: get_tree().call_group("castle", "toggle_all_open"))
@@ -103,6 +109,9 @@ func _ready() -> void:
 	crown_button.pressed.connect(_on_crown_pressed)
 	build_hover.hovered_changed.connect(func(_part: String) -> void: _refresh_build_card())
 	build_hover.rooms_wanted.connect(func(_part: String) -> void: show_room_picker())
+	_castle = get_tree().get_first_node_in_group("castle")
+	if _castle != null:
+		_castle.pointed_changed.connect(func(_part: String) -> void: _refresh_keep_card())
 	GameState.announced.connect(_show_toast)
 	# A click sound whenever something is bought, and a shake when a raid is lost.
 	GameState.peasants_changed.connect(func() -> void: get_tree().call_group("sfx", "play", "buy"))
@@ -216,6 +225,17 @@ func _make_room_picker() -> void:
 	buttons.add_child(_room_build)
 	buttons.add_child(cancel)
 	box.add_child(buttons)
+
+
+## The keep card: a title and one line per kind of room (GameState.keep_summary).
+func _make_keep_card() -> void:
+	_keep_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_keep_card.hide()
+	add_child(_keep_card)
+	_keep_info.position = Vector2(7, 4)
+	_keep_info.add_theme_font_size_override("font_size", 10)
+	_keep_info.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_keep_card.add_child(_keep_info)
 
 
 func _picker_button(text: String) -> Button:
@@ -333,6 +353,7 @@ func _refresh() -> void:
 		crown_button.text = "Pass the crown (needs rank %d)" % GameState.LEGACY_MIN_RANK
 	_refresh_room_picker()
 	_refresh_build_card()
+	_refresh_keep_card()
 
 
 func _refresh_top_bar() -> void:
@@ -434,6 +455,10 @@ func _refresh_build_card() -> void:
 	lines.append("+ %s" % part.benefit)
 	if part.drawback != "":
 		lines.append("-  %s" % part.drawback)
+	if id == "keep" and level > 0:
+		lines.append("Rooms now:")
+		for line in GameState.keep_summary():
+			lines.append("  " + line)
 	var reason := GameState.part_block_reason(id)
 	if id == GameState.job_part:
 		lines.append("Being built: %d%%" % (GameState.job_fraction() * 100))
@@ -449,10 +474,39 @@ func _refresh_build_card() -> void:
 	_preview.queue_redraw()
 	# Keep the card beside the mouse, and on screen.
 	var mouse := build_card.get_viewport().get_mouse_position()
-	build_card.size.y = maxf(build_card_label.get_minimum_size().y + 12, PREVIEW_RADIUS * 2.0 + 16)
+	build_card_label.size.y = build_card_label.get_minimum_size().y
+	build_card.size.y = maxf(build_card_label.size.y + 12, PREVIEW_RADIUS * 2.0 + 16)
 	build_card.position = Vector2(
 		clampf(mouse.x + 18, 4, 640 - build_card.size.x - 4),
 		clampf(mouse.y - build_card.size.y - 8, 40, 316 - build_card.size.y))
+
+
+## Shows what the keep's rooms add up to while the mouse is over the keep
+## (outside build mode: there the build card says it).
+func _refresh_keep_card() -> void:
+	var show_it: bool = _castle != null and _castle.pointed == "keep" and not build_hover.active \
+			and not skill_tree.visible and GameState.part_levels.keep > 0
+	_keep_card.visible = show_it
+	if not show_it:
+		return
+	var lines: PackedStringArray = ["THE KEEP'S ROOMS"]
+	lines.append_array(GameState.keep_summary())
+	_keep_info.text = "\n".join(lines)
+	_keep_card.size = _keep_info.get_minimum_size() + Vector2(14, 8)
+	_place_keep_card()
+
+
+func _process(_delta: float) -> void:
+	if _keep_card.visible:
+		_place_keep_card()
+
+
+## Beside the mouse, and on screen.
+func _place_keep_card() -> void:
+	var mouse := _keep_card.get_viewport().get_mouse_position()
+	_keep_card.position = Vector2(
+		clampf(mouse.x + 14, 4, 640 - _keep_card.size.x - 4),
+		clampf(mouse.y - _keep_card.size.y - 8, 40, 316 - _keep_card.size.y))
 
 
 ## The round picture on the build card: the part as it will look at its next

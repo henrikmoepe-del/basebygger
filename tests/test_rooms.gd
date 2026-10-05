@@ -49,6 +49,12 @@ func _run() -> void:
 	ok = ok and gs.keep_picks[1] == CastleData.KEEP_DEFAULT_ROOMS
 	ok = ok and gs.max_peasants() == room_before + 2 * CastleData.BEDCHAMBER_PEASANTS
 
+	# The keep's summary adds the rooms up.
+	var summary: PackedStringArray = gs.keep_summary()
+	print("summary: %s" % [summary])
+	ok = ok and "Bedchamber x3: room for 6 more peasants" in summary
+	ok = ok and "Armoury x2: soldiers hit 20% harder" in summary and "Storeroom x2: building costs 6% less" in summary
+
 	# The rooms survive saving and loading.
 	gs.save_game()
 	gs.keep_picks = []

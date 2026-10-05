@@ -770,6 +770,31 @@ func armoury_mult() -> float:
 	return 1.0 + CastleData.ARMOURY_MIGHT * room_count("armoury")
 
 
+## What the keep's finished rooms add up to, one line per kind of room, e.g.
+## "Bedchamber x3: room for 6 more peasants". Empty without a keep.
+func keep_summary() -> PackedStringArray:
+	var lines: PackedStringArray = []
+	for kind: String in CastleData.ROOMS:
+		var count := room_count(kind)
+		if count > 0:
+			lines.append("%s x%d: %s" % [CastleData.ROOMS[kind].name, count, _room_effect(kind, count)])
+	return lines
+
+
+## What count rooms of a kind do together.
+func _room_effect(kind: String, count: int) -> String:
+	match kind:
+		"beds":
+			return "room for %d more peasants" % (CastleData.BEDCHAMBER_PEASANTS * count)
+		"store":
+			return "building costs %d%% less" % roundi((1.0 - pow(1.0 - CastleData.STOREROOM_DISCOUNT, count)) * 100)
+		"armoury":
+			return "soldiers hit %d%% harder" % roundi((armoury_mult() - 1.0) * 100)
+		"kitchen":
+			return "the cooks work here"
+	return "no effect yet"
+
+
 func _scaled_cost(base: Dictionary, growth: float, level: int) -> Dictionary:
 	var cost := {}
 	for type: String in base:
