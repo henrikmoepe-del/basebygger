@@ -162,7 +162,7 @@ const SKILLS := {
 		"effects": {"house_room": 1},
 	},
 	"ale": {
-		"name": "Good Ale", "icon": "Al", "text": "A full tavern makes everyone work another 4% faster per level.",
+		"name": "Good Ale", "icon": "Al", "text": "A full tavern makes everyone 4 points happier per level.",
 		"cell": Vector2i(3, 1), "requires": "bunks", "max_level": 3, "cost": 3, "cost_step": 1,
 		"effects": {"tavern_bonus": 0.04},
 	},

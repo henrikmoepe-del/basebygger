@@ -143,15 +143,15 @@ const PARTS := {
 		"name": "Houses", "defence": 0, "renown": 0, "cost": {"wood": 12, "stone": 4}, "work": 6.0,
 		"site_x": 1338.0, "village": true, "max_level": 12,
 	},
-	# The well and the tavern keep peasants content, which makes them work
-	# faster (see GameState.morale_bonus). Each level serves more peasants.
+	# The well and the tavern make peasants happy, which makes them work
+	# faster (see GameState.happiness_parts). Each level serves more peasants.
 	"well": {
-		"benefit": "Up to +15% work speed; each level serves 8 peasants", "drawback": "",
+		"benefit": "Up to +15 happiness; each level serves 8 peasants", "drawback": "",
 		"name": "Well", "defence": 0, "renown": 1, "cost": {"stone": 16, "wood": 4}, "work": 8.0,
 		"site_x": 1250.0, "village": true, "max_level": 10,
 	},
 	"tavern": {
-		"benefit": "Up to +15% work speed; each level serves 10 peasants", "drawback": "Peasants eat 3% more per level",
+		"benefit": "Up to +15 happiness; each level serves 10 peasants", "drawback": "Peasants eat 3% more per level",
 		"name": "Tavern", "defence": 0, "renown": 1, "cost": {"wood": 24, "stone": 8}, "work": 10.0,
 		"site_x": 1296.0, "village": true, "max_level": 10,
 	},

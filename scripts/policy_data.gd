@@ -4,6 +4,7 @@ extends RefCounted
 ## GameState.effect_total adds up, the same effects events use:
 ##   food_saving  a share less food eaten at dawn (negative: more)
 ##   work_speed   a share faster everyone walks and works (negative: slower)
+##   happiness    points of happiness (see GameState.happiness_parts)
 ##
 ## Adding an entry here is all a new policy needs, if it only uses effects
 ## that already exist. Later ones (child labour, bathing, religion, cults)
@@ -13,13 +14,13 @@ const POLICIES := {
 	"rations": {
 		"name": "Smaller rations",
 		"benefit": "Peasants eat 25% less",
-		"drawback": "Everyone works 10% slower",
-		"effects": {"food_saving": 0.25, "work_speed": -0.10},
+		"drawback": "Everyone works 10% slower, and is less happy",
+		"effects": {"food_saving": 0.25, "work_speed": -0.10, "happiness": -15.0},
 	},
 	"long_days": {
 		"name": "Long days",
 		"benefit": "Everyone works 15% faster",
-		"drawback": "Peasants eat 20% more",
-		"effects": {"work_speed": 0.15, "food_saving": -0.20},
+		"drawback": "Peasants eat 20% more, and are less happy",
+		"effects": {"work_speed": 0.15, "food_saving": -0.20, "happiness": -10.0},
 	},
 }

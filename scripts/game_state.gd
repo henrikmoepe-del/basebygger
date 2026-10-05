@@ -27,6 +27,8 @@ signal announced(text: String)
 signal events_changed
 ## A policy was turned on or off (see PolicyData).
 signal policies_changed
+## Happiness moved by a whole point.
+signal mood_changed
 
 const CastleData = preload("res://scripts/castle_data.gd")
 const SkillData = preload("res://scripts/skill_data.gd")
@@ -96,13 +98,27 @@ const LEGACY_START_STOCK := 10
 
 ## The village. Houses set how many peasants can live here. The well and the
 ## tavern each serve a number of peasants per level; the share of peasants
-## served decides how much of that building's work bonus everyone gets.
+## served decides how much of that building's happiness everyone gets.
 const BASE_POPULATION := 12
 const POPULATION_PER_HOUSE := 4
 const WELL_SERVES := 8
-const WELL_BONUS := 0.15
+const WELL_HAPPY := 15.0
 const TAVERN_SERVES := 10
-const TAVERN_BONUS := 0.15
+const TAVERN_HAPPY := 15.0
+
+## Happiness, from 0 to 100, drifts towards what the peasants' lives are
+## like (happiness_parts) by MOOD_DRIFT a second. At MOOD_BASE nothing
+## changes; at 100 everyone works MOOD_WORK faster, at 0 that much slower.
+## Some events only happen while people are happy, or unhappy.
+const MOOD_BASE := 50.0
+const MOOD_DRIFT := 0.5
+const MOOD_WORK := 0.2
+const MOOD_FED := 5.0
+const MOOD_HUNGRY := -25.0
+const MOOD_CROWDED := -10.0
+## Happiness counts as "happy" above this and "unhappy" below MOOD_UNHAPPY.
+const MOOD_HAPPY := 65.0
+const MOOD_UNHAPPY := 35.0
 
 ## Stone: how fast it appears at the stone site and how much can pile up
 ## there, before and per level of the quarry.
@@ -207,6 +223,8 @@ var events := {}
 var messages := []
 ## How many times each event has happened, by id.
 var event_counts := {}
+## How happy the peasants are, 0 to 100 (see MOOD_BASE).
+var happiness := MOOD_BASE
 ## The policies turned on, by id (see PolicyData).
 var policies := []
 
@@ -265,6 +283,7 @@ func _process(delta: float) -> void:
 		_was_night = is_night()
 		daytime_changed.emit()
 	_update_events(delta)
+	_update_mood(delta)
 	_quest_timer += delta
 	if _quest_timer >= QUEST_CHECK_TIME:
 		_quest_timer = 0.0
@@ -552,6 +571,11 @@ func _times_happened(id: String) -> int:
 ## it "needs" holds.
 func event_allowed(id: String) -> bool:
 	var info: Dictionary = EventData.EVENTS[id]
+	var needs: Dictionary = info.get("needs", {})
+	if needs.get("happy", false) and happiness <= MOOD_HAPPY:
+		return false
+	if needs.get("unhappy", false) and happiness >= MOOD_UNHAPPY:
+		return false
 	return day >= info.get("from_day", 1)
 
 
@@ -657,14 +681,52 @@ func max_peasants() -> int:
 	return BASE_POPULATION + (POPULATION_PER_HOUSE + int(skill_total("house_room"))) * part_levels.houses 			+ CastleData.BEDCHAMBER_PEASANTS * room_count("beds")
 
 
-## How much faster everyone works for being content: the well and the tavern
-## each give their full bonus only if they are big enough for every peasant.
+## How much faster everyone works for being happy (slower when unhappy).
 func morale_bonus() -> float:
+	return (happiness - MOOD_BASE) / (100.0 - MOOD_BASE) * MOOD_WORK
+
+
+## What makes the peasants happy or unhappy, each [what, points]. The well
+## and the tavern give their full points only if they are big enough for
+## every peasant.
+func happiness_parts() -> Array:
+	var parts := []
+	parts.append(["Fed", MOOD_FED] if fed else ["Hungry", MOOD_HUNGRY])
 	var well_serves := WELL_SERVES + int(skill_total("well_serves"))
 	var watered := clampf(float(part_levels.well * well_serves) / peasants, 0.0, 1.0)
+	if watered > 0.0:
+		parts.append(["Well", WELL_HAPPY * watered])
 	var cheered := clampf(float(part_levels.tavern * TAVERN_SERVES) / peasants, 0.0, 1.0)
-	var dust: float = CastleData.QUARRY_DUST * part_levels.quarry
-	return WELL_BONUS * watered + (TAVERN_BONUS + skill_total("tavern_bonus")) * cheered - dust
+	if cheered > 0.0:
+		parts.append(["Tavern", (TAVERN_HAPPY + skill_total("tavern_bonus") * 100.0) * cheered])
+	if part_levels.quarry > 0:
+		parts.append(["Quarry dust", -CastleData.QUARRY_DUST * 100.0 * part_levels.quarry])
+	if peasants >= max_peasants():
+		parts.append(["Crowded houses", MOOD_CROWDED])
+	for id: String in policies:
+		var points: float = PolicyData.POLICIES[id].effects.get("happiness", 0.0)
+		if points != 0.0:
+			parts.append([PolicyData.POLICIES[id].name, points])
+	for id: String in events:
+		var points: float = EventData.EVENTS[id].effects.get("happiness", 0.0)
+		if points != 0.0:
+			parts.append([EventData.EVENTS[id].name, points])
+	return parts
+
+
+## Where happiness is heading.
+func happiness_target() -> float:
+	var target := MOOD_BASE
+	for part: Array in happiness_parts():
+		target += part[1]
+	return clampf(target, 0.0, 100.0)
+
+
+func _update_mood(delta: float) -> void:
+	var before := roundi(happiness)
+	happiness = move_toward(happiness, happiness_target(), MOOD_DRIFT * delta)
+	if roundi(happiness) != before:
+		mood_changed.emit()
 
 
 ## Hires a peasant. They start idle until given a job.
@@ -1259,6 +1321,7 @@ func save_game() -> void:
 		"event_counts": event_counts,
 		"messages": messages,
 		"policies": policies,
+		"happiness": happiness,
 		"income_rate": income_rate,
 		"job": {
 			"part": job_part, "hauled": job_hauled, "formed": job_formed,
@@ -1315,6 +1378,7 @@ func _start_over() -> void:
 	messages.clear()
 	_event_timer = 0.0
 	policies.clear()
+	happiness = MOOD_BASE
 	day = 1
 	day_time = 0.0
 	fed = true
@@ -1398,6 +1462,7 @@ func load_game() -> void:
 			if EventData.EVENTS.has(id):
 				event_counts[id] = maxi(int(saved_counts[id]), 0)
 
+	happiness = clampf(float(data.get("happiness", MOOD_BASE)), 0.0, 100.0)
 	policies.clear()
 	var saved_policies: Variant = data.get("policies")
 	if saved_policies is Array:

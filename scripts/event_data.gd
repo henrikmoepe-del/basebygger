@@ -17,7 +17,10 @@ extends RefCounted
 ##   until_done  instead of lasts: it goes on until the game ends it (a raid
 ##               ends when it is beaten or reaches the castle)
 ##   effects     what it does while it goes on: effect -> amount, read with
-##               GameState.effect_total (the same effects policies use)
+##               GameState.effect_total (the same effects policies use);
+##               "happiness" is points of happiness while it goes on
+##   needs       optional: {"happy": true} only while the peasants are happy,
+##               {"unhappy": true} only while they are unhappy
 ##   site        where in the world it happens: a gathering site's node name
 ##   click       optional: clicking it in the world ends it early, for
 ##               "reward" (resources) and with "click_text"
@@ -48,5 +51,25 @@ const EVENTS := {
 		"click": true,
 		"reward": {"food": 5},
 		"click_text": "Badger chased off! The crops are safe: +5 food",
+	},
+	"merry": {
+		"name": "Merry work",
+		"start_text": "The peasants are happy and sing as they work: everyone works faster for a while",
+		"end_text": "The singing has died down",
+		"from_day": 2,
+		"weight": 1.0,
+		"lasts": 120.0,
+		"effects": {"work_speed": 0.15},
+		"needs": {"happy": true},
+	},
+	"strike": {
+		"name": "Strike",
+		"start_text": "The peasants are unhappy and have downed tools! Everyone works much slower for a while",
+		"end_text": "The strike is over and the peasants are back at work",
+		"from_day": 2,
+		"weight": 1.0,
+		"lasts": 90.0,
+		"effects": {"work_speed": -0.5},
+		"needs": {"unhappy": true},
 	},
 }

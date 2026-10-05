@@ -55,6 +55,7 @@ const PREVIEW_GROUND := Color(0.45, 0.68, 0.38)
 
 ## Resource id -> the Label on its chip in the top bar.
 var _chips := {}
+var _mood_label := Label.new()
 ## Job id -> {"row", "label", "minus", "plus", "train"}.
 var _job_rows := {}
 var _toast_tween: Tween
@@ -93,7 +94,7 @@ func _ready() -> void:
 		GameState.resources_changed, GameState.castle_changed, GameState.job_progress_changed,
 		GameState.peasants_changed, GameState.trees_changed, GameState.skills_changed,
 		GameState.daytime_changed, GameState.raid_started, GameState.raid_progress,
-		GameState.policies_changed,
+		GameState.policies_changed, GameState.mood_changed,
 	]:
 		changed.connect(_refresh)
 	_preview.position = Vector2(8, 8)
@@ -169,6 +170,10 @@ func _make_chips() -> void:
 		chip.add_child(label)
 		resource_bar.add_child(chip)
 		_chips[type] = label
+	# How happy the peasants are; the tooltip says why.
+	_mood_label.add_theme_font_size_override("font_size", 12)
+	_mood_label.mouse_filter = Control.MOUSE_FILTER_PASS
+	resource_bar.add_child(_mood_label)
 
 
 ## One row per job in JobData.JOBS: a square in the job's tunic colour, its
@@ -463,13 +468,29 @@ func _refresh_top_bar() -> void:
 				label.text = str(GameState.resources[type])
 				chip.tooltip_text = "%s: +%.1f a second (averaged over a day)" % [type.capitalize(), GameState.income_rate[type]]
 
+	var mood := roundi(GameState.happiness)
+	_mood_label.text = "Mood %d" % mood
+	var mood_color := UiTheme.PARCHMENT
+	if GameState.happiness > GameState.MOOD_HAPPY:
+		mood_color = UiTheme.GOLD
+	elif GameState.happiness < GameState.MOOD_UNHAPPY:
+		mood_color = UiTheme.BAD
+	_mood_label.add_theme_color_override("font_color", mood_color)
+	var why: PackedStringArray = ["Happiness %d of 100, heading for %d. Everyone works %+d%% for it." % [
+		mood, roundi(GameState.happiness_target()), roundi(GameState.morale_bonus() * 100)]]
+	for part: Array in GameState.happiness_parts():
+		why.append("  %s: %+d" % [part[0], roundi(part[1])])
+	why.append("Happy peasants (over %d) may sing at work; unhappy ones (under %d) may strike." % [
+		roundi(GameState.MOOD_HAPPY), roundi(GameState.MOOD_UNHAPPY)])
+	_mood_label.tooltip_text = "\n".join(why)
+
 	defence_label.text = "Defence %d" % GameState.total_defence()
 	day_label.text = "Day %d, %s  -  %s" % [
 		GameState.day, "night" if GameState.is_night() else "day",
 		"fed" if GameState.fed else "HUNGRY"]
 	day_label.add_theme_color_override("font_color", UiTheme.PARCHMENT if GameState.fed else UiTheme.BAD)
-	day_label.tooltip_text = "Peasants eat %d food at dawn. Without enough they work at %d%% for the day.\nMorale from the well, tavern and quarry: %+d%% work speed." % [
-		GameState.food_needed(), roundi(GameState.HUNGRY_WORK_MULT * 100), roundi(GameState.morale_bonus() * 100)]
+	day_label.tooltip_text = "Peasants eat %d food at dawn. Without enough they work at %d%% for the day, and are unhappy." % [
+		GameState.food_needed(), roundi(GameState.HUNGRY_WORK_MULT * 100)]
 
 	var quest := GameState.current_quest()
 	goal_label.text = "Goal: %s  (+%d renown)" % [quest.text, quest.renown] if not quest.is_empty() else "All goals reached"

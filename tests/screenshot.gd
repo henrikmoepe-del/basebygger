@@ -28,6 +28,8 @@ const PLANS := {
 	"badger_hover": {"levels": {"walls": 1}, "part": "", "camera": [1068, -45, 2.0], "shots": 1, "events": ["badger"], "mouse": [388, 172]},
 	"policies": {"levels": {"walls": 2}, "part": "", "camera": [100, 0, 1.0], "shots": 1, "policies": ["rations"]},
 	"log": {"levels": {"walls": 2}, "part": "", "camera": [100, 0, 1.0], "shots": 1, "events": ["badger", "raid"], "log": true},
+	"mood": {"levels": {"walls": 2, "well": 2, "tavern": 2}, "part": "", "camera": [100, 0, 1.0], "shots": 1, "happiness": 80.0},
+	"mood_tip": {"levels": {"walls": 2, "well": 2, "tavern": 2, "quarry": 1}, "part": "", "camera": [100, 0, 1.0], "shots": 1, "happiness": 80.0, "policies": ["rations"], "mouse": [252, 9]},
 	"rooms_picker": {"levels": {"walls": 3, "keep": 2}, "part": "", "camera": [-205, 10, 1.5], "shots": 1, "picker": true},
 	"gate": {"levels": {"walls": 2}, "part": "gate", "camera": [30, -40, 2.0], "shots": 5},
 	"tavern": {"levels": {"walls": 1}, "part": "tavern", "camera": [1170, -45, 2.0], "shots": 5},
@@ -107,6 +109,8 @@ func _run() -> void:
 		current_scene.get_node("HUD").policies_button.button_pressed = true
 	for event: String in plan.get("events", []):
 		gs.start_event(event)
+	if plan.has("happiness"):
+		gs.happiness = plan.happiness
 	if plan.get("log", false):
 		current_scene.get_node("HUD").log_button.button_pressed = true
 	if plan.has("mouse"):
@@ -134,6 +138,8 @@ func _run() -> void:
 				print("shot %d at %d of %d pieces" % [next, gs.job_placed, size])
 				next += 1
 	Engine.time_scale = 1.0
+	# Leave no save behind: the tests start from a new game.
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(gs.save_path))
 	quit()
 
 
