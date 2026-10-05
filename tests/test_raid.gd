@@ -65,8 +65,23 @@ func _run() -> void:
 	var reached: bool = gs.raids_faced == 2 and gs.raids_won == 1 and not gs.raid_incoming
 	print("%s undefended castle: reached the castle after %.0f s, raids faced %d, won %d" % [
 		"ok  " if reached else "FAIL", took, gs.raids_faced, gs.raids_won])
-	print("ALL OK" if beaten and reached else "SOMETHING FAILED")
 	Engine.time_scale = 1.0
+	var all_ok := beaten and reached
+	# Raid kinds: each kind has its own size, and later raids can be any kind.
+	var sizes := {}
+	for kind: String in gs.EventData.RAID_KINDS:
+		gs.next_raid_kind = kind
+		sizes[kind] = gs.raid_size()
+	print("raid %d: sizes by kind %s" % [gs.raids_faced, sizes])
+	all_ok = all_ok and sizes.bandits < sizes.raiders and sizes.raiders < sizes.warband
+	var seen := {}
+	for i in 60:
+		gs._pick_raid_kind()
+		seen[gs.next_raid_kind] = true
+	print("kinds picked for later raids: %s" % [seen.keys()])
+	all_ok = all_ok and seen.size() == gs.EventData.RAID_KINDS.size()
+	print("ALL OK" if all_ok else "SOMETHING FAILED")
+
 	# Leave no save behind: the next test starts from a new game.
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(gs.save_path))
 	quit()

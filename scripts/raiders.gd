@@ -53,6 +53,8 @@ var _arrows: Array[Dictionary] = []
 var _palisade_hp := 0.0
 var _palisade_max := 0.0
 var _fleeing := false
+## The kind of the raid being fought (see EventData.RAID_KINDS).
+var _kind: Dictionary = {}
 
 
 func _ready() -> void:
@@ -70,6 +72,7 @@ func palisade_holds() -> bool:
 
 func _on_raid_started() -> void:
 	_fleeing = false
+	_kind = GameState.raid_kind()
 	_raiders.clear()
 	_arrows.clear()
 	for i in GameState.raid_size():
@@ -121,7 +124,7 @@ func _move_raiders(delta: float, soldiers: Array) -> void:
 			stop = minf(stop, foe.position.x - MELEE_REACH)
 		# Don't walk through the raider in front.
 		stop = minf(stop, front - 5.0)
-		raider.x = minf(raider.x + SPEED * delta, stop)
+		raider.x = minf(raider.x + SPEED * _kind.get("speed", 1.0) * delta, stop)
 		front = raider.x
 		if palisade_holds() and raider.x >= CastleData.PALISADE_X - PALISADE_STAND - 24.0:
 			_palisade_hp -= RAIDER_DAMAGE * delta
@@ -180,7 +183,7 @@ func _hit(raider: Dictionary, damage: float) -> void:
 	raider.hp -= damage
 	if raider.hp <= 0.0:
 		raider.fallen = 0.0
-		get_tree().call_group("effects", "burst", to_global(Vector2(raider.x, -8)), BODY, 4)
+		get_tree().call_group("effects", "burst", to_global(Vector2(raider.x, -8)), _kind.get("body", BODY), 4)
 		_report()
 
 
@@ -221,11 +224,19 @@ func _draw() -> void:
 		var x: float = raider.x
 		if raider.fallen >= 0.0:
 			# Lying on the ground.
-			draw_rect(Rect2(x - 6, -4, 12, 4), Color(BODY, 1.0 - raider.fallen / FALL_TIME))
+			draw_rect(Rect2(x - 6, -4, 12, 4), Color(_kind.get("body", BODY), 1.0 - raider.fallen / FALL_TIME))
 			continue
-		draw_rect(Rect2(x - 3, -10, 6, 10), BODY)
+		var body: Color = _kind.get("body", BODY)
+		draw_rect(Rect2(x - 3, -10, 6, 10), body)
 		draw_rect(Rect2(x - 2, -14, 4, 4), SKIN)
 		draw_rect(Rect2(x + 4, -16, 1, 14), BLADE)
+		if _kind.get("armour", "") is Color:
+			# A helmet and a mail shirt.
+			draw_rect(Rect2(x - 3, -15, 6, 2), _kind.armour)
+			draw_rect(Rect2(x - 3, -10, 6, 4), _kind.armour)
+		if _kind.get("shield", false):
+			draw_rect(Rect2(x + 2, -11, 4, 7), CastleData.WOOD)
+			draw_rect(Rect2(x + 3, -9, 2, 3), body)
 		if raider.hp < raider.max:
 			draw_rect(Rect2(x - 4, -19, 8, 2), BAR_BACK)
 			draw_rect(Rect2(x - 4, -19, 8.0 * raider.hp / raider.max, 2), BAR)

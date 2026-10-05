@@ -39,12 +39,36 @@ extends RefCounted
 ## How fast a hurt peasant works and walks.
 const HURT_PACE := 0.5
 const CHECK_TIME := 45.0
+
+## The kinds of raid. Which comes next is picked when the last one ends
+## (GameState.next_raid_kind), from those whose "from_raid" has come, by
+## "weight"; the first raid is always the first kind here.
+##   size, hp, speed, renown  times those of an ordinary raid
+##   body, armour             colours of the raiders (armour: "" for none)
+##   shield                   true: they carry shields
+const RAID_KINDS := {
+	"bandits": {
+		"name": "Bandits", "arrives": "Bandits approach from the west!", "from_raid": 0, "weight": 1.0,
+		"size": 0.6, "hp": 0.7, "speed": 1.5, "renown": 0.5,
+		"body": Color(0.48, 0.36, 0.22), "armour": "", "shield": false,
+	},
+	"raiders": {
+		"name": "Raiders", "arrives": "Raiders approach from the west!", "from_raid": 1, "weight": 2.0,
+		"size": 1.0, "hp": 1.0, "speed": 1.0, "renown": 1.0,
+		"body": Color(0.70, 0.16, 0.16), "armour": "", "shield": false,
+	},
+	"warband": {
+		"name": "Warband", "arrives": "A warband marches from the west!", "from_raid": 2, "weight": 1.0,
+		"size": 1.5, "hp": 1.4, "speed": 0.8, "renown": 2.0,
+		"body": Color(0.40, 0.10, 0.12), "armour": Color(0.55, 0.56, 0.60), "shield": true,
+	},
+}
 const CHANCE := 0.3
 
 const EVENTS := {
 	"raid": {
 		"name": "Raid",
-		"start_text": "Raiders approach from the west! {raiders} of them",
+		"start_text": "{raid_arrives} {raiders} of them",
 		"schedule": {"from_day": 5, "every_days": 3},
 		"until_done": true,
 		"effects": {},

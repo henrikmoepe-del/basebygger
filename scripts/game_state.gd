@@ -229,6 +229,8 @@ var skills := {}
 var events := {}
 ## The last messages, oldest first, each {"day", "text"} (the Log button).
 var messages := []
+## The kind of the next raid (see EventData.RAID_KINDS).
+var next_raid_kind := "bandits"
 ## What belongs to an event going on: {"offer": index} for a trader,
 ## {"person": id} for whoever an accident hurt.
 var event_info := {}
@@ -513,12 +515,34 @@ func next_raid_day() -> int:
 ## How many raiders come next time. A rich keep draws more of them.
 func raid_size() -> int:
 	var greed: float = (1.0 + CastleData.KEEP_RAID_GROWTH * part_levels.keep) * (1.0 + effect_total("raid_size"))
-	return roundi((RAID_BASE_SIZE + RAID_SIZE_GROWTH * raids_faced) * greed)
+	return maxi(roundi((RAID_BASE_SIZE + RAID_SIZE_GROWTH * raids_faced) * greed * raid_kind().size), 1)
+
+
+## What the next raid (or the one going on) is like (see EventData.RAID_KINDS).
+func raid_kind() -> Dictionary:
+	return EventData.RAID_KINDS.get(next_raid_kind, EventData.RAID_KINDS.raiders)
+
+
+## Picks the kind of the next raid, from those whose time has come.
+func _pick_raid_kind() -> void:
+	var total := 0.0
+	var allowed := []
+	for kind: String in EventData.RAID_KINDS:
+		if raids_faced >= EventData.RAID_KINDS[kind].from_raid:
+			allowed.append(kind)
+			total += EventData.RAID_KINDS[kind].weight
+	var roll := randf() * total
+	for kind: String in allowed:
+		roll -= EventData.RAID_KINDS[kind].weight
+		if roll <= 0.0:
+			next_raid_kind = kind
+			return
+	next_raid_kind = allowed.back()
 
 
 ## How much each raider of the next raid can take.
 func raider_hp() -> float:
-	return RAIDER_BASE_HP * pow(RAIDER_HP_GROWTH, raids_faced)
+	return RAIDER_BASE_HP * pow(RAIDER_HP_GROWTH, raids_faced) * raid_kind().hp
 
 
 ## The raid event has started: raiders.gd sends them in from the west.
@@ -567,7 +591,7 @@ func finish_siege(won: bool) -> void:
 
 func _resolve_raid(won: bool) -> void:
 	if won:
-		var reward := RAID_BASE_RENOWN + raids_faced / 3 + int(skill_total("raid_renown"))
+		var reward := maxi(roundi((RAID_BASE_RENOWN + raids_faced / 3 + int(skill_total("raid_renown"))) * raid_kind().renown), 1)
 		renown += reward
 		raids_won += 1
 		announced.emit("Raid repelled! +%d renown" % reward)
@@ -741,6 +765,9 @@ func end_event(id: String, how: String) -> void:
 		hurt.hurt = false
 		peasants_changed.emit()
 	event_info.erase(id)
+	if id == "raid":
+		# The next raid's kind is known from now on.
+		_pick_raid_kind()
 	resources_changed.emit()
 	events_changed.emit()
 
@@ -751,6 +778,7 @@ func _event_text(text: String, id := "") -> String:
 	var hurt := person(int(event_info.get(id, {}).get("person", -1))) if id != "" else {}
 	return text.format({
 		"raiders": raid_size(),
+		"raid_arrives": raid_kind().arrives,
 		"offer": "%s for %s" % [amounts_text(offer.give), amounts_text(offer.get)] if not offer.is_empty() else "",
 		"person": person_title(hurt) if not hurt.is_empty() else "",
 	})
@@ -1606,6 +1634,7 @@ func save_game() -> void:
 		"events": events,
 		"event_counts": event_counts,
 		"event_info": event_info,
+		"next_raid_kind": next_raid_kind,
 		"messages": messages,
 		"policies": policies,
 		"boosts": boosts,
@@ -1665,6 +1694,7 @@ func _start_over() -> void:
 	events.clear()
 	event_counts.clear()
 	event_info.clear()
+	next_raid_kind = EventData.RAID_KINDS.keys()[0]
 	messages.clear()
 	_event_timer = 0.0
 	policies.clear()
@@ -1748,6 +1778,9 @@ func load_game() -> void:
 		for message: Variant in saved_messages.slice(-LOG_SIZE):
 			if message is Dictionary and message.get("text") is String:
 				messages.append({"day": int(message.get("day", 1)), "text": message.text})
+	next_raid_kind = str(data.get("next_raid_kind", EventData.RAID_KINDS.keys()[0]))
+	if not EventData.RAID_KINDS.has(next_raid_kind):
+		next_raid_kind = "raiders"
 	event_info.clear()
 	var saved_info: Variant = data.get("event_info")
 	if saved_info is Dictionary:

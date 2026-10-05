@@ -43,6 +43,8 @@ const PLANS := {
 	"trader_fire": {"levels": {"walls": 1, "stockhouse": 2}, "stock": {"wood": 150, "stone": 80, "food": 150, "planks": 20, "iron": 0}, "part": "", "camera": [690, -40, 2.0], "shots": 1, "events": ["trader", "fire"]},
 	"accident": {"levels": {"stockhouse": 2}, "part": "walls", "camera": [330, -40, 2.0], "shots": 2, "events": ["accident"]},
 	"hurt_close": {"levels": {"stockhouse": 2}, "part": "walls", "camera": [330, -10, 6.0], "shots": 40, "events": ["accident"], "follow_hurt": true},
+	"warband": {"levels": {"walls": 2, "palisade": 1, "watchtower": 1}, "part": "", "camera": [-800, -40, 2.0], "shots": 1, "raid_kind": "warband", "events": ["raid"]},
+	"bandits": {"levels": {"walls": 2, "palisade": 1, "watchtower": 1}, "part": "", "camera": [-720, -40, 2.0], "shots": 1, "raid_kind": "bandits", "events": ["raid"]},
 	"rooms_picker": {"levels": {"walls": 3, "keep": 2}, "part": "", "camera": [-205, 10, 1.5], "shots": 1, "picker": true},
 	"gate": {"levels": {"walls": 2}, "part": "gate", "camera": [30, -40, 2.0], "shots": 5},
 	"tavern": {"levels": {"walls": 1}, "part": "tavern", "camera": [1170, -45, 2.0], "shots": 5},
@@ -124,6 +126,8 @@ func _run() -> void:
 		for policy: String in plan.policies:
 			gs.toggle_policy(policy)
 		current_scene.get_node("HUD").policies_button.button_pressed = true
+	if plan.has("raid_kind"):
+		gs.next_raid_kind = plan.raid_kind
 	for event: String in plan.get("events", []):
 		gs.start_event(event)
 	if plan.has("stock"):
