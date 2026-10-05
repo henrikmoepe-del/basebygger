@@ -61,6 +61,46 @@ func _run() -> void:
 	print("ran out by itself: %s" % [not gs.events.has("badger")])
 	ok = ok and not gs.events.has("badger")
 
+	# A trader: no trade without the price, a trade with it.
+	gs.part_levels.stockhouse = 5
+	gs.events.clear()
+	ok = ok and gs.start_event("trader")
+	var offer: Dictionary = gs.event_offer("trader")
+	for type: String in offer.give:
+		gs.resources[type] = 0
+	var got: String = offer.get.keys()[0]
+	var before: int = gs.resources[got]
+	print("trader offers %s for %s; clicked while poor: %s" % [offer.give, offer.get, gs.click_event("trader")])
+	ok = ok and gs.events.has("trader")
+	for type: String in offer.give:
+		gs.resources[type] = offer.give[type]
+	ok = ok and gs.click_event("trader") and not gs.events.has("trader")
+	print("clicked with the price: %s %d -> %d" % [got, before, gs.resources[got]])
+	ok = ok and gs.resources[got] == before + offer.get[got]
+
+	# A fire that burns out takes a quarter of the wood; one clicked out takes nothing.
+	gs.resources.wood = 100
+	gs.start_event("fire")
+	gs.end_event("fire", "ran_out")
+	print("fire burned out: wood 100 -> %d" % gs.resources.wood)
+	ok = ok and gs.resources.wood == 75
+	gs.start_event("fire")
+	ok = ok and gs.click_event("fire") and gs.resources.wood == 75
+
+	# An accident only while building; it hurts a builder until it ends.
+	print("accident allowed with nothing being built: %s" % gs.event_allowed("accident"))
+	ok = ok and not gs.event_allowed("accident")
+	gs.job_part = "walls"
+	var builder: Dictionary = gs.people.filter(func(p: Dictionary) -> bool: return p.job == "build")[0]
+	ok = ok and gs.event_allowed("accident") and gs.start_event("accident")
+	var hurt: Dictionary = gs.person(int(gs.event_info.accident.person))
+	print("%s is hurt: %s" % [gs.person_title(hurt), hurt.hurt])
+	ok = ok and hurt.job == "build" and hurt.hurt
+	gs.end_event("accident", "ran_out")
+	print("after it: hurt %s, last message: %s" % [hurt.hurt, gs.messages.back().text])
+	ok = ok and not hurt.hurt and gs.messages.back().text.ends_with("is well again")
+	gs.job_part = ""
+
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(gs.save_path))
 	print("ALL OK" if ok else "SOMETHING FAILED")
 	quit()

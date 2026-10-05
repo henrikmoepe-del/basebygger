@@ -22,13 +22,22 @@ extends RefCounted
 ##   needs       optional: {"happy": true} only while the peasants are happy,
 ##               {"unhappy": true} only while they are unhappy,
 ##               {"season": "winter"} only in that season (see season_data.gd)
-##   site        where in the world it happens: a gathering site's node name
+##   site        where in the world it happens: a gathering site's node name,
+##               or "site_x" for a place by its x (events.gd draws it there)
 ##   click       optional: clicking it in the world ends it early, for
 ##               "reward" (resources) and with "click_text"
+##   offers      a trader's offers: one is picked when it comes, {"give", "get"}
+##               (resources); clicking pays "give" for "get"
+##   burns       resource -> share of it lost if the event runs out unclicked
+##   hurts       a peasant of this job is hurt while it goes on, and works
+##               at HURT_PACE ({person} in the texts is their name)
+##   needs       {"building": true}: only while something is being built
 ##
 ## Adding an entry here, and drawing it in events.gd, is all a new event needs.
 ## What happens during a raid is in raiders.gd and GameState's raid part.
 
+## How fast a hurt peasant works and walks.
+const HURT_PACE := 0.5
 const CHECK_TIME := 45.0
 const CHANCE := 0.3
 
@@ -109,5 +118,47 @@ const EVENTS := {
 		"lasts": 120.0,
 		"effects": {"work_speed": -0.2, "happiness": -10.0},
 		"needs": {"season": "winter"},
+	},
+	"trader": {
+		"name": "Trader",
+		"start_text": "A trader's cart stands by the stockyard: {offer}. Click the cart to trade",
+		"end_text": "The trader has moved on",
+		"from_day": 2,
+		"weight": 1.0,
+		"lasts": 120.0,
+		"effects": {},
+		"site_x": 752.0,
+		"click": true,
+		"offers": [
+			{"give": {"wood": 40}, "get": {"planks": 25}},
+			{"give": {"stone": 40}, "get": {"iron": 10}},
+			{"give": {"food": 40}, "get": {"stone": 50}},
+			{"give": {"wood": 30}, "get": {"food": 40}},
+		],
+		"click_text": "Traded {offer}",
+	},
+	"fire": {
+		"name": "Fire",
+		"start_text": "Fire in the stockyard! Click it to put it out before the wood and planks burn",
+		"end_text": "The fire burned out: a quarter of the wood and planks went up in smoke",
+		"from_day": 3,
+		"weight": 0.6,
+		"lasts": 60.0,
+		"effects": {"happiness": -5.0},
+		"site_x": 630.0,
+		"click": true,
+		"click_text": "The fire is out! Nothing was lost",
+		"burns": {"wood": 0.25, "planks": 0.25},
+	},
+	"accident": {
+		"name": "Fall",
+		"start_text": "{person} fell from the scaffold and is hurt: they work at half pace for 3 minutes",
+		"end_text": "{person} is well again",
+		"from_day": 2,
+		"weight": 0.6,
+		"lasts": 180.0,
+		"effects": {},
+		"hurts": "build",
+		"needs": {"building": true},
 	},
 }

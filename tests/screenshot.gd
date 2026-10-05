@@ -40,6 +40,9 @@ const PLANS := {
 	"bakery": {"levels": {"walls": 2, "towers": 1, "bakery": 1, "stockhouse": 2}, "stock": {"wood": 150, "stone": 80, "food": 150, "planks": 0, "iron": 0}, "part": "", "camera": [545, -40, 2.0], "shots": 2, "jobs": {"baker": 2}},
 	"people": {"levels": {"walls": 1, "stockhouse": 2}, "stock": {"wood": 150, "stone": 80, "food": 150, "planks": 0, "iron": 0}, "part": "", "camera": [610, -40, 2.0], "shots": 1, "point_peasant": true},
 	"rooms_new": {"levels": {"walls": 3, "keep": 3, "towers": 2, "garrison": 2}, "picks": [["larder", "chapel"], ["chapel", "larder"]], "part": "", "camera": [-205, 110, 1.5], "shots": 1, "open": true},
+	"trader_fire": {"levels": {"walls": 1, "stockhouse": 2}, "stock": {"wood": 150, "stone": 80, "food": 150, "planks": 20, "iron": 0}, "part": "", "camera": [690, -40, 2.0], "shots": 1, "events": ["trader", "fire"]},
+	"accident": {"levels": {"stockhouse": 2}, "part": "walls", "camera": [330, -40, 2.0], "shots": 2, "events": ["accident"]},
+	"hurt_close": {"levels": {"stockhouse": 2}, "part": "walls", "camera": [330, -10, 6.0], "shots": 40, "events": ["accident"], "follow_hurt": true},
 	"rooms_picker": {"levels": {"walls": 3, "keep": 2}, "part": "", "camera": [-205, 10, 1.5], "shots": 1, "picker": true},
 	"gate": {"levels": {"walls": 2}, "part": "gate", "camera": [30, -40, 2.0], "shots": 5},
 	"tavern": {"levels": {"walls": 1}, "part": "tavern", "camera": [1170, -45, 2.0], "shots": 5},
@@ -165,6 +168,12 @@ func _run() -> void:
 			gs.day_time = 10.0
 			# Spread the pictures over the job, by pieces placed.
 			if gs.job_placed >= int(size * (next + 0.5) / plan.shots):
+				if plan.get("follow_hurt", false):
+					# Look closely at whoever is hurt.
+					for worker in current_scene.get_node("Workers").get_children():
+						if worker.get("person") != null and worker.person.get("hurt", false):
+							camera.position = worker.global_position + Vector2(0, -10)
+					await process_frame
 				await _shoot("%s/%s_%d.png" % [out, name, next])
 				print("shot %d at %d of %d pieces" % [next, gs.job_placed, size])
 				next += 1

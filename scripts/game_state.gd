@@ -229,6 +229,9 @@ var skills := {}
 var events := {}
 ## The last messages, oldest first, each {"day", "text"} (the Log button).
 var messages := []
+## What belongs to an event going on: {"offer": index} for a trader,
+## {"person": id} for whoever an accident hurt.
+var event_info := {}
 ## How many times each event has happened, by id.
 var event_counts := {}
 ## How happy the peasants are, 0 to 100 (see MOOD_BASE).
@@ -634,6 +637,10 @@ func event_allowed(id: String) -> bool:
 		return false
 	if needs.has("season") and needs.season != season().id:
 		return false
+	if needs.get("building", false) and job_part == "":
+		return false
+	if info.has("hurts") and _people_in(info.hurts).filter(func(p: Dictionary) -> bool: return not p.get("hurt", false)).is_empty():
+		return false
 	return day >= info.get("from_day", 1)
 
 
@@ -658,12 +665,55 @@ func start_event(id: String) -> bool:
 	if id == "" or events.has(id):
 		return false
 	var info: Dictionary = EventData.EVENTS[id]
+	if info.has("hurts"):
+		var unhurt := _people_in(info.hurts).filter(func(p: Dictionary) -> bool: return not p.get("hurt", false))
+		if unhurt.is_empty():
+			return false
+		var hurt: Dictionary = unhurt.pick_random()
+		hurt.hurt = true
+		event_info[id] = {"person": hurt.id}
+	if info.has("offers"):
+		event_info[id] = {"offer": randi() % info.offers.size()}
 	events[id] = info.get("lasts", 0.0)
 	if id == "raid":
 		_begin_raid()
-	announced.emit(_event_text(info.start_text))
+	announced.emit(_event_text(info.start_text, id))
 	events_changed.emit()
 	return true
+
+
+## The player clicked an event in the world. A trader trades if the price
+## can be paid; anything else that can be clicked simply ends. Returns true
+## if it ended.
+func click_event(id: String) -> bool:
+	if not events.has(id) or not EventData.EVENTS[id].get("click", false):
+		return false
+	var offer := event_offer(id)
+	if not offer.is_empty():
+		if not can_afford(offer.give):
+			announced.emit("You need %s to trade with them" % amounts_text(offer.give))
+			return false
+		spend(offer.give)
+		for type: String in offer.get:
+			_add_to_store(type, offer.get[type])
+	end_event(id, "clicked")
+	return true
+
+
+## The offer a trader going on makes ({"give", "get"}), or an empty Dictionary.
+func event_offer(id: String) -> Dictionary:
+	var info: Dictionary = EventData.EVENTS[id]
+	if not info.has("offers") or not event_info.has(id):
+		return {}
+	return info.offers[clampi(int(event_info[id].get("offer", 0)), 0, info.offers.size() - 1)]
+
+
+## "40 wood, 10 stone".
+func amounts_text(amounts: Dictionary) -> String:
+	var parts: PackedStringArray = []
+	for type: String in amounts:
+		parts.append("%d %s" % [amounts[type], type])
+	return ", ".join(parts)
 
 
 ## Ends an event. how is "ran_out" (its time is up), "clicked" (the player
@@ -672,22 +722,38 @@ func start_event(id: String) -> bool:
 func end_event(id: String, how: String) -> void:
 	if not events.has(id):
 		return
+	var info: Dictionary = EventData.EVENTS[id]
+	# The texts are made while the event's details are still known.
+	var click_text := _event_text(info.get("click_text", ""), id)
+	var end_text := _event_text(info.get("end_text", ""), id)
 	events.erase(id)
 	event_counts[id] = int(event_counts.get(id, 0)) + 1
-	var info: Dictionary = EventData.EVENTS[id]
 	if how == "clicked":
 		for type: String in info.get("reward", {}):
 			_add_to_store(type, info.reward[type])
-		resources_changed.emit()
-		announced.emit(_event_text(info.click_text))
+		announced.emit(click_text)
 	elif how == "ran_out":
-		announced.emit(_event_text(info.end_text))
+		for type: String in info.get("burns", {}):
+			resources[type] -= int(resources[type] * info.burns[type])
+		announced.emit(end_text)
+	var hurt := person(int(event_info.get(id, {}).get("person", -1)))
+	if not hurt.is_empty():
+		hurt.hurt = false
+		peasants_changed.emit()
+	event_info.erase(id)
+	resources_changed.emit()
 	events_changed.emit()
 
 
-## An event's message, with {raiders} and the like filled in.
-func _event_text(text: String) -> String:
-	return text.format({"raiders": raid_size()})
+## An event's message, with {raiders}, {offer} and {person} filled in.
+func _event_text(text: String, id := "") -> String:
+	var offer := event_offer(id) if id != "" else {}
+	var hurt := person(int(event_info.get(id, {}).get("person", -1))) if id != "" else {}
+	return text.format({
+		"raiders": raid_size(),
+		"offer": "%s for %s" % [amounts_text(offer.give), amounts_text(offer.get)] if not offer.is_empty() else "",
+		"person": person_title(hurt) if not hurt.is_empty() else "",
+	})
 
 
 ## The sum of an effect over everything going on that changes how the
@@ -940,7 +1006,7 @@ func _people_in(job: String) -> Array:
 func _new_person() -> Dictionary:
 	var person := {
 		"id": _next_person, "name": PeopleData.NAMES.pick_random(),
-		"trait": PeopleData.TRAITS.keys().pick_random(), "job": "", "trained": false,
+		"trait": PeopleData.TRAITS.keys().pick_random(), "job": "", "trained": false, "hurt": false,
 	}
 	_next_person += 1
 	return person
@@ -1539,6 +1605,7 @@ func save_game() -> void:
 		"skills": skills,
 		"events": events,
 		"event_counts": event_counts,
+		"event_info": event_info,
 		"messages": messages,
 		"policies": policies,
 		"boosts": boosts,
@@ -1597,6 +1664,7 @@ func _start_over() -> void:
 	skills.clear()
 	events.clear()
 	event_counts.clear()
+	event_info.clear()
 	messages.clear()
 	_event_timer = 0.0
 	policies.clear()
@@ -1680,6 +1748,19 @@ func load_game() -> void:
 		for message: Variant in saved_messages.slice(-LOG_SIZE):
 			if message is Dictionary and message.get("text") is String:
 				messages.append({"day": int(message.get("day", 1)), "text": message.text})
+	event_info.clear()
+	var saved_info: Variant = data.get("event_info")
+	if saved_info is Dictionary:
+		for id: String in saved_info:
+			if events.has(id) and saved_info[id] is Dictionary:
+				event_info[id] = {}
+				for key: String in saved_info[id]:
+					event_info[id][key] = int(saved_info[id][key])
+	# A trader or an accident that lost its details is over.
+	for id: String in events.keys():
+		var needs_info: bool = EventData.EVENTS[id].has("offers") or EventData.EVENTS[id].has("hurts")
+		if needs_info and not event_info.has(id):
+			events.erase(id)
 	event_counts.clear()
 	var saved_counts: Variant = data.get("event_counts")
 	if saved_counts is Dictionary:
@@ -1695,7 +1776,8 @@ func load_game() -> void:
 			if someone is Dictionary and someone.get("name") is String and PeopleData.TRAITS.has(someone.get("trait", "")):
 				var id := int(someone.get("id", 0))
 				people.append({"id": id, "name": someone.name, "trait": someone.trait,
-					"job": str(someone.get("job", "")), "trained": bool(someone.get("trained", false))})
+					"job": str(someone.get("job", "")), "trained": bool(someone.get("trained", false)),
+					"hurt": bool(someone.get("hurt", false))})
 				_next_person = maxi(_next_person, id + 1)
 	_fit_people()
 	boosts.clear()
@@ -1732,6 +1814,11 @@ func load_game() -> void:
 	keep_picks = saved_picks.duplicate(true) if saved_picks is Array else []
 	_room_effects_key = -1
 	_fit_keep_picks(part_levels.keep - 1 + (1 if needs_room_choice(job_part) else 0))
+
+	# Only someone an accident going on hurt is hurt.
+	var hurt_ids: Array = event_info.values().map(func(info: Dictionary) -> int: return int(info.get("person", -1)))
+	for someone: Dictionary in people:
+		someone.hurt = someone.get("hurt", false) and someone.id in hurt_ids
 
 	var now := Time.get_unix_time_from_system()
 	_grant_offline_progress(now - float(data.get("saved_at", now)))

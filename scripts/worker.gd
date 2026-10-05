@@ -28,6 +28,7 @@ enum Leisure { NONE, STROLL, VISIT, HOST, TAVERN }
 const MEET_GAP := 10.0
 const BUBBLE := Color(0.97, 0.96, 0.90)
 const BALL := Color(0.80, 0.25, 0.22)
+const BANDAGE := Color(0.97, 0.97, 0.94)
 
 ## The job id from JobData.JOBS, or "" for idle.
 var job := ""
@@ -244,6 +245,10 @@ func _draw() -> void:
 	draw_rect(Rect2(-2, bob - 14, 4, 4), Color(0.93, 0.76, 0.62))
 	if trained:
 		draw_rect(Rect2(-3, bob - 16, 6, 2), JobData.TRAINED_HAT)
+	if person.get("hurt", false):
+		# A bandage round the head.
+		draw_rect(Rect2(-3, bob - 13, 6, 2), BANDAGE)
+		draw_rect(Rect2(2, bob - 12, 2, 2), BANDAGE)
 	_draw_extra(bob)
 	draw_set_transform(Vector2.ZERO)
 	_draw_leisure()
@@ -262,7 +267,12 @@ func _draw_extra(_bob_y: float) -> void:
 ## How well the peasant does their job: twice as well when trained, and
 ## better or worse for their trait.
 func _skill() -> float:
-	return (GameState.TRAINED_MULT if trained else 1.0) * _trait().get("work", 1.0)
+	return (GameState.TRAINED_MULT if trained else 1.0) * _trait().get("work", 1.0) * _hurt_pace()
+
+
+## Slower while hurt (see the "accident" event).
+func _hurt_pace() -> float:
+	return GameState.EventData.HURT_PACE if person.get("hurt", false) else 1.0
 
 
 ## The peasant's trait (see PeopleData.TRAITS), or an empty Dictionary.
@@ -292,7 +302,7 @@ func _go_to(target: Vector2, delta: float) -> bool:
 		_route_to = target
 		_route_version = castle.version
 	var step: Dictionary = _route[0]
-	var pace := speed * _pace() * delta
+	var pace := speed * _pace() * _hurt_pace() * delta
 	var there := false
 	_on_stair = step.get("stair", false)
 	if _on_stair:
