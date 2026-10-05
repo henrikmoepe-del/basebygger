@@ -272,6 +272,8 @@ var _quest_timer := 0.0
 var _window_time := 0.0
 var _autosave_time := 0.0
 var _event_timer := 0.0
+var _room_effects := {}
+var _room_effects_key := -1
 
 
 func _ready() -> void:
@@ -507,7 +509,7 @@ func next_raid_day() -> int:
 
 ## How many raiders come next time. A rich keep draws more of them.
 func raid_size() -> int:
-	var greed: float = 1.0 + CastleData.KEEP_RAID_GROWTH * part_levels.keep
+	var greed: float = (1.0 + CastleData.KEEP_RAID_GROWTH * part_levels.keep) * (1.0 + effect_total("raid_size"))
 	return roundi((RAID_BASE_SIZE + RAID_SIZE_GROWTH * raids_faced) * greed)
 
 
@@ -699,6 +701,7 @@ func effect_total(effect: String) -> float:
 	total += season().effects.get(effect, 0.0)
 	for id: String in boosts:
 		total += BoostData.BOOSTS[id].effects.get(effect, 0.0)
+	total += room_effects().get(effect, 0.0)
 	return total
 
 
@@ -768,7 +771,7 @@ func peasant_cost() -> Dictionary:
 
 ## How many peasants the village has room for.
 func max_peasants() -> int:
-	return BASE_POPULATION + (POPULATION_PER_HOUSE + int(skill_total("house_room"))) * part_levels.houses 			+ CastleData.BEDCHAMBER_PEASANTS * room_count("beds")
+	return BASE_POPULATION + (POPULATION_PER_HOUSE + int(skill_total("house_room"))) * part_levels.houses 			+ int(effect_total("peasant_room"))
 
 
 ## How much faster everyone works for being happy (slower when unhappy).
@@ -813,6 +816,9 @@ func happiness_parts() -> Array:
 			mood_of_people[kind] = mood_of_people.get(kind, 0.0) + points
 	for kind: String in mood_of_people:
 		parts.append([kind, mood_of_people[kind]])
+	var room_points: float = room_effects().get("happiness", 0.0)
+	if room_points != 0.0:
+		parts.append(["Rooms of the keep", room_points])
 	var season_points: float = season().effects.get("happiness", 0.0)
 	if season_points != 0.0:
 		parts.append([season().name, season_points])
@@ -1084,7 +1090,7 @@ func levels_for_next_rank() -> int:
 ## Materials for the part's next level.
 func part_cost(id: String) -> Dictionary:
 	var cost := _scaled_cost(CastleData.PARTS[id].cost, CastleData.COST_GROWTH, part_levels[id])
-	var discount := (1.0 - skill_total("part_discount")) * pow(1.0 - CastleData.STOREROOM_DISCOUNT, room_count("store"))
+	var discount := (1.0 - skill_total("part_discount")) * maxf(1.0 - effect_total("build_cost"), 0.1)
 	for type: String in cost:
 		cost[type] = ceili(cost[type] * discount)
 	# The higher levels of the castle itself need iron fittings.
@@ -1157,32 +1163,64 @@ func needs_room_choice(id: String) -> bool:
 
 ## How much harder soldiers hit for the armouries in the keep (and boosts).
 func armoury_mult() -> float:
-	return 1.0 + CastleData.ARMOURY_MIGHT * room_count("armoury") + effect_total("soldier_might")
+	return 1.0 + effect_total("soldier_might")
 
 
 ## What the keep's finished rooms add up to, one line per kind of room, e.g.
-## "Bedchamber x3: room for 6 more peasants". Empty without a keep.
+## "Storeroom x2: building costs 6% less; raids 4% bigger". Empty without a keep.
 func keep_summary() -> PackedStringArray:
 	var lines: PackedStringArray = []
 	for kind: String in CastleData.ROOMS:
 		var count := room_count(kind)
-		if count > 0:
-			lines.append("%s x%d: %s" % [CastleData.ROOMS[kind].name, count, _room_effect(kind, count)])
+		if count == 0:
+			continue
+		var room: Dictionary = CastleData.ROOMS[kind]
+		var said: PackedStringArray = []
+		for effect: String in room.get("effects", {}):
+			said.append(describe_effect(effect, room.effects[effect] * count))
+		if said.is_empty():
+			said.append(room.benefit.to_lower() if room.benefit != "" else "no effect yet")
+		lines.append("%s x%d: %s" % [room.name, count, "; ".join(said)])
 	return lines
 
 
-## What count rooms of a kind do together.
-func _room_effect(kind: String, count: int) -> String:
-	match kind:
-		"beds":
-			return "room for %d more peasants" % (CastleData.BEDCHAMBER_PEASANTS * count)
-		"store":
-			return "building costs %d%% less" % roundi((1.0 - pow(1.0 - CastleData.STOREROOM_DISCOUNT, count)) * 100)
-		"armoury":
-			return "soldiers hit %d%% harder" % roundi(CastleData.ARMOURY_MIGHT * count * 100)
-		"kitchen":
-			return "the cooks work here"
-	return "no effect yet"
+## An effect in words, e.g. describe_effect("build_cost", 0.06) is
+## "building costs 6% less".
+func describe_effect(effect: String, amount: float) -> String:
+	var share := roundi(absf(amount) * 100)
+	match effect:
+		"peasant_room":
+			return "room for %d more peasants" % roundi(amount)
+		"build_cost":
+			return "building costs %d%% %s" % [share, "less" if amount > 0 else "more"]
+		"soldier_might":
+			return "soldiers hit %d%% %s" % [share, "harder" if amount > 0 else "softer"]
+		"raid_size":
+			return "raids %d%% %s" % [share, "bigger" if amount > 0 else "smaller"]
+		"happiness":
+			return "%+d happiness" % roundi(amount)
+		"food_saving":
+			return "peasants eat %d%% %s" % [share, "less" if amount > 0 else "more"]
+		"work_speed":
+			return "work %d%% %s" % [share, "faster" if amount > 0 else "slower"]
+		"food_site_rate":
+			return "food grows %d%% %s" % [share, "faster" if amount > 0 else "slower"]
+	return "%s %+.2f" % [effect, amount]
+
+
+## The effects of all the keep's finished rooms together (see
+## CastleData.ROOMS), worked out again only when the keep or its rooms change.
+func room_effects() -> Dictionary:
+	var key: int = part_levels.keep * 1000 + keep_picks.size()
+	if key != _room_effects_key:
+		_room_effects_key = key
+		_room_effects = {}
+		for kind: String in CastleData.ROOMS:
+			var count := room_count(kind)
+			var effects: Dictionary = CastleData.ROOMS[kind].get("effects", {})
+			for effect: String in effects:
+				_room_effects[effect] = _room_effects.get(effect, 0.0) + effects[effect] * count
+	return _room_effects
 
 
 func _scaled_cost(base: Dictionary, growth: float, level: int) -> Dictionary:
@@ -1692,6 +1730,7 @@ func load_game() -> void:
 	# One pair of rooms per storey chosen so far; a storey being built has its pair already.
 	var saved_picks: Variant = data.get("keep_picks")
 	keep_picks = saved_picks.duplicate(true) if saved_picks is Array else []
+	_room_effects_key = -1
 	_fit_keep_picks(part_levels.keep - 1 + (1 if needs_room_choice(job_part) else 0))
 
 	var now := Time.get_unix_time_from_system()

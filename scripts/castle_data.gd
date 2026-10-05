@@ -282,21 +282,32 @@ static func keep_storeys(level: int) -> int:
 	return 2 + mini(level, MAX_VISUAL_LEVEL) if level > 0 else 0
 
 
-## The kinds of room in the keep. "benefit" is what one room of the kind
-## gives (see the ROOM_ constants and where GameState uses them); the kinds
-## in ROOM_PICKS are the ones the player can choose for a new storey.
+## The kinds of room in the keep. Each finished room has its "effects"
+## (added up by GameState.effect_total, like those of policies and seasons):
+##   peasant_room    room for more peasants
+##   build_cost      a share less that building costs
+##   soldier_might   a share harder soldiers hit
+##   raid_size       a share bigger raids grow
+##   food_saving, work_speed, happiness, food_site_rate: as for policies
+## "benefit" and "drawback" say it in words, for the room picker; a room
+## with no effects has a "benefit" that says what it is for. The kinds in
+## ROOM_PICKS are the ones the player can choose for a new storey.
 const ROOMS := {
-	"kitchen": {"name": "Kitchen", "benefit": "The cooks work here"},
-	"hall": {"name": "Great hall", "benefit": ""},
-	"beds": {"name": "Bedchamber", "benefit": "Beds for 4, and room for 2 more peasants"},
-	"store": {"name": "Storeroom", "benefit": "Building costs 3% less"},
-	"armoury": {"name": "Armoury", "benefit": "Soldiers hit 10% harder"},
-	"lord": {"name": "Lord's chamber", "benefit": ""},
+	"kitchen": {"name": "Kitchen", "benefit": "The cooks work here", "drawback": ""},
+	"hall": {"name": "Great hall", "benefit": "", "drawback": ""},
+	"beds": {"name": "Bedchamber", "benefit": "Beds for 4, and room for 2 more peasants", "drawback": "",
+		"effects": {"peasant_room": 2.0}},
+	"store": {"name": "Storeroom", "benefit": "Building costs 3% less", "drawback": "Raids grow 2% bigger: a fuller keep is a richer prize",
+		"effects": {"build_cost": 0.03, "raid_size": 0.02}},
+	"armoury": {"name": "Armoury", "benefit": "Soldiers hit 10% harder", "drawback": "Everyone is a point less happy: it feels like war",
+		"effects": {"soldier_might": 0.10, "happiness": -1.0}},
+	"larder": {"name": "Larder", "benefit": "Peasants eat 5% less: food keeps", "drawback": "Rats: food grows 3% slower at the wilds and farm",
+		"effects": {"food_saving": 0.05, "food_site_rate": -0.03}},
+	"chapel": {"name": "Chapel", "benefit": "Everyone is 3 points happier", "drawback": "Time at prayer: everyone works 3% slower",
+		"effects": {"happiness": 3.0, "work_speed": -0.03}},
+	"lord": {"name": "Lord's chamber", "benefit": "", "drawback": ""},
 }
-const ROOM_PICKS := ["beds", "store", "armoury"]
-const BEDCHAMBER_PEASANTS := 2
-const STOREROOM_DISCOUNT := 0.03
-const ARMOURY_MIGHT := 0.10
+const ROOM_PICKS := ["beds", "store", "armoury", "larder", "chapel"]
 ## The rooms the first keep comes with, as [left room, right room] per storey
 ## from the entrance storey up. Every storey added after that is the player's
 ## choice (GameState.keep_picks).

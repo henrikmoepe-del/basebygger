@@ -39,6 +39,7 @@ const PLANS := {
 	"boosts": {"levels": {"walls": 2, "keep": 1, "tavern": 1, "well": 1, "quarry": 1, "stockhouse": 2}, "stock": {"wood": 214, "stone": 187, "food": 96, "planks": 0, "iron": 0}, "part": "", "camera": [100, 0, 1.0], "shots": 1, "buy": ["feast"], "panel": "boosts"},
 	"bakery": {"levels": {"walls": 2, "towers": 1, "bakery": 1, "stockhouse": 2}, "stock": {"wood": 150, "stone": 80, "food": 150, "planks": 0, "iron": 0}, "part": "", "camera": [545, -40, 2.0], "shots": 2, "jobs": {"baker": 2}},
 	"people": {"levels": {"walls": 1, "stockhouse": 2}, "stock": {"wood": 150, "stone": 80, "food": 150, "planks": 0, "iron": 0}, "part": "", "camera": [610, -40, 2.0], "shots": 1, "point_peasant": true},
+	"rooms_new": {"levels": {"walls": 3, "keep": 3, "towers": 2, "garrison": 2}, "picks": [["larder", "chapel"], ["chapel", "larder"]], "part": "", "camera": [-205, 110, 1.5], "shots": 1, "open": true},
 	"rooms_picker": {"levels": {"walls": 3, "keep": 2}, "part": "", "camera": [-205, 10, 1.5], "shots": 1, "picker": true},
 	"gate": {"levels": {"walls": 2}, "part": "gate", "camera": [30, -40, 2.0], "shots": 5},
 	"tavern": {"levels": {"walls": 1}, "part": "tavern", "camera": [1170, -45, 2.0], "shots": 5},
@@ -137,6 +138,9 @@ func _run() -> void:
 		gs.happiness = plan.happiness
 	if plan.get("log", false):
 		current_scene.get_node("HUD").log_button.button_pressed = true
+	if not plan.has("mouse"):
+		# Out of the way, over the sky at the top right, unless the plan points somewhere.
+		Input.warp_mouse(Vector2(630, 60) * 2.0)
 	if plan.has("mouse"):
 		# The mouse at a point on screen (in the 640x360 view).
 		Input.warp_mouse(Vector2(plan.mouse[0], plan.mouse[1]) * 2.0)

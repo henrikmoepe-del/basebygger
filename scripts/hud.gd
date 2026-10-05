@@ -229,8 +229,8 @@ func _make_job_rows() -> void:
 ## The room picker: a row of room kinds for the west room and one for the
 ## east room of the keep's new storey, what the chosen rooms give, and Build.
 func _make_room_picker() -> void:
-	_room_picker.position = Vector2(170, 104)
-	_room_picker.size = Vector2(300, 126)
+	_room_picker.position = Vector2(100, 90)
+	_room_picker.size = Vector2(440, 170)
 	_room_picker.hide()
 	add_child(_room_picker)
 	var box := VBoxContainer.new()
@@ -253,7 +253,7 @@ func _make_room_picker() -> void:
 			button.toggle_mode = true
 			button.button_group = group
 			button.button_pressed = kind == _room_choice[side]
-			button.tooltip_text = CastleData.ROOMS[kind].benefit
+			button.tooltip_text = "+ %s\n-  %s" % [CastleData.ROOMS[kind].benefit, CastleData.ROOMS[kind].drawback]
 			button.pressed.connect(func() -> void:
 				_room_choice[side] = kind
 				_refresh_room_picker())
@@ -650,8 +650,13 @@ func _refresh_room_picker() -> void:
 		_room_picker.hide()
 		return
 	var cost := GameState.part_cost("keep")
-	_room_info.text = "West: %s\nEast: %s\nCost: %s" % [
-		CastleData.ROOMS[_room_choice[0]].benefit, CastleData.ROOMS[_room_choice[1]].benefit, _cost_text(cost)]
+	var said: PackedStringArray = []
+	for side in 2:
+		var room: Dictionary = CastleData.ROOMS[_room_choice[side]]
+		said.append("%s: + %s%s" % ["West" if side == 0 else "East", room.benefit,
+			"\n        -  " + room.drawback if room.drawback != "" else ""])
+	said.append("Cost: %s" % _cost_text(cost))
+	_room_info.text = "\n".join(said)
 	_room_build.disabled = not GameState.can_afford(cost)
 
 
@@ -700,7 +705,7 @@ func _refresh_build_card() -> void:
 ## (outside build mode: there the build card says it).
 func _refresh_keep_card() -> void:
 	var show_it: bool = _castle != null and _castle.pointed == "keep" and not build_hover.active \
-			and not skill_tree.visible and GameState.part_levels.keep > 0
+			and not skill_tree.visible and not _room_picker.visible and GameState.part_levels.keep > 0
 	_keep_card.visible = show_it
 	if not show_it:
 		return

@@ -57,6 +57,10 @@ const SACK := Color(0.82, 0.74, 0.52)
 const SHEET := Color(0.72, 0.70, 0.62)
 const HAM := Color(0.72, 0.36, 0.32)
 const HERB := Color(0.42, 0.58, 0.32)
+const CHEESE := Color(0.95, 0.80, 0.35)
+const RAT := Color(0.35, 0.32, 0.30)
+## The panes of the chapel's coloured window.
+const GLASS := [Color(0.80, 0.25, 0.25), Color(0.30, 0.45, 0.80), Color(0.95, 0.80, 0.35), Color(0.35, 0.65, 0.40)]
 const CLOAKS := [Color(0.45, 0.30, 0.22), Color(0.30, 0.38, 0.30), Color(0.36, 0.34, 0.48), Color(0.52, 0.42, 0.26)]
 const FALL_GRAVITY := 420.0
 ## Stairs inside a building: how much each flight rises, and how far it runs
@@ -912,6 +916,45 @@ func _draw_room(canvas, kind: String, room: Rect2) -> void:
 			canvas.draw_rect(Rect2(x + w - 5, y - 33, 1, 3), FIRE.lightened(0.3))
 			canvas.draw_rect(Rect2(x + w - 15, y - 7, 11, 7), CastleData.WOOD)
 			canvas.draw_rect(Rect2(x + w - 15, y - 5, 11, 1), CastleData.IRON)
+		"larder":
+			# Cheeses and jars on shelves, sausages and hams from the beams,
+			# sacks of grain and a barrel on the floor, and a rat in the corner.
+			for shelf in 2:
+				var board := y - 16.0 - shelf * 12.0
+				canvas.draw_rect(Rect2(x + 6, board, 40, 1), CastleData.WOOD_DARK)
+				for i in 5:
+					var cheese := (i + shelf) % 2 == 0
+					canvas.draw_rect(Rect2(x + 8 + i * 8, board - 5, 6, 5), CHEESE if cheese else CastleData.STONE_WARM)
+			canvas.draw_rect(Rect2(x + 6, y - 30, 1, 30), CastleData.WOOD_DARK)
+			canvas.draw_rect(Rect2(x + 45, y - 30, 1, 30), CastleData.WOOD_DARK)
+			for i in 6:
+				canvas.draw_rect(Rect2(x + 54 + i * 6, top, 1, 4 + i % 3), CastleData.WOOD_DARK)
+				canvas.draw_rect(Rect2(x + 53 + i * 6, top + 4 + i % 3, 3, 7 if i % 2 == 0 else 5), HAM if i % 2 == 0 else HAM.darkened(0.25))
+			for i in 3:
+				canvas.draw_rect(Rect2(x + 52 + i * 9, y - 8, 8, 8), SACK if i % 2 == 0 else SACK.darkened(0.12))
+			canvas.draw_rect(Rect2(x + w - 20, y - 11, 10, 11), CastleData.WOOD)
+			canvas.draw_rect(Rect2(x + w - 20, y - 8, 10, 1), CastleData.IRON)
+			canvas.draw_rect(Rect2(x + w - 7, y - 2, 4, 2), RAT)
+			canvas.draw_rect(Rect2(x + w - 8, y - 2, 1, 1), RAT)
+		"chapel":
+			# A coloured window over the altar, candles, and benches facing it.
+			var middle := x + w * 0.7
+			canvas.draw_rect(Rect2(middle - 7, y - 40, 14, 20), CastleData.STONE_DARK)
+			for i in 6:
+				canvas.draw_rect(Rect2(middle - 6 + (i % 2) * 6, y - 39 + (i / 2) * 6, 5, 5), GLASS[i % GLASS.size()])
+			canvas.draw_rect(Rect2(middle - 10, y - 10, 20, 10), CastleData.STONE_LIGHT)
+			canvas.draw_rect(Rect2(middle - 11, y - 11, 22, 2), SHEET)
+			canvas.draw_rect(Rect2(middle - 1, y - 18, 2, 7), CastleData.THATCH)
+			canvas.draw_rect(Rect2(middle - 3, y - 16, 6, 1), CastleData.THATCH)
+			for at: float in [middle - 15.0, middle + 14.0]:
+				canvas.draw_rect(Rect2(at, y - 12, 1, 12), CastleData.IRON)
+				canvas.draw_rect(Rect2(at, y - 15, 1, 3), FIRE.lightened(0.3))
+			for i in 3:
+				var bench := x + 6.0 + i * 16.0
+				canvas.draw_rect(Rect2(bench, y - 6, 12, 2), CastleData.WOOD)
+				canvas.draw_rect(Rect2(bench + 1, y - 4, 1, 4), CastleData.WOOD_DARK)
+				canvas.draw_rect(Rect2(bench + 10, y - 4, 1, 4), CastleData.WOOD_DARK)
+				canvas.draw_rect(Rect2(bench, y - 11, 1, 5), CastleData.WOOD_DARK)
 		"lord":
 			# One great bed with a canopy.
 			canvas.draw_rect(Rect2(x + 6, y - 26, 2, 26), CastleData.WOOD_DARK)
