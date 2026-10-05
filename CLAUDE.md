@@ -40,17 +40,17 @@
 - If you believe a tool/program/pluggen would be of good use, for example to create pixel 2d art, to create sound, etc, then say so 
 
 ## Where we left off (2026-10-05)
-- Next task, already approved by Henrik: let the player CHOOSE the rooms of the keep. Each new
-  storey offers a pick of what to build there, and rooms start doing something of their own
-  (e.g. a store that holds more, an armoury that makes soldiers hit harder). Today the rooms come
-  with the keep's levels in a fixed order (`CastleData.keep_rooms`) and only the kitchen and the
-  beds are used.
+- Done last: the player chooses the rooms of each new keep storey, and rooms do something (see
+  "Choosing rooms" under Current status). Natural next steps, none approved yet: more room kinds
+  (workshop, chapel, larder, a second kitchen), drawbacks for rooms, a place to see what the
+  keep's rooms add up to, and "a store that holds more" once resources have storage limits.
+- For Henrik to judge: the first keep's five bedchambers alone give room for 10 more peasants.
 - Open questions Henrik has not answered: should the keep need a click or held key to turn
   see-through, instead of fading whenever the mouse passes over it? Which buildings count as
   "fine" and need planks early (now: court and tavern)?
 - Nothing is balanced on purpose (building is slow, raids and planks are first guesses).
 - How to work: after any change to how building or peasants look, run `tests/screenshot.gd`
-  and LOOK at the pictures, both the close-up and the `_wide` one, then run the three tests.
+  and LOOK at the pictures, both the close-up and the `_wide` one, then run the four tests.
 
 ## Future ideas (Henrik's list, 2026-10-05)
 Not started. Keep them in mind when building features, so new systems can connect to them later.
@@ -173,8 +173,15 @@ What this means for the design now (Claude's notes):
     "inside" (`CastleData.floors`), so peasants walk into the rooms, out of sight unless the
     keep is see-through. Cooks work in the kitchen once there is a keep; peasants within reach
     sleep in the keep's beds, lying down, while the beds last (`Workers.bed_spot`); idle peasants
-    wander through the rooms. Rooms are drawn by `castle._draw_rooms`. Not yet: choosing which
-    rooms to build, and rooms that do something of their own.
+    wander through the rooms. Rooms are drawn by `castle._draw_rooms`.
+  - Choosing rooms: the first keep comes with fixed rooms (`CastleData.KEEP_FIRST_ROOMS`). Every
+    level after that adds a storey, and clicking the keep in build mode opens a picker in the HUD
+    (`hud.gd` `_make_room_picker`, signal `build_hover.rooms_wanted`) to choose its west and east
+    room from `CastleData.ROOM_PICKS`. The choices live in `GameState.keep_picks` (saved), and are
+    passed to `order_part("keep", [west, east])`; without a choice a storey becomes bedchambers.
+    Room kinds are entries in `CastleData.ROOMS`. What they do, per finished room
+    (`GameState.room_count`): bedchamber = room for 2 more peasants, storeroom = building costs
+    3% less, armoury = soldiers hit 10% harder (`soldier.might`). Not balanced.
   - A building with stairs inside is reached by a short ladder until its walls are a storey high
     (`BuildPlan.START_LADDER`); after that builders come up through an open stairwell in the wall top.
   - Looking inside: pointing at a building with stairs inside (towers, keep, garrison, also while
@@ -248,7 +255,8 @@ What this means for the design now (Claude's notes):
   closes the window. Henrik allows this window when it helps; always let it close. Use it after
   any change to how building or peasants look. `tests/snapshot.gd` does a rougher version headless.
 - Tests: `tests/test_build.gd` (builds every part and checks no builder is ever in the air),
-  `tests/test_raid.gd` (a defended and an undefended raid) and `tests/test_sawmill.gd`. Run with
+  `tests/test_raid.gd` (a defended and an undefended raid), `tests/test_sawmill.gd` and
+  `tests/test_rooms.gd` (choosing the keep's rooms and what they do). Run with
   `godot --headless --path . -s tests/<name>.gd -- --save=user://test_save.json`.
 - Testing: run Godot with `--headless` and `-- --save=user://test_save.json` so tests
   open no window and never touch the real save (`user://save.json`). After changing

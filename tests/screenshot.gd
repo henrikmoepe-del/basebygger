@@ -17,6 +17,8 @@ const PLANS := {
 	"rooms": {"levels": {"walls": 3, "keep": 3, "towers": 2, "garrison": 2}, "part": "", "camera": [-165, 10, 1.5], "shots": 3, "open": true, "jobs": {"cook": 2}},
 	"rooms_night": {"levels": {"walls": 3, "keep": 3, "towers": 2, "garrison": 2}, "part": "", "camera": [-165, 10, 1.5], "shots": 2, "open": true, "jobs": {"cook": 2}, "night": true},
 	"rooms_build": {"levels": {"walls": 2}, "part": "keep", "camera": [-165, 0, 1.5], "shots": 5, "open": true},
+	"rooms_pick": {"levels": {"walls": 3, "keep": 4, "towers": 2, "garrison": 2}, "picks": [["armoury", "store"], ["store", "store"], ["armoury", "beds"]], "part": "", "camera": [-165, 40, 1.5], "shots": 2, "open": true},
+	"rooms_picker": {"levels": {"walls": 3, "keep": 2}, "part": "", "camera": [-165, 10, 1.5], "shots": 1, "picker": true},
 	"gate": {"levels": {"walls": 2}, "part": "gate", "camera": [30, -40, 2.0], "shots": 5},
 	"tavern": {"levels": {"walls": 1}, "part": "tavern", "camera": [1170, -45, 2.0], "shots": 5},
 	"inside": {"levels": {"walls": 3, "keep": 5, "towers": 4, "garrison": 3, "court": 2}, "part": "", "camera": [20, 20, 1.0], "shots": 4, "open": true, "soldiers": 8},
@@ -49,8 +51,13 @@ func _run() -> void:
 	var name := _arg("plan", "keep")
 	var plan: Dictionary = PLANS[name]
 	var out := _arg("out", "user://")
+	# Wait for GameState to load the save first, or it would overwrite the plan.
+	await process_frame
+	for part: String in gs.part_levels:
+		gs.part_levels[part] = 0
 	for part: String in plan.levels:
 		gs.part_levels[part] = plan.levels[part]
+	gs.keep_picks = plan.get("picks", []).duplicate(true)
 	change_scene_to_file("res://scenes/main.tscn")
 	await process_frame
 	await process_frame
@@ -77,6 +84,8 @@ func _run() -> void:
 		gs.jobs.soldier = plan.soldiers
 		gs.peasants_changed.emit()
 
+	if plan.get("picker", false):
+		current_scene.get_node("HUD").show_room_picker()
 	if plan.part == "":
 		# Nothing to build: just watch the peasants for a while.
 		for shot in plan.shots:

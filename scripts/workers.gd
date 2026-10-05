@@ -287,7 +287,7 @@ func leisure_partner(seeker: Node2D, reach: float) -> Node2D:
 ## bed there, as long as the beds last (the first peasants get them). The
 ## rest sleep behind the nearest door.
 func bed_spot(sleeper: Node2D) -> Vector2:
-	var beds := CastleData.keep_beds(GameState.part_levels.keep)
+	var beds := CastleData.keep_beds(GameState.part_levels.keep, GameState.keep_picks)
 	var number := get_children().filter(func(w: Node) -> bool: return w.has_method("at_leisure")).find(sleeper)
 	var keep_x := CastleData.KEEP_LEFT + CastleData.KEEP_WIDTH / 2.0
 	if GameState.job_part != "keep" and number >= 0 and number < beds.size() and absf(sleeper.position.x - keep_x) <= BED_REACH:

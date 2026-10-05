@@ -731,7 +731,6 @@ func _draw_interior(canvas, inside: Dictionary) -> void:
 func _draw_rooms(canvas, area: Rect2, stair: float, storeys: int) -> void:
 	var well := CastleData.KEEP_STOREY
 	var half := CastleData.KEEP_STAIRWELL / 2.0
-	var total := CastleData.keep_storeys(GameState.part_levels.keep + (1 if GameState.job_part == "keep" else 0))
 	for storey in storeys:
 		var y := CastleData.keep_floor_y(storey)
 		var ceiling := y - well
@@ -739,7 +738,7 @@ func _draw_rooms(canvas, area: Rect2, stair: float, storeys: int) -> void:
 		# The stairwell's walls, with a doorway at the bottom of each.
 		canvas.draw_rect(Rect2(stair - half - 2.0, ceiling + 2.0, 2, well - 16.0), INSIDE_PARTITION)
 		canvas.draw_rect(Rect2(stair + half, ceiling + 2.0, 2, well - 16.0), INSIDE_PARTITION)
-		var rooms := CastleData.keep_rooms(storey, total)
+		var rooms := CastleData.keep_rooms(storey, GameState.keep_picks)
 		_draw_room(canvas, rooms[0], Rect2(area.position.x + 4.0, ceiling + 2.0, stair - half - 6.0 - area.position.x, well - 2.0))
 		_draw_room(canvas, rooms[1], Rect2(stair + half + 2.0, ceiling + 2.0, area.end.x - 6.0 - stair - half, well - 2.0))
 

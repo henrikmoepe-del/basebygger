@@ -157,6 +157,10 @@ var part_levels := {
 	"palisade": 0, "watchtower": 0,
 	"houses": 0, "well": 0, "tavern": 0, "quarry": 0, "farm": 0, "mine": 0, "sawmill": 0,
 }
+## The rooms the player chose for each storey of the keep above the first
+## keep's own, lowest first, each [left room, right room] (see CastleData.ROOMS).
+## While a storey is being built its rooms are already last in the list.
+var keep_picks := []
 var peasants := START_PEASANTS
 ## How many peasants are assigned to each job. The rest are idle.
 var jobs := START_JOBS.duplicate()
@@ -506,7 +510,7 @@ func peasant_cost() -> Dictionary:
 
 ## How many peasants the village has room for.
 func max_peasants() -> int:
-	return BASE_POPULATION + (POPULATION_PER_HOUSE + int(skill_total("house_room"))) * part_levels.houses
+	return BASE_POPULATION + (POPULATION_PER_HOUSE + int(skill_total("house_room"))) * part_levels.houses 			+ CastleData.BEDCHAMBER_PEASANTS * room_count("beds")
 
 
 ## How much faster everyone works for being content: the well and the tavern
@@ -695,7 +699,7 @@ func levels_for_next_rank() -> int:
 ## Materials for the part's next level.
 func part_cost(id: String) -> Dictionary:
 	var cost := _scaled_cost(CastleData.PARTS[id].cost, CastleData.COST_GROWTH, part_levels[id])
-	var discount := 1.0 - skill_total("part_discount")
+	var discount := (1.0 - skill_total("part_discount")) * pow(1.0 - CastleData.STOREROOM_DISCOUNT, room_count("store"))
 	for type: String in cost:
 		cost[type] = ceili(cost[type] * discount)
 	# The higher levels of the castle itself need iron fittings.
@@ -744,6 +748,28 @@ func soldier_defence() -> int:
 	return SOLDIER_DEFENCE + int(skill_total("soldier_defence"))
 
 
+# --- The rooms of the keep ---
+
+## How many rooms of a kind stand finished in the keep.
+func room_count(kind: String) -> int:
+	var count := 0
+	for storey in CastleData.keep_storeys(part_levels.keep):
+		count += CastleData.keep_rooms(storey, keep_picks).count(kind)
+	return count
+
+
+## True if raising the part adds a storey whose rooms the player chooses: any
+## level of the keep after the first, while it still grows taller.
+func needs_room_choice(id: String) -> bool:
+	var level: int = part_levels.keep
+	return id == "keep" and level > 0 and CastleData.keep_storeys(level + 1) > CastleData.keep_storeys(level)
+
+
+## How much harder soldiers hit for the armouries in the keep.
+func armoury_mult() -> float:
+	return 1.0 + CastleData.ARMOURY_MIGHT * room_count("armoury")
+
+
 func _scaled_cost(base: Dictionary, growth: float, level: int) -> Dictionary:
 	var cost := {}
 	for type: String in base:
@@ -753,12 +779,18 @@ func _scaled_cost(base: Dictionary, growth: float, level: int) -> Dictionary:
 
 # --- The building job ---
 
-## Pays for the part's next level and gives the builders the job.
-func order_part(id: String) -> bool:
+## Pays for the part's next level and gives the builders the job. rooms is
+## the [left room, right room] chosen for a new storey of the keep (see
+## needs_room_choice); left out, the storey becomes bedchambers.
+func order_part(id: String, rooms := []) -> bool:
 	if part_block_reason(id) != "":
 		return false
 	if not spend(part_cost(id)):
 		return false
+	if needs_room_choice(id):
+		var valid: bool = rooms.size() == 2 and rooms[0] in CastleData.ROOM_PICKS and rooms[1] in CastleData.ROOM_PICKS
+		_fit_keep_picks(part_levels.keep - 1)
+		keep_picks.append(rooms.duplicate() if valid else CastleData.KEEP_DEFAULT_ROOMS.duplicate())
 	job_part = id
 	job_plan = BuildPlan.make(id, part_levels[id])
 	job_claimed = 0
@@ -899,6 +931,15 @@ func _job_advance() -> void:
 		job_lifted += 1
 
 
+## Makes keep_picks exactly this long: one entry per storey above the first keep's.
+func _fit_keep_picks(storeys: int) -> void:
+	keep_picks.resize(maxi(storeys, 0))
+	for i in keep_picks.size():
+		var pick: Variant = keep_picks[i]
+		if not (pick is Array and pick.size() == 2 and CastleData.ROOMS.has(pick[0]) and CastleData.ROOMS.has(pick[1])):
+			keep_picks[i] = CastleData.KEEP_DEFAULT_ROOMS.duplicate()
+
+
 func _finish_job() -> void:
 	var rank_before := castle_rank()
 	part_levels[job_part] += 1
@@ -1028,6 +1069,7 @@ func save_game() -> void:
 		"saved_at": Time.get_unix_time_from_system(),
 		"resources": resources,
 		"part_levels": part_levels,
+		"keep_picks": keep_picks,
 		"peasants": peasants,
 		"cows": cows,
 		"jobs": jobs,
@@ -1086,6 +1128,7 @@ func _start_over() -> void:
 	cows = 0
 	for id: String in part_levels:
 		part_levels[id] = 0
+	keep_picks.clear()
 	peasants = START_PEASANTS
 	jobs = START_JOBS.duplicate()
 	trained = NO_JOBS.duplicate()
@@ -1171,6 +1214,11 @@ func load_game() -> void:
 		if job_placed >= job_size():
 			job_part = ""
 			job_plan = {}
+
+	# One pair of rooms per storey chosen so far; a storey being built has its pair already.
+	var saved_picks: Variant = data.get("keep_picks")
+	keep_picks = saved_picks.duplicate(true) if saved_picks is Array else []
+	_fit_keep_picks(part_levels.keep - 1 + (1 if needs_room_choice(job_part) else 0))
 
 	var now := Time.get_unix_time_from_system()
 	_grant_offline_progress(now - float(data.get("saved_at", now)))

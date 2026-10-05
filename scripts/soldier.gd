@@ -78,9 +78,10 @@ func at_post() -> bool:
 	return _at_post and not _out
 
 
-## How hard this soldier hits: trained soldiers and skills count for more.
+## How hard this soldier hits: trained soldiers, skills and the keep's
+## armouries count for more.
 func might() -> float:
-	return _skill() * GameState.soldier_defence() / float(GameState.SOLDIER_DEFENCE)
+	return _skill() * GameState.soldier_defence() / float(GameState.SOLDIER_DEFENCE) * GameState.armoury_mult()
 
 
 ## Counts down to the next arrow. Returns true when one is loosed.

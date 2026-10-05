@@ -4,12 +4,16 @@ extends Node2D
 ## can be built or raised. Pointing at a circle tells the HUD, which shows a
 ## round preview of the part with its cost, benefit and drawback; a click
 ## orders it. Outside build mode nothing in the world can be ordered.
+## A new storey of the keep is not ordered at once: the HUD first asks which
+## rooms to build there (rooms_wanted).
 ##
 ## This node sits at the castle's ground-centre point, so the positions in
 ## CastleData line up with it.
 
 signal hovered_changed(part: String)
 signal mode_changed
+## The player clicked a part whose new rooms they must choose first.
+signal rooms_wanted(part: String)
 
 const CastleData = preload("res://scripts/castle_data.gd")
 const CAN_BUILD := Color(1.0, 0.85, 0.40)
@@ -75,7 +79,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.pressed:
 			_press_position = event.position
 		elif hovered != "" and event.position.distance_to(_press_position) <= CLICK_SLOP:
-			GameState.order_part(hovered)
+			if GameState.needs_room_choice(hovered) and GameState.part_block_reason(hovered) == "" \
+					and GameState.can_afford(GameState.part_cost(hovered)):
+				rooms_wanted.emit(hovered)
+			else:
+				GameState.order_part(hovered)
 
 
 func _draw() -> void:

@@ -82,7 +82,7 @@ const PARTS := {
 		"site_x": 0.0,
 	},
 	"keep": {
-		"benefit": "+12 defence per level", "drawback": "Raids grow 3% stronger per level",
+		"benefit": "+12 defence and a new storey of rooms per level", "drawback": "Raids grow 3% stronger per level",
 		"name": "Keep", "defence": 12, "renown": 1, "cost": {"stone": 30, "wood": 15}, "work": 18.0,
 		"site_x": -165.0,
 	},
@@ -261,17 +261,39 @@ static func keep_storeys(level: int) -> int:
 	return 4 + mini(level, MAX_VISUAL_LEVEL) if level > 0 else 0
 
 
+## The kinds of room in the keep. "benefit" is what one room of the kind
+## gives (see the ROOM_ constants and where GameState uses them); the kinds
+## in ROOM_PICKS are the ones the player can choose for a new storey.
+const ROOMS := {
+	"kitchen": {"name": "Kitchen", "benefit": "The cooks work here"},
+	"hall": {"name": "Great hall", "benefit": ""},
+	"beds": {"name": "Bedchamber", "benefit": "Beds for 3, and room for 2 more peasants"},
+	"store": {"name": "Storeroom", "benefit": "Building costs 3% less"},
+	"armoury": {"name": "Armoury", "benefit": "Soldiers hit 10% harder"},
+	"lord": {"name": "Lord's chamber", "benefit": ""},
+}
+const ROOM_PICKS := ["beds", "store", "armoury"]
+const BEDCHAMBER_PEASANTS := 2
+const STOREROOM_DISCOUNT := 0.03
+const ARMOURY_MIGHT := 0.10
+## The rooms the first keep comes with, as [left room, right room] per storey
+## from the entrance storey up. Every storey added after that is the player's
+## choice (GameState.keep_picks).
+const KEEP_FIRST_ROOMS := [
+	["kitchen", "hall"], ["store", "armoury"], ["beds", "beds"], ["beds", "beds"], ["beds", "lord"],
+]
+## What a storey nobody chose rooms for is fitted out as.
+const KEEP_DEFAULT_ROOMS := ["beds", "beds"]
+
+
 ## What each room of the keep is, as [left room, right room] for a storey
-## (0 = the entrance storey). The kitchen and hall are at the bottom, stores
-## above them, bedchambers above that, and the lord's chamber at the very top.
-static func keep_rooms(storey: int, storeys: int) -> Array:
-	if storey == 0:
-		return ["kitchen", "hall"]
-	if storey == 1:
-		return ["store", "armoury"]
-	if storey == storeys - 1:
-		return ["beds", "lord"]
-	return ["beds", "beds"]
+## (0 = the entrance storey). picks are the rooms chosen for the storeys
+## above the first keep's, lowest first.
+static func keep_rooms(storey: int, picks: Array) -> Array:
+	if storey < KEEP_FIRST_ROOMS.size():
+		return KEEP_FIRST_ROOMS[storey]
+	var pick := storey - KEEP_FIRST_ROOMS.size()
+	return picks[pick] if pick < picks.size() else KEEP_DEFAULT_ROOMS
 
 
 ## Where the beds stand in a bedchamber this wide, from its left wall.
@@ -280,12 +302,12 @@ static func bed_offsets(room_width: float) -> Array:
 
 
 ## Where every bed in the keep stands, for peasants to sleep in.
-static func keep_beds(level: int) -> Array:
+static func keep_beds(level: int, picks: Array) -> Array:
 	var out := []
 	var storeys := keep_storeys(level)
 	var room_width := (KEEP_WIDTH - KEEP_STAIRWELL) / 2.0 - 6.0
 	for storey in storeys:
-		var rooms := keep_rooms(storey, storeys)
+		var rooms := keep_rooms(storey, picks)
 		for side in 2:
 			if rooms[side] == "beds":
 				var left := KEEP_LEFT + 4.0 if side == 0 else KEEP_LEFT + KEEP_WIDTH / 2.0 + KEEP_STAIRWELL / 2.0 + 2.0

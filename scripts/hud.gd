@@ -5,7 +5,8 @@ extends CanvasLayer
 ##
 ## The layout follows three levels of importance:
 ##   always visible   resources, the day, defence, the current goal, the next raid
-##   when relevant    the build card (pointing at the world), messages, hunger
+##   when relevant    the build card (pointing at the world), the room picker,
+##                    messages, hunger
 ##   on demand        the peasants panel (can be folded away), skills, the menu
 
 const CastleData = preload("res://scripts/castle_data.gd")
@@ -57,9 +58,15 @@ var _toast_tween: Tween
 var _reset_armed := false
 var _crown_armed := false
 var _preview := Control.new()
+## Asks which rooms a new storey of the keep should have: [west, east].
+var _room_picker := Panel.new()
+var _room_choice: Array = CastleData.KEEP_DEFAULT_ROOMS.duplicate()
+var _room_info := Label.new()
+var _room_build: Button
 
 
 func _ready() -> void:
+	_make_room_picker()
 	var theme := UiTheme.build()
 	for child in get_children():
 		if child is Control:
@@ -79,6 +86,8 @@ func _ready() -> void:
 	build_button.toggled.connect(build_hover.set_active)
 	build_hover.mode_changed.connect(func() -> void:
 		build_button.set_pressed_no_signal(build_hover.active)
+		if not build_hover.active:
+			_room_picker.hide()
 		build_button.text = "Building...\nB to stop" if build_hover.active else "Build (B)")
 	hire_button.pressed.connect(GameState.hire_peasant)
 	inside_button.pressed.connect(func() -> void: get_tree().call_group("castle", "toggle_all_open"))
@@ -93,6 +102,7 @@ func _ready() -> void:
 	reset_button.pressed.connect(_on_reset_pressed)
 	crown_button.pressed.connect(_on_crown_pressed)
 	build_hover.hovered_changed.connect(func(_part: String) -> void: _refresh_build_card())
+	build_hover.rooms_wanted.connect(func(_part: String) -> void: show_room_picker())
 	GameState.announced.connect(_show_toast)
 	# A click sound whenever something is bought, and a shake when a raid is lost.
 	GameState.peasants_changed.connect(func() -> void: get_tree().call_group("sfx", "play", "buy"))
@@ -155,6 +165,67 @@ func _make_job_rows() -> void:
 			row.add_child(part)
 		jobs_box.add_child(row)
 		_job_rows[id] = {"row": row, "label": label, "minus": minus, "plus": plus, "train": train}
+
+
+## The room picker: a row of room kinds for the west room and one for the
+## east room of the keep's new storey, what the chosen rooms give, and Build.
+func _make_room_picker() -> void:
+	_room_picker.position = Vector2(170, 104)
+	_room_picker.size = Vector2(300, 126)
+	_room_picker.hide()
+	add_child(_room_picker)
+	var box := VBoxContainer.new()
+	box.position = Vector2(8, 5)
+	box.size = _room_picker.size - Vector2(16, 10)
+	_room_picker.add_child(box)
+	var title := Label.new()
+	title.text = "A NEW STOREY FOR THE KEEP: choose its rooms"
+	title.add_theme_color_override("font_color", UiTheme.GOLD)
+	box.add_child(title)
+	for side in 2:
+		var row := HBoxContainer.new()
+		var label := Label.new()
+		label.text = "West room" if side == 0 else "East room"
+		label.custom_minimum_size.x = 60
+		row.add_child(label)
+		var group := ButtonGroup.new()
+		for kind: String in CastleData.ROOM_PICKS:
+			var button := _picker_button(CastleData.ROOMS[kind].name)
+			button.toggle_mode = true
+			button.button_group = group
+			button.button_pressed = kind == _room_choice[side]
+			button.tooltip_text = CastleData.ROOMS[kind].benefit
+			button.pressed.connect(func() -> void:
+				_room_choice[side] = kind
+				_refresh_room_picker())
+			row.add_child(button)
+		box.add_child(row)
+	_room_info.add_theme_font_size_override("font_size", 10)
+	_room_info.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.add_child(_room_info)
+	var buttons := HBoxContainer.new()
+	_room_build = _picker_button("Build")
+	_room_build.pressed.connect(func() -> void:
+		GameState.order_part("keep", _room_choice)
+		_room_picker.hide()
+		_refresh())
+	var cancel := _picker_button("Cancel")
+	cancel.pressed.connect(func() -> void:
+		_room_picker.hide()
+		_refresh())
+	buttons.add_child(_room_build)
+	buttons.add_child(cancel)
+	box.add_child(buttons)
+
+
+func _picker_button(text: String) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.focus_mode = Control.FOCUS_NONE
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.add_theme_font_size_override("font_size", 10)
+	UiTheme.make_compact(button)
+	return button
 
 
 func _small_button(text: String, width: float) -> Button:
@@ -260,6 +331,7 @@ func _refresh() -> void:
 		crown_button.text = "Pass the crown (+%d legacy)" % gain
 	else:
 		crown_button.text = "Pass the crown (needs rank %d)" % GameState.LEGACY_MIN_RANK
+	_refresh_room_picker()
 	_refresh_build_card()
 
 
@@ -327,12 +399,32 @@ func _refresh_jobs() -> void:
 	jobs_panel.size.y = jobs_box.get_combined_minimum_size().y + 8.0
 
 
+## Opens the room picker for the keep's next storey.
+func show_room_picker() -> void:
+	_room_picker.show()
+	_refresh()
+
+
+## What the chosen rooms give and what the storey costs. The picker closes
+## by itself if the storey can no longer be ordered.
+func _refresh_room_picker() -> void:
+	if not _room_picker.visible:
+		return
+	if not GameState.needs_room_choice("keep") or GameState.part_block_reason("keep") != "":
+		_room_picker.hide()
+		return
+	var cost := GameState.part_cost("keep")
+	_room_info.text = "West: %s\nEast: %s\nCost: %s" % [
+		CastleData.ROOMS[_room_choice[0]].benefit, CastleData.ROOMS[_room_choice[1]].benefit, _cost_text(cost)]
+	_room_build.disabled = not GameState.can_afford(cost)
+
+
 ## The card for the castle part or village building under the mouse: what
 ## its next level costs, what it gives, what it takes, and whether a click
 ## would build it.
 func _refresh_build_card() -> void:
 	var id: String = build_hover.hovered
-	build_card.visible = id != "" and not skill_tree.visible
+	build_card.visible = id != "" and not skill_tree.visible and not _room_picker.visible
 	if id == "":
 		return
 	var part: Dictionary = CastleData.PARTS[id]
@@ -349,6 +441,8 @@ func _refresh_build_card() -> void:
 		lines.append(reason)
 	elif not GameState.can_afford(GameState.part_cost(id)):
 		lines.append("Not enough materials yet")
+	elif GameState.needs_room_choice(id):
+		lines.append("Click to choose its rooms")
 	else:
 		lines.append("Click to build")
 	build_card_label.text = "\n".join(lines)
