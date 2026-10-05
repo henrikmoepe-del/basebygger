@@ -307,6 +307,11 @@ func _go_to(target: Vector2, delta: float) -> bool:
 		_route_to = target
 		_route_version = castle.version
 	var step: Dictionary = _route[0]
+	# A step of one block was planned, but more has been laid here since: find
+	# another way rather than drop further than that.
+	if step.get("hop", false) and absf(step.pos.x - position.x) < 0.01 and absf(step.pos.y - position.y) > CastleData.CLIMB_UP + 0.5:
+		_route = castle.route(position, target)
+		step = _route[0]
 	var pace := speed * _pace() * _hurt_pace() * delta
 	var there := false
 	_on_stair = step.get("stair", false)

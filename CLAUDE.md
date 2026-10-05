@@ -77,6 +77,12 @@
 - In a cloud container with no screen: `xvfb-run -a -s "-screen 0 1280x720x24" godot
   --rendering-driver opengl3 --path . -s tests/screenshot.gd -- ...` (there is no Vulkan there).
 
+## Git and the cloud
+- The repo is on GitHub: `henrikmoepe-del/basebygger` (private), remote `origin`. Push after
+  every commit, so cloud sessions and the backup are up to date.
+- Cloud sessions work on a `claude/...` branch. To take their work: fetch, check the branch out,
+  run the tests here, then merge into `main` and push.
+
 ## Future ideas (Henrik's list, 2026-10-05)
 Not started. Keep them in mind when building features, so new systems can connect to them later.
 - Events: traders; raids; a mystical man who wants to give you dark gifts; werewolves; a traitor
@@ -124,6 +130,9 @@ What this means for the design now (Claude's notes):
   Towers adds wall towers at level 3 and gate towers at level 5; the keep gets corner turrets at 4
   and a great tower at 7; pointed roofs come at higher levels (`CastleData.towers`, `shapes`).
 - Done:
+  - A new game begins with walls level 1 and keep level 1 already standing
+    (`GameState.START_PARTS`; older saves are raised to that on load). The first goal is
+    therefore to raise the walls to level 2, and the keep goal is to add a storey.
   - Start with 3 generalist peasants. Jobs: chop wood, mine stone, find food, build, cook,
     stand guard (needs a garrison), mine iron (needs a mine), tend the grove (needs the Foresters skill)
   - Trades: big skill-tree unlocks that let peasants in a job be trained (twice as good, wear a hat)
@@ -226,7 +235,7 @@ What this means for the design now (Claude's notes):
     lasts a while and has "effects" while it goes on; some can be clicked away for a reward.
     First event: a badger digs at the wilds from day 2 (food site refills 60% slower for 2
     minutes); click it to chase it off for +5 food (a hand cursor shows over it). Saved. Dev key
-    F8 starts one. An event can instead come on a timetable ("schedule") and last until the game
+    F9 starts one. An event can instead come on a timetable ("schedule") and last until the game
     ends it ("until_done"): the raid is such an event (from day 5, every 3 days), and
     `GameState._begin_raid` / `end_event("raid", "done")` start and end it. "needs" keeps an event
     to happy or unhappy times or a season: Merry work (happy, faster work), Strike (unhappy, much
@@ -305,6 +314,12 @@ What this means for the design now (Claude's notes):
     (`castle.route`). A target with no floor under it is not reachable; the way ends on the ground
     below it. Anything a peasant must stand on has to be a floor (`CastleData.floors`, or
     `castle.job_floors` for decks and scaffold platforms). The build test checks for this.
+    One exception: a peasant steps straight up or down one block (`CastleData.CLIMB_UP`, 12)
+    where two floors, or a floor and the ground, meet (`castle._hop_x`); not into rooms inside or
+    onto perches. So builders step onto a deck one course high from anywhere along it, and it
+    stays a floor while its ladder is put up (`BuildPlan._rise`). The ladder is still set before
+    the second course is laid, since the deck is two blocks up once that course is done. (Putting
+    the ladder up a course later was tried: builders on the finished course were left in the air.)
   - Wanted next for building (Henrik): pieces that must be made first, e.g. a window made at a
     workstation from gathered materials and then carried to the site. The hook is `BuildPlan.ITEMS`
     ("item" per piece kind): give an item a recipe and have builders fetch it from the workstation.
@@ -318,7 +333,7 @@ What this means for the design now (Claude's notes):
   - Pass the crown (prestige) with lasting legacy; save/load with offline progress; New game
   - Camera: drag or A/D to pan, drag up/down or W/S to look up at the castle, mouse wheel zooms out
     to a quarter size (the whole world); the world's sounds fade as the view zooms out
-  - Dev shortcuts (editor runs only): F2 speed, F3 skip 10 min, F4 resources, F6 peasants, F8 start an event, F1 hide
+  - Dev shortcuts (editor runs only): F2 speed, F3 skip 10 min, F4 resources, F6 peasants, F9 start an event (F8 stops the game in the Godot editor), F1 hide
 - Henrik's list from the last round is built. Wanted later: more minerals than iron, better food
   from trained cooks, buildings only trained builders can raise, individual peasant traits
 - Known balance issues: iron piles up late (costs are low); food is now tight in the mid game;

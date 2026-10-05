@@ -617,6 +617,20 @@ func _plain_route(from: Vector2, to: Vector2) -> Array:
 		steps.append(_step(Vector2(ladder, flat.y), false, end_back))
 		steps.append(_step(end, false, end_back))
 		return steps
+	if start != goal and (start >= 0 or from.y > -0.5):
+		# One block up or down needs no stair: a peasant just steps onto it.
+		var hop := _hop_x(all, start, goal, from.x, to.x)
+		if hop != INF:
+			var from_y: float = _surface(all[start], hop) if start >= 0 else 0.0
+			var to_y: float = _surface(all[goal], hop) if goal >= 0 else 0.0
+			if absf(hop - from.x) > 0.01:
+				steps.append(_step(Vector2(hop, from_y), false, start >= 0 and all[start].back))
+			var up := _step(Vector2(hop, to_y), false, end_back)
+			# Marked, so a peasant can look again if the floor has changed by then.
+			up["hop"] = true
+			steps.append(up)
+			steps.append(_step(end, end_in, end_back))
+			return steps
 	if start < 0 and from.y < -0.5:
 		# Part way up a ladder that stands on a deck: off it at one end or the other.
 		for flat: Dictionary in all:
@@ -659,6 +673,30 @@ func _plain_route(from: Vector2, to: Vector2) -> Array:
 			steps.append(_step(Vector2(stair_x, _surface(flat, stair_x)), flat.hidden, flat.back))
 	steps.append(_step(end, end_in, end_back))
 	return steps
+
+
+## Where a peasant can step straight from one floor to another (-1 is the
+## ground): an x where both are underfoot and no more than one block apart
+## in height (CastleData.CLIMB_UP). INF if there is none. Rooms inside and
+## perches on a ladder are only reached their own way.
+func _hop_x(all: Array, start: int, goal: int, from_x: float, to_x: float) -> float:
+	var x0 := -INF
+	var x1 := INF
+	for i: int in [start, goal]:
+		if i >= 0:
+			if all[i].get("inside", false) or all[i].has("base"):
+				return INF
+			x0 = maxf(x0, all[i].x0)
+			x1 = minf(x1, all[i].x1)
+	if x0 > x1:
+		return INF
+	# A deck has a step in it, so try the near side first, then the ends.
+	for x: float in [clampf(from_x, x0, x1), clampf(to_x, x0, x1), x0, x1]:
+		var from_y: float = _surface(all[start], x) if start >= 0 else 0.0
+		var to_y: float = _surface(all[goal], x) if goal >= 0 else 0.0
+		if absf(from_y - to_y) <= CastleData.CLIMB_UP + 0.5:
+			return x
+	return INF
 
 
 ## How high a peasant standing at a point is: on the floor that is there

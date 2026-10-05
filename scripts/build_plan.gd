@@ -444,8 +444,10 @@ static func _rise(plan: Dictionary, part: String, index: int, state: Dictionary,
 		var x: float = way.get("ladder", way.x)
 		# A ladder that is only for the start of the work is a short one.
 		var top := maxf(deck, -START_LADDER - 8.0) if way.has("ladder") else deck
-		# It is put up from the ground, before anyone is on the deck.
-		state.floor = 0.0
+		# It is put up from the ground. A deck one block up is stepped onto, so
+		# builders can be on it already; a higher one has nobody on it yet.
+		if floor_now < -(CastleData.CLIMB_UP + 0.5):
+			state.floor = 0.0
 		_add(plan, Kind.LADDER, "ladder", Rect2(x - 3.0, top, 6.0, -top), SCAFFOLD_COLOR, index, Vector2(x, 0.0), false, state, Rect2())
 		if not state.permanent:
 			plan.pieces[-1].removed_by = TO_REMOVE

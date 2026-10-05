@@ -227,6 +227,9 @@ const BODY_MIN_SIZE := 12.0
 ## Details narrower than this are fittings: windows, doors, battlements,
 ## posts, flags. Builders put each one in place whole.
 const FITTING_MAX_WIDTH := 40.0
+## A peasant can step up or down this far without a stair or a ladder: one
+## block of stone (the tallest course, see course()).
+const CLIMB_UP := 12.0
 ## Stone is laid in blocks this wide, timber in planks this long.
 const BLOCK_WIDTH := 24.0
 const PLANK_WIDTH := 12.0

@@ -48,7 +48,7 @@ func _build(part: String, limit: float) -> bool:
 				# Nobody comes down anywhere but by a ladder, or the stairs inside.
 				var was: Vector2 = last.get(w, w.position)
 				last[w] = w.position
-				if w.visible and w.position.y < -0.5 and w.position.y > was.y + 0.01 and absf(w.position.x - was.x) < 0.01 and not _ladder_at(flats, w.position.x):
+				if w.visible and w.position.y < -0.5 and w.position.y > was.y + 0.01 and absf(w.position.x - was.x) < 0.01 and not _ladder_at(flats, w.position.x) and not _one_block_down(flats, w.position):
 					drops += 1
 					if drops <= 3:
 						print("     dropping: ", w.position, " state ", w._state, " placed ", gs.job_placed, "/", gs.job_size(), " next ", gs.job_pieces()[mini(gs.job_placed, gs.job_size() - 1)].kind)
@@ -82,6 +82,17 @@ func _ladder_at(flats: Array, x: float) -> bool:
 	return false
 
 
+## True if the ground, or a floor, is within one block below: a peasant may step down that far.
+func _one_block_down(flats: Array, at: Vector2) -> bool:
+	var reach: float = gs.CastleData.CLIMB_UP + 0.5
+	if at.y >= -reach:
+		return true
+	for flat in flats:
+		if at.x >= flat.x0 - 2.0 and at.x <= flat.x1 + 2.0 and flat.y >= at.y and flat.y - at.y <= reach:
+			return true
+	return false
+
+
 func _supported(flats: Array, at: Vector2) -> bool:
 	for flat in flats:
 		if at.x >= flat.x0 - 2.0 and at.x <= flat.x1 + 2.0 and absf(at.y - flat.y) <= 16.0:
@@ -98,6 +109,10 @@ func _run() -> void:
 	await process_frame
 	Engine.time_scale = 30.0
 	var all_ok := true
+	# A new game begins with a wall and a keep; here they are built from nothing too.
+	gs.part_levels.walls = 0
+	gs.part_levels.keep = 0
+	gs.castle_changed.emit()
 	# Gatherers alone for a while: do the stores fill?
 	await _wait(120.0)
 	print("after 2 min of gathering: ", gs.resources)
