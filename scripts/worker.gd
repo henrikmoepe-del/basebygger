@@ -33,6 +33,8 @@ const BALL := Color(0.80, 0.25, 0.22)
 var job := ""
 ## Trained peasants do their job twice as well and wear a hat.
 var trained := false
+## The person this peasant is (see GameState.people): their name and trait.
+var person: Dictionary = {}
 var home_x := 0.0
 var speed := 50.0
 ## The Workers node, which knows where things are in the world.
@@ -257,9 +259,15 @@ func _draw_extra(_bob_y: float) -> void:
 	pass
 
 
-## 2 for a trained peasant, 1 otherwise: how much better they do their job.
+## How well the peasant does their job: twice as well when trained, and
+## better or worse for their trait.
 func _skill() -> float:
-	return GameState.TRAINED_MULT if trained else 1.0
+	return (GameState.TRAINED_MULT if trained else 1.0) * _trait().get("work", 1.0)
+
+
+## The peasant's trait (see PeopleData.TRAITS), or an empty Dictionary.
+func _trait() -> Dictionary:
+	return GameState.PeopleData.TRAITS.get(person.get("trait", ""), {})
 
 
 ## How much faster than their own speed the peasant moves.

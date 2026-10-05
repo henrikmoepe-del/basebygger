@@ -213,6 +213,7 @@ func _make_job_rows() -> void:
 		var label := Label.new()
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		label.add_theme_font_size_override("font_size", 10)
+		label.mouse_filter = Control.MOUSE_FILTER_PASS
 		var minus := _small_button("-", 16)
 		minus.pressed.connect(GameState.assign.bind(id, -1))
 		var plus := _small_button("+", 16)
@@ -613,6 +614,12 @@ func _refresh_jobs() -> void:
 		row.row.visible = GameState.job_unlocked(id)
 		var limit := GameState.job_limit(id)
 		row.label.text = "%s %d" % [JobData.JOBS[id].name, GameState.jobs[id]]
+		# Who is doing the job, by name.
+		var names: PackedStringArray = []
+		for someone: Dictionary in GameState.people:
+			if someone.job == id:
+				names.append(GameState.person_title(someone) + (" (trained)" if someone.trained else ""))
+		row.label.tooltip_text = "Nobody yet" if names.is_empty() else "\n".join(names)
 		if limit >= 0:
 			row.label.text += "/%d" % limit
 		if GameState.trained[id] > 0:

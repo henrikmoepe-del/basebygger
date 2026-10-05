@@ -44,6 +44,7 @@ const PolicyData = preload("res://scripts/policy_data.gd")
 const SeasonData = preload("res://scripts/season_data.gd")
 const BoostData = preload("res://scripts/boost_data.gd")
 const WorkshopData = preload("res://scripts/workshop_data.gd")
+const PeopleData = preload("res://scripts/people_data.gd")
 
 const START_JOBS := {"wood": 1, "stone": 1, "hunter": 0, "build": 1, "cook": 0, "soldier": 0, "iron": 0, "sawyer": 0, "baker": 0, "forester": 0}
 const NO_JOBS := {"wood": 0, "stone": 0, "hunter": 0, "build": 0, "cook": 0, "soldier": 0, "iron": 0, "sawyer": 0, "baker": 0, "forester": 0}
@@ -232,6 +233,10 @@ var messages := []
 var event_counts := {}
 ## How happy the peasants are, 0 to 100 (see MOOD_BASE).
 var happiness := MOOD_BASE
+## Every peasant as a person, each {"id", "name", "trait", "job", "trained"}
+## (see PeopleData). Fitted to peasants, jobs and trained by _fit_people.
+var people := []
+var _next_person := 1
 ## The boosts going on: boost id -> seconds left (see BoostData).
 var boosts := {}
 ## The policies turned on, by id (see PolicyData).
@@ -275,7 +280,10 @@ func _ready() -> void:
 		if arg.begins_with("--save="):
 			save_path = arg.trim_prefix("--save=")
 	announced.connect(_log_message)
+	# Before anyone else hears of a change, the people are fitted to it.
+	peasants_changed.connect(_fit_people)
 	load_game()
+	_fit_people()
 
 
 func _process(delta: float) -> void:
@@ -797,6 +805,14 @@ func happiness_parts() -> Array:
 		var points: float = BoostData.BOOSTS[id].effects.get("happiness", 0.0)
 		if points != 0.0:
 			parts.append([BoostData.BOOSTS[id].name, points])
+	var mood_of_people := {}
+	for someone: Dictionary in people:
+		var points: float = PeopleData.TRAITS[someone.trait].get("happiness", 0.0)
+		if points != 0.0:
+			var kind: String = "%s folk" % PeopleData.TRAITS[someone.trait].name
+			mood_of_people[kind] = mood_of_people.get(kind, 0.0) + points
+	for kind: String in mood_of_people:
+		parts.append([kind, mood_of_people[kind]])
 	var season_points: float = season().effects.get("happiness", 0.0)
 	if season_points != 0.0:
 		parts.append([season().name, season_points])
@@ -863,6 +879,78 @@ func assign(job: String, change: int) -> bool:
 	trained[job] = mini(trained[job], jobs[job])
 	peasants_changed.emit()
 	return true
+
+
+# --- People ---
+
+## Makes the people match the counts: as many people as peasants, as many
+## in each job as jobs says, and as many of them trained as trained says.
+## It moves as few people as it can: the newest leave first, and the
+## untrained leave a job before the trained.
+func _fit_people() -> void:
+	while people.size() < peasants:
+		people.append(_new_person())
+	while people.size() > peasants:
+		var idle := people.filter(func(person: Dictionary) -> bool: return person.job == "")
+		people.erase(idle.back() if not idle.is_empty() else people.back())
+	for person: Dictionary in people:
+		if person.job != "" and not jobs.has(person.job):
+			person.job = ""
+	# Too many in a job: the untrained, newest first, become idle.
+	for job: String in jobs:
+		var in_job := _people_in(job)
+		in_job.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a.trained) > int(b.trained))
+		while in_job.size() > jobs[job]:
+			in_job.pop_back().job = ""
+	# Too few in a job: idle people take it.
+	for job: String in jobs:
+		var missing: int = jobs[job] - _people_in(job).size()
+		for person: Dictionary in people:
+			if missing <= 0:
+				break
+			if person.job == "":
+				person.job = job
+				person.trained = false
+				missing -= 1
+	for person: Dictionary in people:
+		if person.job == "":
+			person.trained = false
+	for job: String in jobs:
+		var in_job := _people_in(job)
+		var trained_now := in_job.filter(func(person: Dictionary) -> bool: return person.trained).size()
+		for person: Dictionary in in_job:
+			if trained_now > trained[job] and person.trained:
+				person.trained = false
+				trained_now -= 1
+			elif trained_now < trained[job] and not person.trained:
+				person.trained = true
+				trained_now += 1
+
+
+func _people_in(job: String) -> Array:
+	return people.filter(func(person: Dictionary) -> bool: return person.job == job)
+
+
+func _new_person() -> Dictionary:
+	var person := {
+		"id": _next_person, "name": PeopleData.NAMES.pick_random(),
+		"trait": PeopleData.TRAITS.keys().pick_random(), "job": "", "trained": false,
+	}
+	_next_person += 1
+	return person
+
+
+## The person with this id, or an empty Dictionary.
+func person(id: int) -> Dictionary:
+	for someone: Dictionary in people:
+		if someone.id == id:
+			return someone
+	return {}
+
+
+## "Ada the Quick": a person's name and trait.
+func person_title(someone: Dictionary) -> String:
+	return "%s the %s" % [someone.name, PeopleData.TRAITS[someone.trait].name]
 
 
 ## True once the job's trade has been bought in the skill tree.
@@ -1416,6 +1504,7 @@ func save_game() -> void:
 		"messages": messages,
 		"policies": policies,
 		"boosts": boosts,
+		"people": people,
 		"happiness": happiness,
 		"income_rate": income_rate,
 		"job": {
@@ -1474,6 +1563,7 @@ func _start_over() -> void:
 	_event_timer = 0.0
 	policies.clear()
 	boosts.clear()
+	people.clear()
 	happiness = MOOD_BASE
 	day = 1
 	day_time = 0.0
@@ -1490,6 +1580,7 @@ func _start_over() -> void:
 	_window_time = 0.0
 	_was_night = false
 	offline_report = {}
+	_fit_people()
 	save_game()
 	# Reloading the scene rebuilds everything on screen from the fresh state.
 	get_tree().reload_current_scene()
@@ -1559,6 +1650,16 @@ func load_game() -> void:
 				event_counts[id] = maxi(int(saved_counts[id]), 0)
 
 	happiness = clampf(float(data.get("happiness", MOOD_BASE)), 0.0, 100.0)
+	people.clear()
+	var saved_people: Variant = data.get("people")
+	if saved_people is Array:
+		for someone: Variant in saved_people:
+			if someone is Dictionary and someone.get("name") is String and PeopleData.TRAITS.has(someone.get("trait", "")):
+				var id := int(someone.get("id", 0))
+				people.append({"id": id, "name": someone.name, "trait": someone.trait,
+					"job": str(someone.get("job", "")), "trained": bool(someone.get("trained", false))})
+				_next_person = maxi(_next_person, id + 1)
+	_fit_people()
 	boosts.clear()
 	var saved_boosts: Variant = data.get("boosts")
 	if saved_boosts is Dictionary:

@@ -7,6 +7,7 @@ extends Node2D
 ## This node and the castle share the same origin: the castle's ground-centre.
 
 const CastleData = preload("res://scripts/castle_data.gd")
+const JobData = preload("res://scripts/job_data.gd")
 const Worker = preload("res://scripts/worker.gd")
 const Gatherer = preload("res://scripts/gatherer.gd")
 const Builder = preload("res://scripts/builder.gd")
@@ -30,6 +31,8 @@ const STORES := {
 	"planks": {"x": 100.0, "piece": Vector2(13, 2), "per_row": 2, "rows": 16, "color": Color(0.78, 0.60, 0.36)},
 }
 const STACK_GROWTH := 1.5
+## How near the mouse must be to a peasant for their name to show.
+const TAG_REACH := 6.0
 const POST := Color(0.33, 0.21, 0.13)
 const NUMBER := Color(0.20, 0.17, 0.15)
 const FULL_COLOR := Color(0.70, 0.12, 0.10)
@@ -71,6 +74,9 @@ var _font: Font = ThemeDB.fallback_font
 var _bump := 0.0
 ## Draws peasants who are on the stairs inside a building, where they pass a window.
 var _inside_view := Node2D.new()
+## The name over the peasant under the mouse (see _draw_tag).
+var _tag := Node2D.new()
+var _pointed: Node2D
 
 
 func _ready() -> void:
@@ -78,6 +84,9 @@ func _ready() -> void:
 	_inside_view.z_index = castle.FRONT_Z
 	_inside_view.draw.connect(_draw_inside)
 	add_child(_inside_view)
+	_tag.z_index = 6
+	_tag.draw.connect(_draw_tag)
+	add_child(_tag)
 	GameState.castle_changed.connect(_sync)
 	GameState.peasants_changed.connect(_sync)
 	GameState.income_delivered.connect(_on_income_delivered)
@@ -111,6 +120,7 @@ func _draw() -> void:
 
 func _process(delta: float) -> void:
 	_inside_view.queue_redraw()
+	_point_at(get_local_mouse_position())
 	if _bump > 0.0:
 		_bump -= delta
 		queue_redraw()
@@ -154,6 +164,39 @@ func _draw_store(type: String) -> void:
 	var text := "%d FULL" % amount if full_store else str(amount)
 	var text_width := _font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
 	draw_string(_font, Vector2(left + (width - text_width) / 2.0, -full - 9.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, FULL_COLOR if full_store else NUMBER)
+
+
+## Finds the peasant under the mouse, whose name is shown over their head.
+func _point_at(mouse: Vector2) -> void:
+	var found: Node2D = null
+	var nearest := TAG_REACH
+	for worker in get_children():
+		if worker is Worker and worker.visible and not worker.is_queued_for_deletion():
+			var distance: float = absf(worker.position.x - mouse.x)
+			if distance < nearest and mouse.y > worker.position.y - 20.0 and mouse.y < worker.position.y + 3.0:
+				nearest = distance
+				found = worker
+	if found != _pointed:
+		_pointed = found
+	_tag.queue_redraw()
+
+
+## "Ada the Quick" over the pointed peasant, and below it what they do.
+func _draw_tag() -> void:
+	if _pointed == null or not is_instance_valid(_pointed) or _pointed.person.is_empty():
+		return
+	var someone: Dictionary = _pointed.person
+	var work: String = "Idle" if someone.job == "" else JobData.JOBS[someone.job].name
+	if someone.trained:
+		work += ", trained " + JobData.JOBS[someone.job].trade.to_lower()
+	var lines: Array = [GameState.person_title(someone), "%s; %s" % [work, GameState.PeopleData.TRAITS[someone.trait].text]]
+	var y: float = _pointed.position.y - 34.0
+	for i in lines.size():
+		var size := 8 if i == 0 else 7
+		var text_width := _font.get_string_size(lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+		var at := Vector2(_pointed.position.x - text_width / 2.0, y + i * 9.0)
+		_tag.draw_rect(Rect2(at.x - 2, at.y - size, text_width + 4, size + 2), Color(0.16, 0.11, 0.08, 0.8))
+		_tag.draw_string(_font, at, lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(0.96, 0.91, 0.78))
 
 
 ## Peasants climbing the stairs inside a building show through its windows:
@@ -379,16 +422,27 @@ func store_x(resource_type: String) -> float:
 func _sync() -> void:
 	queue_redraw()
 	_sync_cows()
-	for job: String in JOB_SCRIPTS:
-		var wanted: int = GameState.idle_peasants() if job == "" else GameState.jobs[job]
-		var current := get_children().filter(func(w: Node) -> bool: return w.get("job") == job and not w.is_queued_for_deletion())
-		while current.size() > wanted:
-			current.pop_back().queue_free()
-		for i in wanted - current.size():
-			current.append(_spawn(job))
-		# The first peasants in each job are the trained ones.
-		for i in current.size():
-			current[i].trained = job != "" and i < GameState.trained[job]
+	# One walking peasant per person. Someone whose job changed is made anew
+	# with the new job's script, where they stood if they were on the ground.
+	var by_person := {}
+	for worker in get_children():
+		if worker is Worker and not worker.is_queued_for_deletion():
+			by_person[worker.person.get("id", -1)] = worker
+	for someone: Dictionary in GameState.people:
+		var worker: Node2D = by_person.get(someone.id)
+		by_person.erase(someone.id)
+		if worker != null and worker.job != someone.job:
+			var old := worker
+			worker = _spawn(someone)
+			if old.position.y > -0.5:
+				worker.position.x = old.position.x
+			old.queue_free()
+		elif worker == null:
+			worker = _spawn(someone)
+		worker.person = someone
+		worker.trained = someone.trained
+	for gone: Node2D in by_person.values():
+		gone.queue_free()
 
 
 ## Cows share out the hauls in turn: food first (the longest walk), then
@@ -408,11 +462,13 @@ func _sync_cows() -> void:
 		cows[i].resource = hauls[i % hauls.size()]
 
 
-func _spawn(job: String) -> Node2D:
+func _spawn(someone: Dictionary) -> Node2D:
+	var job: String = someone.job
 	var worker: Node2D = JOB_SCRIPTS[job].new()
 	worker.job = job
+	worker.person = someone
 	worker.world = self
-	worker.speed *= randf_range(0.9, 1.1)
+	worker.speed *= randf_range(0.9, 1.1) * GameState.PeopleData.TRAITS[someone.trait].get("speed", 1.0)
 	if job == "soldier":
 		# Until there is somewhere to stand watch, soldiers wait by the gate.
 		worker.home_x = randf_range(40.0, 160.0)

@@ -40,17 +40,19 @@
 - If you believe a tool/program/pluggen would be of good use, for example to create pixel 2d art, to create sound, etc, then say so 
 
 ## Where we left off (2026-10-05)
-- Done last (in this order, one commit each): a summary of what the keep's rooms add up to; an
-  event system with a first event (a badger in the crops, click it to chase it off); a policy list
-  with two policies (Smaller rations, Long days). See "Events" and "Policies" under Current status.
+- Done last (Henrik: "go on in the way you see fit", one commit each, in this order): raids as an
+  event; a message log; happiness; storage limits with the Stockhouse; seasons; boosts at
+  buildings; workshops with recipes (and a Bakery); individual peasants (names and traits). Each
+  is described under Current status. Before that: the keep summary, events, policies.
 - Balance is NOT important for now (Henrik, 2026-10-05): many systems will be added and reworked,
   so numbers will go out of balance anyway. Get systems in place with first-guess numbers; tune later.
 - Henrik's answers: the keep fading whenever the mouse passes over it is good, keep it. Room
   drawbacks: yes, but as a system first, balance later.
-- Natural next steps, none approved yet: more room kinds (workshop, chapel, larder), room
-  drawbacks, more events (traders, fire, a fall accident) and moving the raids into the event
-  system, more policies (work during the night, child labour), "a store that holds more" once
-  resources have storage limits.
+- Natural next steps, none approved yet: room drawbacks; more room kinds (workshop, chapel,
+  larder); more events (traders, fire, a fall accident); more policies (work during the night,
+  child labour); a brickworks (needs a clay pit) and a smithy on the workshop system; people
+  having children (the next step for individual peasants); clicking a building in the world to
+  buy its boosts. Raids could come in kinds now that they are events (bandits, a warband).
 - Also done (Henrik's notes after trying it): rooms are twice as tall and 50% wider, so the keep
   is 260 wide with 48-high storeys and the west wall is longer to fit it; builders climb to work
   on turrets and the spire; the hoist rope is lowered. Only the keep was made wider: ask Henrik
@@ -59,6 +61,11 @@
   two floors closer than `castle.FLOOR_SNAP` (16) above each other get mixed up while a peasant
   walks. Perches are therefore never nearer than `BuildPlan.PERCH_MIN` to the deck, and the old
   tower's perches end when it is down. A deck also never drops during a job (`state.floor`).
+- Known bug, older than the people and seasons work (seen on 2026-10-05, also on the version
+  before): raising the towers from level 2 to 3 sometimes leaves a builder in the air, either for
+  a few frames mid-build (state 8, near x = -358 or 223) or for ~20-30 frames at the start of the
+  job on a tower top (y about -107). Reproduce with
+  `tests/test_build.gd -- --from=walls:2,towers:2 --parts=towers --builders=6`, run a few times.
 - Nothing is balanced on purpose (building is slow, raids and planks are first guesses).
 - How to work: after any change to how anything looks (building, peasants, the HUD), run
   `tests/screenshot.gd` in a real window and LOOK at the pictures, both the close-up and the
@@ -93,11 +100,12 @@ Not started. Keep them in mind when building features, so new systems can connec
 - Rooms inside the main castle building that you build, seen through see-through walls.
 
 What this means for the design now (Claude's notes):
-- Events and policies now have their homes (`event_data.gd`, `policy_data.gd`, both summed by
-  `GameState.effect_total`); new ones should go there. The raid still has its own timer.
-- Peasants will become individuals (parents, children, sleeping, bathing, striking, traitors), so
-  avoid new code that treats them only as a count per job. `workers.gd` re-making peasant nodes
-  when jobs change will have to go.
+- Events, policies, seasons and boosts have their homes (`event_data.gd`, `policy_data.gd`,
+  `season_data.gd`, `boost_data.gd`, all summed by `GameState.effect_total`); new ones go there.
+- Peasants are becoming individuals (parents, children, sleeping, bathing, striking, traitors).
+  `GameState.people` exists now, but the counts per job are still in charge; avoid new code that
+  only uses the counts. Next step: let the people be in charge and the counts follow them, and
+  keep one node per person even when their job changes (it is still made anew, in place).
 - Buildings will be many and placed by choice: keep building data in `castle_data.gd` style
   entries, and don't hard-code more x positions than needed.
 
@@ -123,15 +131,20 @@ What this means for the design now (Claude's notes):
   - Goals: a chain of objectives in `scripts/quest_data.gd`, one at a time, each paying renown
   - Stone and food come from sites that refill over time (faster with Quarry and Farm levels)
   - Planks: a resource of their own, on top of wood. The Sawmill (village) gives the "Saw planks"
-    job, 2 sawyers per level (`sawyer.gd`): they carry logs from the wood stack, saw them, and
-    stack planks in the stockyard; one log makes one plank. Basic building costs only wood;
+    job, 2 sawyers per level: they carry logs from the wood stack, saw them, and
+    stack planks in the stockyard; one log makes one plank (a workshop, see below). Basic building costs only wood;
     from level 3 every part also costs planks, and the finer buildings (`CastleData.FINE`: court,
     tavern) from level 2 and twice as many (`GameState.part_cost`). Bricks are not started.
   - Stockyard (just east of the castle, drawn by `workers.gd`, see `STORES`): a shed with a store
     for each resource beside it. Each store is a stack that grows with the amount, with the number
     above it. Gatherers deliver to the right store and builders fetch from it (`store_x`).
-    No storage limits yet. Ideas for later: stores as things you build and enlarge, limits,
-    stores inside the castle walls.
+  - Storage limits: each store holds `CastleData.STORE_BASE` (100), times `STORE_GROWTH` (1.8) per
+    level of the Stockhouse, a village building (a timber barn at the stockyard that replaces the
+    little shed; `GameState.store_capacity`). Deliveries past the limit are lost (`add_income`);
+    gatherers and crafters rest while their store is full; the store says FULL in red, and the
+    top bar shows each amount with a small "/limit". A part whose cost does not fit in the stores
+    says "Needs a bigger stockhouse". Capacity grows faster than costs, so it never gets stuck.
+    The test tools give themselves a level-15 stockhouse unless a plan sets one.
   - Scenery: parallax hills, clouds, grass; peasants' legs move; numbers float up at the stockhouse
   - Game feel: chips fly and trees shake when worked, the stockhouse bumps and shows log and stone
     piles, finished castle parts flash with dust and a small screen shake, messages pop in
@@ -210,12 +223,43 @@ What this means for the design now (Claude's notes):
     lasts a while and has "effects" while it goes on; some can be clicked away for a reward.
     First event: a badger digs at the wilds from day 2 (food site refills 60% slower for 2
     minutes); click it to chase it off for +5 food (a hand cursor shows over it). Saved. Dev key
-    F8 starts one. Raids are not part of it yet.
+    F8 starts one. An event can instead come on a timetable ("schedule") and last until the game
+    ends it ("until_done"): the raid is such an event (from day 5, every 3 days), and
+    `GameState._begin_raid` / `end_event("raid", "done")` start and end it. "needs" keeps an event
+    to happy or unhappy times or a season: Merry work (happy, faster work), Strike (unhappy, much
+    slower work), Spring flowers, Drought (summer), Rich harvest (autumn), Cold snap (winter).
+  - Message log (the Log button): the last 30 messages with their day (`GameState.messages`,
+    saved). Everything sent with `GameState.announced` goes in it.
+  - Happiness (`GameState.happiness`, 0-100, "Mood" in the top bar with a tooltip of what adds
+    and takes away): drifts towards a target made of being fed or hungry, the well and tavern
+    (full points only if big enough for everyone), crowded houses, quarry dust, policies, events,
+    boosts, the season and cheerful or gloomy peasants (`happiness_parts`). It replaces the old
+    morale bonus: at 100 everyone works 20% faster, at 0 20% slower (`morale_bonus`).
+  - Seasons (`scripts/season_data.gd`): spring, summer, autumn, winter, 3 days each. Each has
+    effects (winter: little food, slower work, unhappy; autumn: harvest) and its own events, and
+    colours the hills, ground and grass (snow in winter, `backdrop.gd`). Shown before the day.
+  - Boosts (`scripts/boost_data.gd`, the Boosts button): short-lived help bought at a building,
+    once it stands: Feast (tavern), Clean water (well), Manure the fields (farm), New picks
+    (quarry), Drill (garrison), Hire masons (keep). Not again while one is going on. Saved.
+  - Workshops (`scripts/workshop_data.gd`, `scripts/crafter.gd`): a recipe per workshop job. A
+    crafter takes the inputs for a few batches from the stockyard, works them at the workshop and
+    carries the output to its store. The sawmill is one (wood to planks); the Bakery (village,
+    between the castle and the stockyard) is another: 2 food and 1 wood make 4 food. A new
+    workshop = an entry there, a job in `job_data.gd`, a building in `castle_data.gd`.
+  - Individual peasants, first version (`scripts/people_data.gd`, `GameState.people`): every
+    peasant is a person with a name and a trait (quick, slow, hard-working, lazy, cheerful,
+    gloomy, plain), saved. The counts (`peasants`, `jobs`, `trained`) are still in charge;
+    `GameState._fit_people` fits the people to them whenever `peasants_changed` is sent, moving
+    as few as it can. Each walking peasant belongs to a person (`worker.person`); when their
+    job changes they are made anew where they stood. Pointing at a peasant shows their name,
+    job and trait over them; the job rows' tooltips list who does each job.
   - Policies (`scripts/policy_data.gd`, `GameState.policies`, the Policies button): rules the
     player turns on and off any time, each with a benefit and a drawback. Smaller rations (eat
-    25% less, work 10% slower) and Long days (work 15% faster, eat 20% more). Saved; cleared when
-    the crown passes. Effects so far: `food_saving`, `work_speed`, `food_site_rate`, read with
-    `GameState.effect_total` (events and policies together).
+    25% less, work 10% slower, less happy) and Long days (work 15% faster, eat 20% more, less
+    happy). Saved; cleared when the crown passes.
+  - Effects: events, policies, seasons and boosts all have "effects", added up by
+    `GameState.effect_total`: `food_saving`, `work_speed`, `food_site_rate`, `happiness`,
+    `gather_speed`, `builder_speed`, `hammer`, `soldier_might`.
   - Perches (`BuildPlan._perch`): what is too high to reach from the roof (more than
     `LIFT_HEIGHT` above it: a turret's battlements, the great tower, pointed roofs, flags) is set
     from the top of what stands under it. Builders get there by the stairs inside where they
@@ -275,7 +319,7 @@ What this means for the design now (Claude's notes):
   - Everything built should have a benefit and, where it makes sense, a real drawback
     (see the drawback constants in `castle_data.gd`).
   - Henrik's design ideas are starting points: explore and expand on them, then explain the choices.
-- Raids (basics, `raiders.gd`, `soldier.gd`, `Workers.battle_post`): every 3 days raiders walk in
+- Raids (basics, `raiders.gd`, `soldier.gd`, `Workers.battle_post`; the "raid" event): every 3 days raiders walk in
   from the west, more and tougher each time. They are fought live in the 2D world. The palisade
   blocks them until they hack it down; spearmen behind it jab through the stakes; archers on the
   watchtower, towers and wall walk shoot from range (further from higher up). Soldiers take posts
@@ -302,8 +346,9 @@ What this means for the design now (Claude's notes):
   from given levels (use the levels from a save to reproduce what Henrik sees).
 - Tests: `tests/test_build.gd` (builds every part and checks no builder is ever in the air),
   `tests/test_raid.gd` (a defended and an undefended raid), `tests/test_sawmill.gd` and
-  `tests/test_rooms.gd` (choosing the keep's rooms and what they do), `tests/test_events.gd`
-  and `tests/test_policies.gd`. Run with
+  `tests/test_rooms.gd` (choosing the keep's rooms and what they do), `tests/test_events.gd`,
+  `test_policies.gd`, `test_mood.gd`, `test_storage.gd`, `test_seasons.gd`, `test_boosts.gd`,
+  `test_workshops.gd` and `test_people.gd`. Every test removes its save at the end. Run with
   `godot --headless --path . -s tests/<name>.gd -- --save=user://test_save.json`.
 - Testing: run Godot with `--headless` and `-- --save=user://test_save.json` so tests
   open no window and never touch the real save (`user://save.json`). After changing
