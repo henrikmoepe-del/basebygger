@@ -31,6 +31,8 @@ signal policies_changed
 signal mood_changed
 ## A new season began.
 signal season_changed
+## A boost was bought or ran out.
+signal boosts_changed
 
 const CastleData = preload("res://scripts/castle_data.gd")
 const SkillData = preload("res://scripts/skill_data.gd")
@@ -40,6 +42,7 @@ const QuestData = preload("res://scripts/quest_data.gd")
 const EventData = preload("res://scripts/event_data.gd")
 const PolicyData = preload("res://scripts/policy_data.gd")
 const SeasonData = preload("res://scripts/season_data.gd")
+const BoostData = preload("res://scripts/boost_data.gd")
 
 const START_JOBS := {"wood": 1, "stone": 1, "hunter": 0, "build": 1, "cook": 0, "soldier": 0, "iron": 0, "sawyer": 0, "forester": 0}
 const NO_JOBS := {"wood": 0, "stone": 0, "hunter": 0, "build": 0, "cook": 0, "soldier": 0, "iron": 0, "sawyer": 0, "forester": 0}
@@ -228,6 +231,8 @@ var messages := []
 var event_counts := {}
 ## How happy the peasants are, 0 to 100 (see MOOD_BASE).
 var happiness := MOOD_BASE
+## The boosts going on: boost id -> seconds left (see BoostData).
+var boosts := {}
 ## The policies turned on, by id (see PolicyData).
 var policies := []
 
@@ -286,6 +291,7 @@ func _process(delta: float) -> void:
 		daytime_changed.emit()
 	_update_events(delta)
 	_update_mood(delta)
+	_update_boosts(delta)
 	_quest_timer += delta
 	if _quest_timer >= QUEST_CHECK_TIME:
 		_quest_timer = 0.0
@@ -691,7 +697,40 @@ func effect_total(effect: String) -> float:
 	for id: String in policies:
 		total += PolicyData.POLICIES[id].effects.get(effect, 0.0)
 	total += season().effects.get(effect, 0.0)
+	for id: String in boosts:
+		total += BoostData.BOOSTS[id].effects.get(effect, 0.0)
 	return total
+
+
+# --- Boosts ---
+
+## Why a boost can't be bought right now (apart from its cost), or "".
+func boost_block_reason(id: String) -> String:
+	var info: Dictionary = BoostData.BOOSTS[id]
+	if part_levels[info.building] == 0:
+		return "Needs a %s" % CastleData.PARTS[info.building].name
+	if boosts.has(id):
+		return "Going on: %d s left" % ceili(boosts[id])
+	return ""
+
+
+func buy_boost(id: String) -> bool:
+	if boost_block_reason(id) != "" or not spend(BoostData.BOOSTS[id].cost):
+		return false
+	boosts[id] = BoostData.BOOSTS[id].lasts
+	announced.emit("%s at the %s: %s" % [BoostData.BOOSTS[id].name, CastleData.PARTS[BoostData.BOOSTS[id].building].name.to_lower(),
+		BoostData.BOOSTS[id].text.to_lower()])
+	boosts_changed.emit()
+	return true
+
+
+func _update_boosts(delta: float) -> void:
+	for id: String in boosts.keys():
+		boosts[id] -= delta
+		if boosts[id] <= 0.0:
+			boosts.erase(id)
+			announced.emit("The %s has worn off" % BoostData.BOOSTS[id].name.to_lower())
+			boosts_changed.emit()
 
 
 # --- Policies ---
@@ -762,6 +801,10 @@ func happiness_parts() -> Array:
 		var points: float = EventData.EVENTS[id].effects.get("happiness", 0.0)
 		if points != 0.0:
 			parts.append([EventData.EVENTS[id].name, points])
+	for id: String in boosts:
+		var points: float = BoostData.BOOSTS[id].effects.get("happiness", 0.0)
+		if points != 0.0:
+			parts.append([BoostData.BOOSTS[id].name, points])
 	var season_points: float = season().effects.get("happiness", 0.0)
 	if season_points != 0.0:
 		parts.append([season().name, season_points])
@@ -1031,9 +1074,9 @@ func needs_room_choice(id: String) -> bool:
 	return id == "keep" and level > 0 and CastleData.keep_storeys(level + 1) > CastleData.keep_storeys(level)
 
 
-## How much harder soldiers hit for the armouries in the keep.
+## How much harder soldiers hit for the armouries in the keep (and boosts).
 func armoury_mult() -> float:
-	return 1.0 + CastleData.ARMOURY_MIGHT * room_count("armoury")
+	return 1.0 + CastleData.ARMOURY_MIGHT * room_count("armoury") + effect_total("soldier_might")
 
 
 ## What the keep's finished rooms add up to, one line per kind of room, e.g.
@@ -1055,7 +1098,7 @@ func _room_effect(kind: String, count: int) -> String:
 		"store":
 			return "building costs %d%% less" % roundi((1.0 - pow(1.0 - CastleData.STOREROOM_DISCOUNT, count)) * 100)
 		"armoury":
-			return "soldiers hit %d%% harder" % roundi((armoury_mult() - 1.0) * 100)
+			return "soldiers hit %d%% harder" % roundi(CastleData.ARMOURY_MIGHT * count * 100)
 		"kitchen":
 			return "the cooks work here"
 	return "no effect yet"
@@ -1305,7 +1348,7 @@ func carry_amount(job: String) -> int:
 
 ## Multiplies how long a gatherer spends chopping or mining.
 func gather_time_mult() -> float:
-	return 1.0 / ((1.0 + skill_total("gather_speed")) * work_mult())
+	return 1.0 / ((1.0 + skill_total("gather_speed") + effect_total("gather_speed")) * work_mult())
 
 
 func tree_grow_mult() -> float:
@@ -1323,12 +1366,12 @@ func builder_load() -> int:
 
 
 func builder_speed_mult() -> float:
-	return (1.0 + skill_total("peasant_speed") + skill_total("builder_speed")) * work_mult()
+	return (1.0 + skill_total("peasant_speed") + skill_total("builder_speed") + effect_total("builder_speed")) * work_mult()
 
 
 ## Seconds of hammering one builder does per second.
 func hammer_rate() -> float:
-	return (1.0 + skill_total("hammer")) * work_mult()
+	return (1.0 + skill_total("hammer") + effect_total("hammer")) * work_mult()
 
 
 # --- Developer tools ---
@@ -1379,6 +1422,7 @@ func save_game() -> void:
 		"event_counts": event_counts,
 		"messages": messages,
 		"policies": policies,
+		"boosts": boosts,
 		"happiness": happiness,
 		"income_rate": income_rate,
 		"job": {
@@ -1436,6 +1480,7 @@ func _start_over() -> void:
 	messages.clear()
 	_event_timer = 0.0
 	policies.clear()
+	boosts.clear()
 	happiness = MOOD_BASE
 	day = 1
 	day_time = 0.0
@@ -1521,6 +1566,12 @@ func load_game() -> void:
 				event_counts[id] = maxi(int(saved_counts[id]), 0)
 
 	happiness = clampf(float(data.get("happiness", MOOD_BASE)), 0.0, 100.0)
+	boosts.clear()
+	var saved_boosts: Variant = data.get("boosts")
+	if saved_boosts is Dictionary:
+		for id: String in saved_boosts:
+			if BoostData.BOOSTS.has(id):
+				boosts[id] = clampf(float(saved_boosts[id]), 0.0, BoostData.BOOSTS[id].lasts)
 	policies.clear()
 	var saved_policies: Variant = data.get("policies")
 	if saved_policies is Array:

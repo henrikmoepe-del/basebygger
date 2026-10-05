@@ -12,6 +12,7 @@ extends CanvasLayer
 const CastleData = preload("res://scripts/castle_data.gd")
 const JobData = preload("res://scripts/job_data.gd")
 const PolicyData = preload("res://scripts/policy_data.gd")
+const BoostData = preload("res://scripts/boost_data.gd")
 const UiTheme = preload("res://scripts/ui_theme.gd")
 const OFFLINE_MESSAGE_TIME := 10.0
 const TOAST_TIME := 7.0
@@ -46,6 +47,7 @@ const PREVIEW_GROUND := Color(0.45, 0.68, 0.38)
 @onready var skills_button: Button = %SkillsButton
 @onready var policies_button: Button = %PoliciesButton
 @onready var log_button: Button = %LogButton
+@onready var boosts_button: Button = %BoostsButton
 @onready var menu_button: Button = %MenuButton
 @onready var menu_panel: Panel = %MenuPanel
 @onready var night_button: Button = %NightButton
@@ -77,6 +79,11 @@ var _castle: Node2D
 var _policy_panel := Panel.new()
 ## Policy id -> its on/off Button.
 var _policy_buttons := {}
+## The boosts: per boost a button to buy it and what it does.
+var _boost_panel := Panel.new()
+## Boost id -> {"button": Button, "info": Label}.
+var _boost_rows := {}
+var _boost_tick := 0.0
 ## The message log: the last messages, newest first.
 var _log_panel := Panel.new()
 var _log_text := Label.new()
@@ -87,6 +94,7 @@ func _ready() -> void:
 	_make_keep_card()
 	_make_policy_panel()
 	_make_log_panel()
+	_make_boost_panel()
 	var theme := UiTheme.build()
 	for child in get_children():
 		if child is Control:
@@ -97,6 +105,7 @@ func _ready() -> void:
 		GameState.peasants_changed, GameState.trees_changed, GameState.skills_changed,
 		GameState.daytime_changed, GameState.raid_started, GameState.raid_progress,
 		GameState.policies_changed, GameState.mood_changed, GameState.season_changed,
+		GameState.boosts_changed,
 	]:
 		changed.connect(_refresh)
 	_preview.position = Vector2(8, 8)
@@ -118,6 +127,9 @@ func _ready() -> void:
 	skills_button.pressed.connect(skill_tree.show)
 	policies_button.toggled.connect(func(on: bool) -> void:
 		_policy_panel.visible = on
+		_refresh())
+	boosts_button.toggled.connect(func(on: bool) -> void:
+		_boost_panel.visible = on
 		_refresh())
 	log_button.toggled.connect(func(on: bool) -> void:
 		_log_panel.visible = on
@@ -308,6 +320,59 @@ func _make_policy_panel() -> void:
 	_policy_panel.position = Vector2(320 - _policy_panel.size.x / 2.0, 318 - _policy_panel.size.y)
 
 
+## The boost panel, above the bottom bar on the left: per boost a button
+## with its name, building and cost, and what it does and for how long.
+func _make_boost_panel() -> void:
+	_boost_panel.hide()
+	add_child(_boost_panel)
+	var box := VBoxContainer.new()
+	box.position = Vector2(8, 5)
+	box.add_theme_constant_override("separation", 3)
+	_boost_panel.add_child(box)
+	var title := Label.new()
+	title.text = "BOOSTS: help bought at your buildings, for a while"
+	title.add_theme_color_override("font_color", UiTheme.GOLD)
+	box.add_child(title)
+	for id: String in BoostData.BOOSTS:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		var button := _picker_button("")
+		button.custom_minimum_size.x = 200
+		button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		button.pressed.connect(func() -> void: GameState.buy_boost(id))
+		row.add_child(button)
+		var info := Label.new()
+		info.add_theme_font_size_override("font_size", 9)
+		info.custom_minimum_size.x = 170
+		row.add_child(info)
+		box.add_child(row)
+		_boost_rows[id] = {"button": button, "info": info}
+	_refresh_boosts()
+	_boost_panel.size = box.get_combined_minimum_size() + Vector2(16, 10)
+	_boost_panel.position = Vector2(4, 318 - _boost_panel.size.y)
+
+
+func _refresh_boosts() -> void:
+	for id: String in _boost_rows:
+		var boost: Dictionary = BoostData.BOOSTS[id]
+		var row: Dictionary = _boost_rows[id]
+		var reason := GameState.boost_block_reason(id)
+		row.button.text = "%s (%s): %s" % [boost.name, CastleData.PARTS[boost.building].name, _cost_text(boost.cost)]
+		row.button.disabled = reason != "" or not GameState.can_afford(boost.cost)
+		row.info.text = "%s, for %d min%s" % [boost.text, roundi(boost.lasts / 60.0), "\n" + reason if reason != "" else ""]
+		row.info.add_theme_color_override("font_color", UiTheme.GOLD if GameState.boosts.has(id) else UiTheme.PARCHMENT)
+
+
+func _process(delta: float) -> void:
+	if _keep_card.visible:
+		_place_keep_card()
+	# The time left on boosts going on counts down.
+	_boost_tick -= delta
+	if _boost_panel.visible and _boost_tick <= 0.0:
+		_boost_tick = 0.5
+		_refresh_boosts()
+
+
 ## The log panel, above the bottom bar on the right.
 func _make_log_panel() -> void:
 	_log_panel.hide()
@@ -460,6 +525,9 @@ func _refresh() -> void:
 		_policy_buttons[id].text = "%s: %s" % [PolicyData.POLICIES[id].name, "on" if on else "off"]
 		on_count += 1 if on else 0
 	policies_button.text = "Policies\n%d on" % on_count if on_count > 0 else "Policies"
+	boosts_button.text = "Boosts\n%d on" % GameState.boosts.size() if not GameState.boosts.is_empty() else "Boosts"
+	if _boost_panel.visible:
+		_refresh_boosts()
 
 
 func _refresh_top_bar() -> void:
@@ -634,11 +702,6 @@ func _refresh_keep_card() -> void:
 	_keep_info.text = "\n".join(lines)
 	_keep_card.size = _keep_info.get_minimum_size() + Vector2(14, 8)
 	_place_keep_card()
-
-
-func _process(_delta: float) -> void:
-	if _keep_card.visible:
-		_place_keep_card()
 
 
 ## Beside the mouse, and on screen.
