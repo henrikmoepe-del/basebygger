@@ -341,6 +341,16 @@ focus_mode = 0
 theme_override_font_sizes/font_size = 10
 text = "Inside (X)"
 
+[node name="PoliciesButton" type="Button" parent="HUD/BottomBar/Actions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+tooltip_text = "The rules of your castle: turn policies on and off. Each has a benefit and a drawback."
+focus_mode = 0
+toggle_mode = true
+theme_override_font_sizes/font_size = 10
+text = "Policies"
+
 [node name="SkillsButton" type="Button" parent="HUD/BottomBar/Actions"]
 unique_name_in_owner = true
 layout_mode = 2

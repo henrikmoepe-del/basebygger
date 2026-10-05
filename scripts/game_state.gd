@@ -25,6 +25,8 @@ signal raid_resolved(won: bool)
 signal announced(text: String)
 ## An event started or ended (see EventData).
 signal events_changed
+## A policy was turned on or off (see PolicyData).
+signal policies_changed
 
 const CastleData = preload("res://scripts/castle_data.gd")
 const SkillData = preload("res://scripts/skill_data.gd")
@@ -32,6 +34,7 @@ const JobData = preload("res://scripts/job_data.gd")
 const BuildPlan = preload("res://scripts/build_plan.gd")
 const QuestData = preload("res://scripts/quest_data.gd")
 const EventData = preload("res://scripts/event_data.gd")
+const PolicyData = preload("res://scripts/policy_data.gd")
 
 const START_JOBS := {"wood": 1, "stone": 1, "hunter": 0, "build": 1, "cook": 0, "soldier": 0, "iron": 0, "sawyer": 0, "forester": 0}
 const NO_JOBS := {"wood": 0, "stone": 0, "hunter": 0, "build": 0, "cook": 0, "soldier": 0, "iron": 0, "sawyer": 0, "forester": 0}
@@ -200,6 +203,8 @@ var siege_active := false
 var skills := {}
 ## The events going on now: event id -> seconds left (see EventData).
 var events := {}
+## The policies turned on, by id (see PolicyData).
+var policies := []
 
 ## The building job: the one part being raised a level right now ("" = none).
 ## Its materials are paid for when ordered. The job is then a list of pieces
@@ -342,16 +347,16 @@ func is_night() -> bool:
 ## How much food the peasants eat at dawn.
 func food_needed() -> int:
 	var cook_points: int = mini(jobs.cook + trained.cook, MAX_COOK_POINTS)
-	var saving: float = cook_points * COOK_FOOD_SAVING + skill_total("food_saving")
+	var saving: float = cook_points * COOK_FOOD_SAVING + skill_total("food_saving") + effect_total("food_saving")
 	# Drawbacks: soldiers eat extra, the tavern whets appetites, the court has a household.
 	var mouths: float = peasants + jobs.soldier * CastleData.SOLDIER_EXTRA_FOOD + jobs.iron * CastleData.MINER_EXTRA_FOOD
 	mouths *= 1.0 + CastleData.TAVERN_EXTRA_EATING * part_levels.tavern
-	return ceili(mouths * FOOD_PER_PEASANT * (1.0 - saving)) + CastleData.COURT_FOOD_UPKEEP * part_levels.court + COW_FOOD * cows
+	return ceili(mouths * FOOD_PER_PEASANT * maxf(1.0 - saving, 0.0)) + CastleData.COURT_FOOD_UPKEEP * part_levels.court + COW_FOOD * cows
 
 
 ## Multiplies how fast everyone walks and works: slower when hungry.
 func work_mult() -> float:
-	var legacy_mult := (1.0 + LEGACY_WORK_BONUS * legacy) * (1.0 + morale_bonus())
+	var legacy_mult := (1.0 + LEGACY_WORK_BONUS * legacy) * (1.0 + morale_bonus()) * maxf(1.0 + effect_total("work_speed"), 0.1)
 	if not fed:
 		return HUNGRY_WORK_MULT * legacy_mult
 	return (1.0 + skill_total("fed_bonus")) * legacy_mult
@@ -561,7 +566,24 @@ func effect_total(effect: String) -> float:
 	var total := 0.0
 	for id: String in events:
 		total += EventData.EVENTS[id].effects.get(effect, 0.0)
+	for id: String in policies:
+		total += PolicyData.POLICIES[id].effects.get(effect, 0.0)
 	return total
+
+
+# --- Policies ---
+
+## Turns a policy on, or off if it is on.
+func toggle_policy(id: String) -> void:
+	if not PolicyData.POLICIES.has(id):
+		return
+	if id in policies:
+		policies.erase(id)
+	else:
+		policies.append(id)
+	policies_changed.emit()
+	resources_changed.emit()
+	daytime_changed.emit()
 
 
 # --- Peasants and their jobs ---
@@ -1186,6 +1208,7 @@ func save_game() -> void:
 		"no_nights": no_nights,
 		"skills": skills,
 		"events": events,
+		"policies": policies,
 		"income_rate": income_rate,
 		"job": {
 			"part": job_part, "hauled": job_hauled, "formed": job_formed,
@@ -1239,6 +1262,7 @@ func _start_over() -> void:
 	skills.clear()
 	events.clear()
 	_event_timer = 0.0
+	policies.clear()
 	day = 1
 	day_time = 0.0
 	fed = true
@@ -1308,6 +1332,13 @@ func load_game() -> void:
 		for id: String in saved_events:
 			if EventData.EVENTS.has(id):
 				events[id] = clampf(float(saved_events[id]), 0.0, EventData.EVENTS[id].lasts)
+
+	policies.clear()
+	var saved_policies: Variant = data.get("policies")
+	if saved_policies is Array:
+		for id: Variant in saved_policies:
+			if id is String and PolicyData.POLICIES.has(id) and not id in policies:
+				policies.append(id)
 
 	var job: Variant = data.get("job")
 	if job is Dictionary and part_levels.has(job.get("part", "")):

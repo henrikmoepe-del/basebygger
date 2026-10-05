@@ -11,6 +11,7 @@ extends CanvasLayer
 
 const CastleData = preload("res://scripts/castle_data.gd")
 const JobData = preload("res://scripts/job_data.gd")
+const PolicyData = preload("res://scripts/policy_data.gd")
 const UiTheme = preload("res://scripts/ui_theme.gd")
 const OFFLINE_MESSAGE_TIME := 10.0
 const TOAST_TIME := 7.0
@@ -43,6 +44,7 @@ const PREVIEW_GROUND := Color(0.45, 0.68, 0.38)
 @onready var cow_button: Button = %CowButton
 @onready var defend_button: Button = %DefendButton
 @onready var skills_button: Button = %SkillsButton
+@onready var policies_button: Button = %PoliciesButton
 @onready var menu_button: Button = %MenuButton
 @onready var menu_panel: Panel = %MenuPanel
 @onready var night_button: Button = %NightButton
@@ -67,11 +69,16 @@ var _room_build: Button
 var _keep_card := Panel.new()
 var _keep_info := Label.new()
 var _castle: Node2D
+## The policies: one row each, with a button to turn it on or off.
+var _policy_panel := Panel.new()
+## Policy id -> its on/off Button.
+var _policy_buttons := {}
 
 
 func _ready() -> void:
 	_make_room_picker()
 	_make_keep_card()
+	_make_policy_panel()
 	var theme := UiTheme.build()
 	for child in get_children():
 		if child is Control:
@@ -81,6 +88,7 @@ func _ready() -> void:
 		GameState.resources_changed, GameState.castle_changed, GameState.job_progress_changed,
 		GameState.peasants_changed, GameState.trees_changed, GameState.skills_changed,
 		GameState.daytime_changed, GameState.raid_started, GameState.raid_progress,
+		GameState.policies_changed,
 	]:
 		changed.connect(_refresh)
 	_preview.position = Vector2(8, 8)
@@ -100,6 +108,9 @@ func _ready() -> void:
 	cow_button.pressed.connect(GameState.buy_cow)
 	defend_button.pressed.connect(GameState.start_siege)
 	skills_button.pressed.connect(skill_tree.show)
+	policies_button.toggled.connect(func(on: bool) -> void:
+		_policy_panel.visible = on
+		_refresh())
 	jobs_toggle.pressed.connect(func() -> void:
 		jobs_panel.visible = not jobs_panel.visible
 		_refresh())
@@ -238,6 +249,39 @@ func _make_keep_card() -> void:
 	_keep_card.add_child(_keep_info)
 
 
+## The policy panel, above the bottom bar: per policy a button with its name
+## (pressed while it is on) and what it gives and takes.
+func _make_policy_panel() -> void:
+	_policy_panel.hide()
+	add_child(_policy_panel)
+	var box := VBoxContainer.new()
+	box.position = Vector2(8, 5)
+	box.add_theme_constant_override("separation", 4)
+	_policy_panel.add_child(box)
+	var title := Label.new()
+	title.text = "POLICIES: the rules of your castle"
+	title.add_theme_color_override("font_color", UiTheme.GOLD)
+	box.add_child(title)
+	for id: String in PolicyData.POLICIES:
+		var info: Dictionary = PolicyData.POLICIES[id]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		var button := _picker_button(info.name)
+		button.toggle_mode = true
+		button.custom_minimum_size.x = 96
+		button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		button.toggled.connect(func(_on: bool) -> void: GameState.toggle_policy(id))
+		row.add_child(button)
+		var text := Label.new()
+		text.text = "+ %s\n-  %s" % [info.benefit, info.drawback]
+		text.add_theme_font_size_override("font_size", 9)
+		row.add_child(text)
+		box.add_child(row)
+		_policy_buttons[id] = button
+	_policy_panel.size = box.get_combined_minimum_size() + Vector2(16, 10)
+	_policy_panel.position = Vector2(320 - _policy_panel.size.x / 2.0, 318 - _policy_panel.size.y)
+
+
 func _picker_button(text: String) -> Button:
 	var button := Button.new()
 	button.text = text
@@ -354,6 +398,13 @@ func _refresh() -> void:
 	_refresh_room_picker()
 	_refresh_build_card()
 	_refresh_keep_card()
+	var on_count := 0
+	for id: String in _policy_buttons:
+		var on: bool = id in GameState.policies
+		_policy_buttons[id].set_pressed_no_signal(on)
+		_policy_buttons[id].text = "%s: %s" % [PolicyData.POLICIES[id].name, "on" if on else "off"]
+		on_count += 1 if on else 0
+	policies_button.text = "Policies\n%d on" % on_count if on_count > 0 else "Policies"
 
 
 func _refresh_top_bar() -> void:
