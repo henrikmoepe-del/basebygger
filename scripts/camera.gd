@@ -13,10 +13,10 @@ const ZOOM_LEVELS := [1.0, 0.75, 0.5, 0.35, 0.25]
 const SHAKE_FADE := 14.0
 
 ## The left and right edges of the world.
-@export var world_left := -1000.0
+@export var world_left := -1080.0
 @export var world_right := 1710.0
 ## How far above the ground the view can reach: the tallest keep and its banner.
-@export var world_height := 680.0
+@export var world_height := 900.0
 ## Where the view is centred when the game starts: the castle and the stockhouse.
 @export var start_x := 420.0
 

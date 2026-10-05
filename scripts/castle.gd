@@ -52,10 +52,13 @@ const INSIDE_PARTITION := Color(0.36, 0.33, 0.35)
 const FIRE := Color(0.95, 0.55, 0.15)
 const SACK := Color(0.82, 0.74, 0.52)
 const SHEET := Color(0.72, 0.70, 0.62)
+const HAM := Color(0.72, 0.36, 0.32)
+const HERB := Color(0.42, 0.58, 0.32)
+const CLOAKS := [Color(0.45, 0.30, 0.22), Color(0.30, 0.38, 0.30), Color(0.36, 0.34, 0.48), Color(0.52, 0.42, 0.26)]
 const FALL_GRAVITY := 420.0
 ## Stairs inside a building: how much each flight rises, and how far it runs
-## to either side of the middle.
-const STAIR_FLIGHT := CastleData.KEEP_STOREY
+## to either side of the middle. A storey of the keep is two flights.
+const STAIR_FLIGHT := 24.0
 const STAIR_BASE := CastleData.KEEP_ENTRANCE
 const STAIR_HALF := 10.0
 
@@ -781,54 +784,140 @@ func _draw_rooms(canvas, area: Rect2, stair: float, storeys: int) -> void:
 		_draw_room(canvas, rooms[1], Rect2(stair + half + 2.0, ceiling + 2.0, area.end.x - 6.0 - stair - half, well - 2.0))
 
 
-## One room's furniture. room is the space inside its walls; its floor is at the bottom.
+## One room's furniture. room is the space inside its walls; its floor is at
+## the bottom. Furniture stands on the floor; the wall above it is for what
+## hangs there (shelves, banners, shields), so each kind of room looks its own.
 func _draw_room(canvas, kind: String, room: Rect2) -> void:
 	var x := room.position.x
 	var y := room.end.y
 	var w := room.size.x
+	var top := room.position.y
 	match kind:
 		"kitchen":
-			# The hearth with a pot over the fire, and a table to work at.
-			canvas.draw_rect(Rect2(x + 4, y - 14, 14, 14), CastleData.STONE_DARK)
-			canvas.draw_rect(Rect2(x + 6, y - 6, 10, 6), FIRE)
-			canvas.draw_rect(Rect2(x + 8, y - 11, 6, 4), CastleData.IRON)
-			canvas.draw_rect(Rect2(x + w - 30, y - 7, 20, 2), CastleData.WOOD)
-			canvas.draw_rect(Rect2(x + w - 28, y - 5, 2, 5), CastleData.WOOD_DARK)
-			canvas.draw_rect(Rect2(x + w - 14, y - 5, 2, 5), CastleData.WOOD_DARK)
-		"hall":
-			# A long table with benches, and a banner on the wall.
-			canvas.draw_rect(Rect2(x + 10, y - 8, w - 24, 2), CastleData.WOOD)
-			canvas.draw_rect(Rect2(x + 12, y - 6, 2, 6), CastleData.WOOD_DARK)
-			canvas.draw_rect(Rect2(x + w - 18, y - 6, 2, 6), CastleData.WOOD_DARK)
-			canvas.draw_rect(Rect2(x + 8, y - 4, w - 20, 1), CastleData.WOOD_DARK)
-			canvas.draw_rect(Rect2(x + w / 2.0 - 4, y - 20, 8, 9), CastleData.BANNER)
-		"store":
-			# Barrels and sacks.
-			for i in 3:
-				canvas.draw_rect(Rect2(x + 5 + i * 10, y - 9, 8, 9), CastleData.WOOD)
-				canvas.draw_rect(Rect2(x + 5 + i * 10, y - 6, 8, 1), CastleData.IRON)
-			canvas.draw_rect(Rect2(x + w - 24, y - 6, 9, 6), SACK)
-			canvas.draw_rect(Rect2(x + w - 14, y - 5, 8, 5), SACK.darkened(0.12))
-		"armoury":
-			# A rack of spears and a row of shields.
-			canvas.draw_rect(Rect2(x + 6, y - 15, 22, 1), CastleData.WOOD_DARK)
+			# The hearth under its chimney, with a pot over the fire.
+			canvas.draw_rect(Rect2(x + 10, top, 10, y - 22 - top), CastleData.STONE_DARK.darkened(0.15))
+			canvas.draw_rect(Rect2(x + 2, y - 24, 26, 4), CastleData.STONE_DARK)
+			canvas.draw_rect(Rect2(x + 4, y - 20, 22, 20), CastleData.STONE_DARK.darkened(0.3))
+			canvas.draw_rect(Rect2(x + 8, y - 7, 14, 7), FIRE)
+			canvas.draw_rect(Rect2(x + 11, y - 10, 8, 3), FIRE.lightened(0.3))
+			canvas.draw_rect(Rect2(x + 10, y - 15, 10, 6), CastleData.IRON)
+			# A water barrel, and a shelf of pots and jars.
+			canvas.draw_rect(Rect2(x + 33, y - 10, 9, 10), CastleData.WOOD)
+			canvas.draw_rect(Rect2(x + 33, y - 7, 9, 1), CastleData.IRON)
+			canvas.draw_rect(Rect2(x + 34, y - 30, 34, 1), CastleData.WOOD_DARK)
+			for i in 5:
+				canvas.draw_rect(Rect2(x + 36 + i * 6, y - 34 + (i % 2), 4, 4 - (i % 2)), CastleData.IRON if i % 2 == 0 else CastleData.STONE_WARM)
+			# Hams and herbs hang from the beams.
 			for i in 4:
-				canvas.draw_rect(Rect2(x + 8 + i * 6, y - 17, 1, 17), CastleData.WOOD)
-				canvas.draw_rect(Rect2(x + 7 + i * 6, y - 19, 3, 3), CastleData.STONE_LIGHT)
+				canvas.draw_rect(Rect2(x + 76 + i * 8, top, 1, 5), CastleData.WOOD_DARK)
+				canvas.draw_rect(Rect2(x + 75 + i * 8, top + 5, 3, 6 if i % 2 == 0 else 4), HAM if i % 2 == 0 else HERB)
+			# The table to work at, with a loaf on it.
+			canvas.draw_rect(Rect2(x + w - 44, y - 9, 32, 2), CastleData.WOOD)
+			canvas.draw_rect(Rect2(x + w - 42, y - 7, 2, 7), CastleData.WOOD_DARK)
+			canvas.draw_rect(Rect2(x + w - 16, y - 7, 2, 7), CastleData.WOOD_DARK)
+			canvas.draw_rect(Rect2(x + w - 36, y - 12, 7, 3), CastleData.THATCH)
+			canvas.draw_rect(Rect2(x + w - 24, y - 11, 4, 2), HAM)
+		"hall":
+			# A long table with benches, and the lord's high seat at its head.
+			canvas.draw_rect(Rect2(x + 14, y - 9, w - 40, 2), CastleData.WOOD)
+			canvas.draw_rect(Rect2(x + 17, y - 7, 2, 7), CastleData.WOOD_DARK)
+			canvas.draw_rect(Rect2(x + w / 2.0 - 8, y - 7, 2, 7), CastleData.WOOD_DARK)
+			canvas.draw_rect(Rect2(x + w - 31, y - 7, 2, 7), CastleData.WOOD_DARK)
+			canvas.draw_rect(Rect2(x + 12, y - 4, w - 38, 1), CastleData.WOOD_DARK)
+			for i in 4:
+				canvas.draw_rect(Rect2(x + 22 + i * 16, y - 11, 3, 2), CastleData.THATCH if i % 2 == 0 else CastleData.STONE_LIGHT)
+			canvas.draw_rect(Rect2(x + w - 18, y - 20, 8, 20), CastleData.WOOD_DARK)
+			canvas.draw_rect(Rect2(x + w - 17, y - 18, 6, 9), CastleData.BANNER)
+			# Banners along the wall, and a ring of candles hanging from the roof.
 			for i in 3:
-				canvas.draw_rect(Rect2(x + w - 34 + i * 10, y - 13, 7, 8), CastleData.BANNER if i % 2 == 0 else CastleData.ROOF_BLUE)
+				var at := x + 14.0 + i * (w - 36.0) / 2.0
+				canvas.draw_rect(Rect2(at - 1, y - 40, 10, 1), CastleData.WOOD_DARK)
+				canvas.draw_rect(Rect2(at, y - 39, 8, 15), CastleData.BANNER if i % 2 == 0 else CastleData.ROOF_BLUE)
+				canvas.draw_rect(Rect2(at + 3, y - 34, 2, 4), CastleData.THATCH)
+			for at: float in [x + w * 0.33, x + w * 0.67]:
+				canvas.draw_rect(Rect2(at, top, 1, 9), CastleData.IRON)
+				canvas.draw_rect(Rect2(at - 7, top + 9, 15, 2), CastleData.IRON)
+				for i in 3:
+					canvas.draw_rect(Rect2(at - 6 + i * 6, top + 6, 1, 3), FIRE.lightened(0.3))
+		"store":
+			# Barrels stacked two high, crates, and shelves of sacks.
+			for i in 4:
+				canvas.draw_rect(Rect2(x + 5 + i * 10, y - 10, 9, 10), CastleData.WOOD)
+				canvas.draw_rect(Rect2(x + 5 + i * 10, y - 7, 9, 1), CastleData.IRON)
+			for i in 3:
+				canvas.draw_rect(Rect2(x + 10 + i * 10, y - 20, 9, 10), CastleData.WOOD.lightened(0.06))
+				canvas.draw_rect(Rect2(x + 10 + i * 10, y - 17, 9, 1), CastleData.IRON)
+			canvas.draw_rect(Rect2(x + 50, y - 11, 11, 11), CastleData.WOOD_DARK)
+			canvas.draw_rect(Rect2(x + 51, y - 10, 9, 9), CastleData.WOOD)
+			canvas.draw_rect(Rect2(x + 53, y - 20, 9, 9), CastleData.WOOD_DARK)
+			canvas.draw_rect(Rect2(x + 54, y - 19, 7, 7), CastleData.WOOD.lightened(0.06))
+			for shelf in 2:
+				var board := y - 22.0 - shelf * 11.0
+				canvas.draw_rect(Rect2(x + w - 44, board, 40, 1), CastleData.WOOD_DARK)
+				for i in 4:
+					canvas.draw_rect(Rect2(x + w - 42 + i * 9, board - 6 + (i + shelf) % 2, 7, 6 - (i + shelf) % 2), SACK if (i + shelf) % 2 == 0 else SACK.darkened(0.15))
+			canvas.draw_rect(Rect2(x + w - 44, y - 33, 1, 33), CastleData.WOOD_DARK)
+			canvas.draw_rect(Rect2(x + w - 5, y - 33, 1, 33), CastleData.WOOD_DARK)
+			canvas.draw_rect(Rect2(x + w - 40, y - 7, 10, 7), SACK)
+			canvas.draw_rect(Rect2(x + w - 28, y - 6, 9, 6), SACK.darkened(0.12))
+			canvas.draw_rect(Rect2(x + w - 34, y - 12, 9, 6), SACK.darkened(0.06))
+		"armoury":
+			# A rack of spears, an armour stand, and shields along the wall.
+			canvas.draw_rect(Rect2(x + 5, y - 22, 32, 1), CastleData.WOOD_DARK)
+			canvas.draw_rect(Rect2(x + 5, y - 6, 32, 1), CastleData.WOOD_DARK)
+			for i in 5:
+				canvas.draw_rect(Rect2(x + 8 + i * 6, y - 28, 1, 28), CastleData.WOOD)
+				canvas.draw_rect(Rect2(x + 7 + i * 6, y - 31, 3, 4), CastleData.STONE_LIGHT)
+			var stand := x + 50.0
+			canvas.draw_rect(Rect2(stand, y - 12, 1, 12), CastleData.WOOD_DARK)
+			canvas.draw_rect(Rect2(stand - 3, y - 1, 7, 1), CastleData.WOOD_DARK)
+			canvas.draw_rect(Rect2(stand - 4, y - 17, 9, 8), CastleData.STONE_LIGHT)
+			canvas.draw_rect(Rect2(stand - 2, y - 22, 5, 5), CastleData.STONE)
+			canvas.draw_rect(Rect2(stand - 2, y - 20, 5, 1), CastleData.IRON)
+			for i in 5:
+				var at := x + 44.0 + i * 13.0
+				canvas.draw_rect(Rect2(at, y - 40, 9, 10), CastleData.BANNER if i % 2 == 0 else CastleData.ROOF_BLUE)
+				canvas.draw_rect(Rect2(at + 3, y - 37, 3, 4), CastleData.STONE_LIGHT)
+			# Swords on pegs, and a chest of arrows.
+			canvas.draw_rect(Rect2(x + 64, y - 22, 26, 1), CastleData.WOOD_DARK)
+			for i in 4:
+				canvas.draw_rect(Rect2(x + 67 + i * 6, y - 21, 1, 11), CastleData.STONE_LIGHT)
+				canvas.draw_rect(Rect2(x + 66 + i * 6, y - 20, 3, 1), CastleData.IRON)
+			canvas.draw_rect(Rect2(x + w - 18, y - 8, 14, 8), CastleData.WOOD)
+			canvas.draw_rect(Rect2(x + w - 18, y - 6, 14, 1), CastleData.IRON)
 		"beds":
 			for bed: float in CastleData.bed_offsets(w):
 				_draw_bed(canvas, x + bed, y, SHEET)
+				# A peg above each bed, with a cloak on it.
+				canvas.draw_rect(Rect2(x + bed - 3, y - 26, 6, 1), CastleData.WOOD_DARK)
+				canvas.draw_rect(Rect2(x + bed - 2, y - 25, 4, 9), CLOAKS[int(bed) % CLOAKS.size()])
+			# A candle on the wall, and a chest for their things.
+			canvas.draw_rect(Rect2(x + w - 6, y - 30, 3, 1), CastleData.IRON)
+			canvas.draw_rect(Rect2(x + w - 5, y - 33, 1, 3), FIRE.lightened(0.3))
+			canvas.draw_rect(Rect2(x + w - 15, y - 7, 11, 7), CastleData.WOOD)
+			canvas.draw_rect(Rect2(x + w - 15, y - 5, 11, 1), CastleData.IRON)
 		"lord":
-			# One great bed with a canopy, and a chest.
-			canvas.draw_rect(Rect2(x + 8, y - 17, 2, 17), CastleData.WOOD_DARK)
-			canvas.draw_rect(Rect2(x + 30, y - 17, 2, 17), CastleData.WOOD_DARK)
-			canvas.draw_rect(Rect2(x + 6, y - 19, 28, 3), CastleData.BANNER)
-			canvas.draw_rect(Rect2(x + 9, y - 6, 22, 4), CastleData.BANNER.lightened(0.25))
-			canvas.draw_rect(Rect2(x + 9, y - 8, 5, 2), SHEET)
-			canvas.draw_rect(Rect2(x + w - 20, y - 7, 12, 7), CastleData.WOOD)
-			canvas.draw_rect(Rect2(x + w - 15, y - 5, 2, 2), CastleData.THATCH)
+			# One great bed with a canopy.
+			canvas.draw_rect(Rect2(x + 6, y - 26, 2, 26), CastleData.WOOD_DARK)
+			canvas.draw_rect(Rect2(x + 36, y - 26, 2, 26), CastleData.WOOD_DARK)
+			canvas.draw_rect(Rect2(x + 4, y - 30, 36, 5), CastleData.BANNER)
+			canvas.draw_rect(Rect2(x + 4, y - 25, 36, 1), CastleData.THATCH)
+			canvas.draw_rect(Rect2(x + 8, y - 4, 28, 4), CastleData.WOOD)
+			canvas.draw_rect(Rect2(x + 8, y - 8, 28, 4), CastleData.BANNER.lightened(0.25))
+			canvas.draw_rect(Rect2(x + 8, y - 10, 7, 3), SHEET)
+			# A tapestry, a table with a candle, a chest, and a rug on the floor.
+			canvas.draw_rect(Rect2(x + 48, y - 40, 30, 20), CastleData.THATCH)
+			canvas.draw_rect(Rect2(x + 49, y - 39, 28, 18), CastleData.ROOF_BLUE.darkened(0.2))
+			canvas.draw_rect(Rect2(x + 55, y - 35, 6, 9), CastleData.BANNER)
+			canvas.draw_rect(Rect2(x + 65, y - 33, 7, 7), CastleData.THATCH)
+			canvas.draw_rect(Rect2(x + 46, y - 1, 34, 1), CastleData.BANNER.darkened(0.25))
+			canvas.draw_rect(Rect2(x + 54, y - 9, 16, 2), CastleData.WOOD)
+			canvas.draw_rect(Rect2(x + 56, y - 7, 2, 6), CastleData.WOOD_DARK)
+			canvas.draw_rect(Rect2(x + 66, y - 7, 2, 6), CastleData.WOOD_DARK)
+			canvas.draw_rect(Rect2(x + 61, y - 13, 1, 4), FIRE.lightened(0.3))
+			canvas.draw_rect(Rect2(x + w - 22, y - 9, 16, 9), CastleData.WOOD)
+			canvas.draw_rect(Rect2(x + w - 22, y - 7, 16, 1), CastleData.THATCH)
+			canvas.draw_rect(Rect2(x + w - 15, y - 6, 2, 3), CastleData.THATCH)
 
 
 func _draw_bed(canvas, x: float, y: float, sheet: Color) -> void:

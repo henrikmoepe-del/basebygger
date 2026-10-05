@@ -44,7 +44,14 @@
   "Choosing rooms" under Current status). Natural next steps, none approved yet: more room kinds
   (workshop, chapel, larder, a second kitchen), drawbacks for rooms, a place to see what the
   keep's rooms add up to, and "a store that holds more" once resources have storage limits.
-- For Henrik to judge: the first keep's five bedchambers alone give room for 10 more peasants.
+- Also done (Henrik's notes after trying it): rooms are twice as tall and 50% wider, so the keep
+  is 260 wide with 48-high storeys and the west wall is longer to fit it; builders climb to work
+  on turrets and the spire; the hoist rope is lowered. Only the keep was made wider: ask Henrik
+  whether the garrison, court and towers should grow too.
+- Known bug, not fixed: when the gate is raised at levels 5 and up, builders who have knocked
+  down the old battlements are left standing in the air for a moment (the plan's deck drops to
+  the ground for the first new blocks at the sides). Seen with
+  `test_build.gd -- --from=walls:8,gate:5,garrison:5,court:4,keep:6,towers:5 --parts=gate`.
 - Open questions Henrik has not answered: should the keep need a click or held key to turn
   see-through, instead of fading whenever the mouse passes over it? Which buildings count as
   "fine" and need planks early (now: court and tavern)?
@@ -90,7 +97,8 @@ What this means for the design now (Claude's notes):
   Placeholder art.
 - The player never clicks to gather. Peasants do all the work; the player hires them, gives
   them jobs, trains them, points at the world to build, and buys skills.
-- World layout: the castle is in the middle (x = 0) and about 980 wide. Defence is to the west, where
+- World layout: the castle's gate is at x = 0; its wall runs from -500 to 420
+  (`CastleData.WALL_WEST`, `WALL_EAST`; the west side is longer, to fit the keep). Defence is to the west, where
   raiders come from (palisade, watchtower). The stockhouse, quarry, grove, wilds, mine and village are to the east.
 - The castle is a side view with the front wall cut away: the curtain wall and gate are at the back,
   and the court, keep and garrison stand in the courtyard in front of it, between two end towers.
@@ -168,8 +176,10 @@ What this means for the design now (Claude's notes):
     that turn see-through when hovered or by a button.
   - The keep has storeys and rooms: you step up into the entrance storey, and each level adds a
     storey (`KEEP_STOREY`). A staircase runs up the middle with a room either side on every storey
-    (`CastleData.keep_rooms`): kitchen and great hall at the bottom, store and armoury above,
-    bedchambers above that, the lord's chamber at the top. Every storey is a floor marked
+    (`CastleData.keep_rooms`): the first keep has three storeys (kitchen and great hall, store
+    and armoury, a bedchamber and the lord's chamber). A storey is 48 high (two flights of
+    stairs, `castle.STAIR_FLIGHT`) and a room about 110 wide; `castle._draw_room` furnishes each
+    kind, floor and wall. Every storey is a floor marked
     "inside" (`CastleData.floors`), so peasants walk into the rooms, out of sight unless the
     keep is see-through. Cooks work in the kitchen once there is a keep; peasants within reach
     sleep in the keep's beds, lying down, while the beds last (`Workers.bed_spot`); idle peasants
@@ -182,6 +192,13 @@ What this means for the design now (Claude's notes):
     Room kinds are entries in `CastleData.ROOMS`. What they do, per finished room
     (`GameState.room_count`): bedchamber = room for 2 more peasants, storeroom = building costs
     3% less, armoury = soldiers hit 10% harder (`soldier.might`). Not balanced.
+  - Perches (`BuildPlan._perch`): what is too high to reach from the roof (more than
+    `LIFT_HEIGHT` above it: a turret's battlements, the great tower, pointed roofs, flags) is set
+    from the top of what stands under it. Builders get there by the stairs inside where they
+    come up under it (the great tower; nothing to carry), else by a ladder stood on the roof,
+    which is a piece like any other. A perch is a platform in the plan with "hidden" or "base";
+    `castle._plain_route` knows that a floor with a "base" is reached from the floor below it,
+    not from the ground. The old great tower is knocked down the same way, from inside.
   - A building with stairs inside is reached by a short ladder until its walls are a storey high
     (`BuildPlan.START_LADDER`); after that builders come up through an open stairwell in the wall top.
   - Looking inside: pointing at a building with stairs inside (towers, keep, garrison, also while

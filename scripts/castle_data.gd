@@ -84,7 +84,7 @@ const PARTS := {
 	"keep": {
 		"benefit": "+12 defence and a new storey of rooms per level", "drawback": "Raids grow 3% stronger per level",
 		"name": "Keep", "defence": 12, "renown": 1, "cost": {"stone": 30, "wood": 15}, "work": 18.0,
-		"site_x": -165.0,
+		"site_x": -205.0,
 	},
 	# The quarry turns the loose stones east of the stockhouse into a proper
 	# stone supply (see GameState.quarry_rate).
@@ -116,12 +116,12 @@ const PARTS := {
 	"palisade": {
 		"benefit": "+8 defence per level", "drawback": "",
 		"name": "Palisade", "defence": 8, "renown": 1, "cost": {"wood": 20}, "work": 8.0,
-		"site_x": -580.0,
+		"site_x": -660.0,
 	},
 	"watchtower": {
 		"benefit": "+6 defence per level", "drawback": "",
 		"name": "Watchtower", "defence": 6, "renown": 1, "cost": {"wood": 22, "stone": 6}, "work": 10.0,
-		"site_x": -646.0,
+		"site_x": -726.0,
 	},
 	# The garrison is the castle's strongest defence per level. Its soldiers
 	# will man the walls in the 3D mode.
@@ -135,7 +135,7 @@ const PARTS := {
 	"court": {
 		"benefit": "Double renown, and hiring costs 4% less per level", "drawback": "Its household eats 2 food a day per level",
 		"name": "Court", "defence": 0, "renown": 2, "cost": {"wood": 25, "stone": 15}, "work": 12.0,
-		"site_x": -365.0,
+		"site_x": -445.0,
 	},
 	# Houses raise how many peasants can live here (see GameState.max_peasants).
 	"houses": {
@@ -172,28 +172,30 @@ const TAVERN_X := 1296.0
 const FIRST_HOUSE_X := 1352.0
 const HOUSE_SPACING := 26.0
 ## The outer defences, west of the castle.
-const PALISADE_X := -580.0
-const WATCHTOWER_X := -670.0
+const PALISADE_X := -660.0
+const WATCHTOWER_X := -750.0
 
 ## The castle itself: the curtain wall runs between the two end towers, and
 ## the court, keep and garrison stand in the courtyard from west to east.
 ## More towers rise along the wall and beside the gate as Towers is levelled.
-const WALL_HALF := 420.0
-const WALL_STAIRS := [-263.0, 245.0]
+## The gate is at x = 0; the west side is the longer one, to fit the keep.
+const WALL_WEST := -500.0
+const WALL_EAST := 420.0
+const WALL_STAIRS := [-343.0, 245.0]
 const END_TOWER_WIDTH := 70.0
 const WALL_TOWER_WIDTH := 44.0
 const GATE_TOWER_WIDTH := 24.0
 const WALL_TOWERS_FROM := 3
 const GATE_TOWERS_FROM := 5
-const KEEP_LEFT := -255.0
-const KEEP_WIDTH := 180.0
+const KEEP_LEFT := -335.0
+const KEEP_WIDTH := 260.0
 ## The keep is built in storeys: you step up into the entrance storey, and
 ## every storey above is this much higher. Each level of the keep adds one.
 ## A staircase runs up the middle, with a room on either side on every storey.
 const KEEP_ENTRANCE := 12.0
-const KEEP_STOREY := 24.0
-const KEEP_STAIRWELL := 28.0
-const COURT_LEFT := -405.0
+const KEEP_STOREY := 48.0
+const KEEP_STAIRWELL := 32.0
+const COURT_LEFT := -485.0
 const COURT_WIDTH := 80.0
 const GARRISON_LEFT := 72.0
 const GARRISON_WIDTH := 100.0
@@ -218,10 +220,10 @@ static func towers(level: int) -> Array:
 	if level <= 0:
 		return out
 	var v := mini(level, MAX_VISUAL_LEVEL)
-	for x: float in [WALL_HALF, -WALL_HALF - END_TOWER_WIDTH]:
+	for x: float in [WALL_EAST, WALL_WEST - END_TOWER_WIDTH]:
 		out.append({"x": x, "w": END_TOWER_WIDTH, "h": 90.0 + 18.0 * v, "kind": "end"})
 	if level >= WALL_TOWERS_FROM:
-		for x: float in [186.0, -315.0]:
+		for x: float in [186.0, -395.0]:
 			out.append({"x": x, "w": WALL_TOWER_WIDTH, "h": 70.0 + 16.0 * v, "kind": "wall"})
 	if level >= GATE_TOWERS_FROM:
 		for x: float in [34.0, -58.0]:
@@ -258,7 +260,7 @@ const BLOCK_BUILT := ["walls", "towers", "gate", "keep", "garrison", "court", "q
 
 ## How many storeys the keep has at a level.
 static func keep_storeys(level: int) -> int:
-	return 4 + mini(level, MAX_VISUAL_LEVEL) if level > 0 else 0
+	return 2 + mini(level, MAX_VISUAL_LEVEL) if level > 0 else 0
 
 
 ## The kinds of room in the keep. "benefit" is what one room of the kind
@@ -267,7 +269,7 @@ static func keep_storeys(level: int) -> int:
 const ROOMS := {
 	"kitchen": {"name": "Kitchen", "benefit": "The cooks work here"},
 	"hall": {"name": "Great hall", "benefit": ""},
-	"beds": {"name": "Bedchamber", "benefit": "Beds for 3, and room for 2 more peasants"},
+	"beds": {"name": "Bedchamber", "benefit": "Beds for 4, and room for 2 more peasants"},
 	"store": {"name": "Storeroom", "benefit": "Building costs 3% less"},
 	"armoury": {"name": "Armoury", "benefit": "Soldiers hit 10% harder"},
 	"lord": {"name": "Lord's chamber", "benefit": ""},
@@ -280,7 +282,7 @@ const ARMOURY_MIGHT := 0.10
 ## from the entrance storey up. Every storey added after that is the player's
 ## choice (GameState.keep_picks).
 const KEEP_FIRST_ROOMS := [
-	["kitchen", "hall"], ["store", "armoury"], ["beds", "beds"], ["beds", "beds"], ["beds", "lord"],
+	["kitchen", "hall"], ["store", "armoury"], ["beds", "lord"],
 ]
 ## What a storey nobody chose rooms for is fitted out as.
 const KEEP_DEFAULT_ROOMS := ["beds", "beds"]
@@ -298,7 +300,7 @@ static func keep_rooms(storey: int, picks: Array) -> Array:
 
 ## Where the beds stand in a bedchamber this wide, from its left wall.
 static func bed_offsets(room_width: float) -> Array:
-	return [12.0, 34.0, 56.0].filter(func(x: float) -> bool: return x < room_width - 8.0)
+	return [12.0, 36.0, 60.0, 84.0].filter(func(x: float) -> bool: return x < room_width - 8.0)
 
 
 ## Where every bed in the keep stands, for peasants to sleep in.
@@ -348,7 +350,7 @@ static func sections(part: String, level: int) -> Array:
 	match part:
 		"walls":
 			# The east half first: it is nearer the stockhouse.
-			return [[0.0, WALL_HALF], [-WALL_HALF, 0.0]]
+			return [[0.0, WALL_EAST], [WALL_WEST, 0.0]]
 		"towers":
 			var out := []
 			for tower: Dictionary in towers(level):
@@ -369,7 +371,7 @@ static func sections(part: String, level: int) -> Array:
 static func hoist_x(part: String, section: Array) -> float:
 	if part == "walls":
 		# In the open ground at the east end, and in front of the gate.
-		return PARTS.walls.site_x if section[1] > WALL_HALF / 2.0 else 8.0
+		return PARTS.walls.site_x if section[1] > WALL_EAST / 2.0 else 8.0
 	return section[1] + 8.0
 
 
@@ -385,7 +387,7 @@ static func floors(part: String, level: int) -> Array:
 	var y := -height(part, level)
 	match part:
 		"walls":
-			out.append({"x0": -WALL_HALF, "x1": WALL_HALF, "y": y, "stairs": WALL_STAIRS, "hidden": false})
+			out.append({"x0": WALL_WEST, "x1": WALL_EAST, "y": y, "stairs": WALL_STAIRS, "hidden": false})
 		"towers":
 			for tower: Dictionary in towers(level):
 				if tower.kind != "gate":
@@ -545,10 +547,11 @@ static func shapes(part: String, level: int) -> Array:
 	match part:
 		"walls":
 			# The curtain wall, with a walk along its top.
-			_masonry(out, Rect2(-WALL_HALF, -h, WALL_HALF * 2, h), STONE, 10.0)
-			out.append([Rect2(-WALL_HALF - 6, -8, WALL_HALF * 2 + 12, 8), STONE_DARK])
+			var width := WALL_EAST - WALL_WEST
+			_masonry(out, Rect2(WALL_WEST, -h, width, h), STONE, 10.0)
+			out.append([Rect2(WALL_WEST - 6, -8, width + 12, 8), STONE_DARK])
 			if level >= 2:
-				_merlons(out, -WALL_HALF, WALL_HALF * 2, -h, STONE)
+				_merlons(out, WALL_WEST, width, -h, STONE)
 		"towers":
 			for tower: Dictionary in towers(level):
 				_tower(out, tower, level)
@@ -572,7 +575,7 @@ static func shapes(part: String, level: int) -> Array:
 			_masonry(out, Rect2(KEEP_LEFT, -h, KEEP_WIDTH, h), STONE_DARK, 12.0)
 			out.append([Rect2(KEEP_LEFT - 4, -12, KEEP_WIDTH + 8, 12), SHADOW])
 			# Two windows to each room, and one on the stairs, on every storey.
-			_windows(out, KEEP_LEFT, [18.0, 52.0, 86.0, 120.0, 154.0], Vector2(8, 12), -KEEP_ENTRANCE - KEEP_STOREY - 19.0, KEEP_STOREY, -h, SHADOW)
+			_windows(out, KEEP_LEFT, [30.0, 76.0, 126.0, 176.0, 222.0], Vector2(8, 18), -KEEP_ENTRANCE - KEEP_STOREY - 32.0, KEEP_STOREY, -h, SHADOW)
 			out.append([Rect2(middle - 8, -26, 16, 26), WOOD_DARK, FITTING])
 			if level >= 2:
 				_merlons(out, KEEP_LEFT, KEEP_WIDTH, -h, STONE_DARK)

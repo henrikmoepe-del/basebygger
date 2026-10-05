@@ -38,7 +38,7 @@ const MAX_FLOATS := 12
 ## Idle peasants stroll on floors no further than this from the castle's middle.
 const STROLL_REACH := 500.0
 ## How far a peasant with time to spare may walk out into the lands.
-const LANDS_WEST := -760.0
+const LANDS_WEST := -840.0
 ## How many archers stand on each floor in a raid, and how many spearmen hold the line.
 const ARCHERS_PER_FLOOR := 3
 ## Peasants this close to the keep at nightfall go to their bed in it.
@@ -242,7 +242,7 @@ func battle_post(soldier: Node2D) -> Dictionary:
 				high.append(Vector2(x, flat.y))
 	var low := []
 	var raid := get_tree().get_first_node_in_group("raid")
-	var line_x: float = CastleData.PALISADE_X + 31.0 if raid != null and raid.palisade_holds() else -CastleData.WALL_HALF - CastleData.END_TOWER_WIDTH - 40.0
+	var line_x: float = CastleData.PALISADE_X + 31.0 if raid != null and raid.palisade_holds() else CastleData.WALL_WEST - CastleData.END_TOWER_WIDTH - 40.0
 	for spot in SPEARMEN:
 		low.append(Vector2(line_x + spot * 7.0, 0))
 	# In turn: an archer, a spearman, an archer...
@@ -269,7 +269,7 @@ func stroll_spot(home_x: float) -> Vector2:
 	if flats.is_empty() or roll < 0.4:
 		return Vector2(home_x + randf_range(-30.0, 30.0), 0)
 	if roll < 0.7:
-		return Vector2(randf_range(-CastleData.WALL_HALF + 20.0, CastleData.WALL_HALF - 20.0), 0)
+		return Vector2(randf_range(CastleData.WALL_WEST + 20.0, CastleData.WALL_EAST - 20.0), 0)
 	var flat: Dictionary = flats.pick_random()
 	return Vector2(randf_range(flat.x0 + 4.0, flat.x1 - 4.0), flat.y)
 

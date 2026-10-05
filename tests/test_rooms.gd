@@ -28,7 +28,7 @@ func _run() -> void:
 	var room_before: int = gs.max_peasants()
 	var cost_before: Dictionary = gs.part_cost("walls")
 	print("first keep: %d bedchambers, %d storerooms, %d armouries" % [gs.room_count("beds"), gs.room_count("store"), gs.room_count("armoury")])
-	ok = ok and gs.room_count("beds") == 5 and gs.room_count("store") == 1 and gs.room_count("armoury") == 1
+	ok = ok and gs.room_count("beds") == 1 and gs.room_count("store") == 1 and gs.room_count("armoury") == 1
 	ok = ok and gs.needs_room_choice("keep") and not gs.needs_room_choice("walls")
 
 	ok = ok and gs.order_part("keep", ["armoury", "store"])

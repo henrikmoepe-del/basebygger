@@ -20,12 +20,12 @@ const ARROW := Color(0.25, 0.20, 0.15)
 const BAR_BACK := Color(0.20, 0.13, 0.08)
 const BAR := Color(0.85, 0.75, 0.30)
 const GRASS := Color(0.45, 0.68, 0.38)
-const START_X := -960.0
+const START_X := -1040.0
 const SPACING := 12.0
 const SPEED := 14.0
 const FLEE_SPEED := 90.0
 ## Where the castle begins: a raider who gets this far has reached it.
-const CASTLE_X := -496.0
+const CASTLE_X := -576.0
 ## How close a raider and a spearman must be to strike each other, and how
 ## far a spear reaches through the palisade.
 const MELEE_REACH := 12.0
