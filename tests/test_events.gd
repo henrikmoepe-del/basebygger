@@ -33,7 +33,7 @@ func _run() -> void:
 	ok = ok and gs.site_rate("food") < rate_before
 
 	var food: int = gs.resources.food
-	gs.end_event("badger", true)
+	gs.end_event("badger", "clicked")
 	print("clicked away: food %d -> %d, events %s" % [food, gs.resources.food, gs.events])
 	ok = ok and gs.resources.food == food + EventData.EVENTS.badger.reward.food and gs.events.is_empty()
 	ok = ok and is_equal_approx(gs.site_rate("food"), rate_before)

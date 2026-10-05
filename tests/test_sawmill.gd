@@ -56,4 +56,6 @@ func _run() -> void:
 	var ok: bool = gs.part_levels.sawmill == 1 and gs.resources.planks > 0 and gs.part_cost("walls").has("planks") and not gs.part_cost("houses").has("planks")
 	print("ALL OK" if ok else "SOMETHING FAILED")
 	Engine.time_scale = 1.0
+	# Leave no save behind: the next test starts from a new game.
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(gs.save_path))
 	quit()

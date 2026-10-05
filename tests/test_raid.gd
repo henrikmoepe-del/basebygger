@@ -67,4 +67,6 @@ func _run() -> void:
 		"ok  " if reached else "FAIL", took, gs.raids_faced, gs.raids_won])
 	print("ALL OK" if beaten and reached else "SOMETHING FAILED")
 	Engine.time_scale = 1.0
+	# Leave no save behind: the next test starts from a new game.
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(gs.save_path))
 	quit()

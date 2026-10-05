@@ -63,13 +63,11 @@ const HUNGRY_WORK_MULT := 0.6
 const COOK_FOOD_SAVING := 0.05
 const MAX_COOK_POINTS := 10
 
-## Raiders come every RAID_INTERVAL days: RAID_BASE_SIZE of them at first,
+## Raiders come on a timetable (the "raid" event in event_data.gd): RAID_BASE_SIZE of them at first,
 ## RAID_SIZE_GROWTH more each time, each a little tougher than the last. They
 ## are fought in the world (see raiders.gd). If they reach the castle, the
 ## fight for the gate is fought in 3D. Beating a raid gives renown; losing
 ## one costs RAID_LOSS of everything in the stockyard.
-const FIRST_RAID_DAY := 5
-const RAID_INTERVAL := 3
 const RAID_BASE_SIZE := 3
 const RAID_SIZE_GROWTH := 2
 const RAIDER_BASE_HP := 12.0
@@ -203,6 +201,8 @@ var siege_active := false
 var skills := {}
 ## The events going on now: event id -> seconds left (see EventData).
 var events := {}
+## How many times each event has happened, by id.
+var event_counts := {}
 ## The policies turned on, by id (see PolicyData).
 var policies := []
 
@@ -259,7 +259,6 @@ func _process(delta: float) -> void:
 	if is_night() != _was_night:
 		_was_night = is_night()
 		daytime_changed.emit()
-	_update_raid(delta)
 	_update_events(delta)
 	_quest_timer += delta
 	if _quest_timer >= QUEST_CHECK_TIME:
@@ -423,9 +422,9 @@ func _check_quest() -> void:
 
 # --- Raids ---
 
-## The day the next raid arrives.
+## The day the next raid arrives (the raid is an event on a timetable).
 func next_raid_day() -> int:
-	return FIRST_RAID_DAY + RAID_INTERVAL * raids_faced
+	return next_event_day("raid")
 
 
 ## How many raiders come next time. A rich keep draws more of them.
@@ -439,12 +438,11 @@ func raider_hp() -> float:
 	return RAIDER_BASE_HP * pow(RAIDER_HP_GROWTH, raids_faced)
 
 
-func _update_raid(_delta: float) -> void:
-	if not raid_incoming and day >= next_raid_day():
-		raid_incoming = true
-		raiders_left = raid_size()
-		raid_started.emit()
-		announced.emit("Raiders approach from the west! %d of them" % raid_size())
+## The raid event has started: raiders.gd sends them in from the west.
+func _begin_raid() -> void:
+	raid_incoming = true
+	raiders_left = raid_size()
+	raid_started.emit()
 
 
 ## Every raider has fallen before reaching the castle.
@@ -462,6 +460,7 @@ func raiders_reached(standing: int) -> void:
 	announced.emit("%d raiders reached the castle, and were gone again" % standing)
 	raids_faced += 1
 	raid_incoming = false
+	end_event("raid", "done")
 	raid_resolved.emit(false)
 
 
@@ -469,9 +468,8 @@ func raiders_reached(standing: int) -> void:
 ## With no raid on the way, one is called early (used by the dev tools).
 func start_siege() -> void:
 	if not raid_incoming:
-		raid_incoming = true
 		siege_share = 1.0
-		raid_started.emit()
+		start_event("raid")
 	siege_active = true
 	save_game()
 	get_tree().change_scene_to_file("res://scenes/siege.tscn")
@@ -497,6 +495,7 @@ func _resolve_raid(won: bool) -> void:
 		announced.emit("The raiders broke in and took %d%% of your stores" % roundi(loss * 100))
 	raids_faced += 1
 	raid_incoming = false
+	end_event("raid", "done")
 	raid_resolved.emit(won)
 	resources_changed.emit()
 	skills_changed.emit()
@@ -504,12 +503,18 @@ func _resolve_raid(won: bool) -> void:
 
 # --- Events ---
 
-## Every so often an event may start; the ones going on run out.
+## Events on a timetable start on their day; every so often a chance event
+## may start; the ones with a time limit run out.
 func _update_events(delta: float) -> void:
 	for id: String in events.keys():
+		if EventData.EVENTS[id].get("until_done", false):
+			continue
 		events[id] -= delta
 		if events[id] <= 0.0:
-			end_event(id, false)
+			end_event(id, "ran_out")
+	for id: String in EventData.EVENTS:
+		if EventData.EVENTS[id].has("schedule") and not events.has(id) and day >= next_event_day(id) and event_allowed(id):
+			start_event(id)
 	_event_timer += delta
 	if _event_timer >= EventData.CHECK_TIME:
 		_event_timer = 0.0
@@ -517,13 +522,33 @@ func _update_events(delta: float) -> void:
 			start_event(pick_event())
 
 
-## A random event that may start today (by weight), or "" if there is none.
+## The day an event on a timetable next comes.
+func next_event_day(id: String) -> int:
+	var schedule: Dictionary = EventData.EVENTS[id].schedule
+	return schedule.from_day + schedule.every_days * _times_happened(id)
+
+
+## How often an event on a timetable has happened (and ended) so far.
+func _times_happened(id: String) -> int:
+	if id == "raid":
+		return raids_faced
+	return int(event_counts.get(id, 0))
+
+
+## True if an event may start now: from its first day, and only while what
+## it "needs" holds.
+func event_allowed(id: String) -> bool:
+	var info: Dictionary = EventData.EVENTS[id]
+	return day >= info.get("from_day", 1)
+
+
+## A random chance event that may start now (by weight), or "" if there is none.
 func pick_event() -> String:
 	var total := 0.0
 	var allowed := []
 	for id: String in EventData.EVENTS:
 		var info: Dictionary = EventData.EVENTS[id]
-		if not events.has(id) and day >= info.from_day:
+		if info.has("weight") and not events.has(id) and event_allowed(id):
 			allowed.append(id)
 			total += info.weight
 	var roll := randf() * total
@@ -537,27 +562,37 @@ func pick_event() -> String:
 func start_event(id: String) -> bool:
 	if id == "" or events.has(id):
 		return false
-	events[id] = EventData.EVENTS[id].lasts
-	announced.emit(EventData.EVENTS[id].start_text)
+	var info: Dictionary = EventData.EVENTS[id]
+	events[id] = info.get("lasts", 0.0)
+	if id == "raid":
+		_begin_raid()
+	announced.emit(_event_text(info.start_text))
 	events_changed.emit()
 	return true
 
 
-## Ends an event: by itself when its time runs out, or clicked away early
-## by the player for its reward.
-func end_event(id: String, clicked: bool) -> void:
+## Ends an event. how is "ran_out" (its time is up), "clicked" (the player
+## clicked it away early, for its reward) or "done" (the game ended it, as
+## a raid ends when it is beaten; it says so itself).
+func end_event(id: String, how: String) -> void:
 	if not events.has(id):
 		return
 	events.erase(id)
+	event_counts[id] = int(event_counts.get(id, 0)) + 1
 	var info: Dictionary = EventData.EVENTS[id]
-	if clicked:
+	if how == "clicked":
 		for type: String in info.get("reward", {}):
 			resources[type] += info.reward[type]
 		resources_changed.emit()
-		announced.emit(info.click_text)
-	else:
-		announced.emit(info.end_text)
+		announced.emit(_event_text(info.click_text))
+	elif how == "ran_out":
+		announced.emit(_event_text(info.end_text))
 	events_changed.emit()
+
+
+## An event's message, with {raiders} and the like filled in.
+func _event_text(text: String) -> String:
+	return text.format({"raiders": raid_size()})
 
 
 ## The sum of an effect over everything going on that changes how the
@@ -1208,6 +1243,7 @@ func save_game() -> void:
 		"no_nights": no_nights,
 		"skills": skills,
 		"events": events,
+		"event_counts": event_counts,
 		"policies": policies,
 		"income_rate": income_rate,
 		"job": {
@@ -1261,6 +1297,7 @@ func _start_over() -> void:
 	renown = 0
 	skills.clear()
 	events.clear()
+	event_counts.clear()
 	_event_timer = 0.0
 	policies.clear()
 	day = 1
@@ -1330,8 +1367,15 @@ func load_game() -> void:
 	var saved_events: Variant = data.get("events")
 	if saved_events is Dictionary:
 		for id: String in saved_events:
-			if EventData.EVENTS.has(id):
+			# An event the game ends itself (a raid) starts again when its time comes.
+			if EventData.EVENTS.has(id) and not EventData.EVENTS[id].get("until_done", false):
 				events[id] = clampf(float(saved_events[id]), 0.0, EventData.EVENTS[id].lasts)
+	event_counts.clear()
+	var saved_counts: Variant = data.get("event_counts")
+	if saved_counts is Dictionary:
+		for id: String in saved_counts:
+			if EventData.EVENTS.has(id):
+				event_counts[id] = maxi(int(saved_counts[id]), 0)
 
 	policies.clear()
 	var saved_policies: Variant = data.get("policies")

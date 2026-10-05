@@ -7,11 +7,15 @@ extends RefCounted
 ##
 ## Each event:
 ##   name        what it is called
-##   start_text  the message when it starts
+##   start_text  the message when it starts ({raiders}: the raid's size)
 ##   end_text    the message when it ends by itself
 ##   from_day    the first day it can happen
-##   weight      how likely it is, next to the others
+##   weight      how likely it is, next to the others (chance events)
+##   schedule    instead of weight: {"from_day", "every_days"}, it comes on a
+##               timetable, the next time counted from how often it has been
 ##   lasts       how many seconds it goes on
+##   until_done  instead of lasts: it goes on until the game ends it (a raid
+##               ends when it is beaten or reaches the castle)
 ##   effects     what it does while it goes on: effect -> amount, read with
 ##               GameState.effect_total (the same effects policies use)
 ##   site        where in the world it happens: a gathering site's node name
@@ -19,12 +23,19 @@ extends RefCounted
 ##               "reward" (resources) and with "click_text"
 ##
 ## Adding an entry here, and drawing it in events.gd, is all a new event needs.
-## The raids still run on their own timer in GameState; they could move here.
+## What happens during a raid is in raiders.gd and GameState's raid part.
 
 const CHECK_TIME := 45.0
 const CHANCE := 0.3
 
 const EVENTS := {
+	"raid": {
+		"name": "Raid",
+		"start_text": "Raiders approach from the west! {raiders} of them",
+		"schedule": {"from_day": 5, "every_days": 3},
+		"until_done": true,
+		"effects": {},
+	},
 	"badger": {
 		"name": "Badger in the crops",
 		"start_text": "A badger is digging up the food at the wilds! Click it to chase it off.",

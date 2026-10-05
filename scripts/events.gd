@@ -67,7 +67,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		var id := _hovered
 		get_tree().call_group("effects", "burst", to_global(Vector2(_home_x(id), -6.0)), DIRT, 10)
 		get_tree().call_group("sfx", "play", "buy")
-		GameState.end_event(id, true)
+		GameState.end_event(id, "clicked")
 		get_viewport().set_input_as_handled()
 
 
