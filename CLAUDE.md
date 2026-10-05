@@ -40,19 +40,20 @@
 - If you believe a tool/program/pluggen would be of good use, for example to create pixel 2d art, to create sound, etc, then say so 
 
 ## Where we left off (2026-10-05)
-- Done last (Henrik: "go on in the way you see fit", one commit each, in this order): raids as an
-  event; a message log; happiness; storage limits with the Stockhouse; seasons; boosts at
-  buildings; workshops with recipes (and a Bakery); individual peasants (names and traits). Each
-  is described under Current status. Before that: the keep summary, events, policies.
+- Done last (Henrik: "go on with your next ideas", one commit each): room drawbacks and two new
+  rooms (larder, chapel); three events (trader, fire, a fall that hurts a named builder); raid
+  kinds (bandits, raiders, warband); children (the Have children policy); clicking a building in
+  the world to see its boosts. Before that: raids as an event, message log, happiness, storage
+  limits, seasons, boosts, workshops, individual peasants; the keep summary, events, policies.
 - Balance is NOT important for now (Henrik, 2026-10-05): many systems will be added and reworked,
   so numbers will go out of balance anyway. Get systems in place with first-guess numbers; tune later.
 - Henrik's answers: the keep fading whenever the mouse passes over it is good, keep it. Room
   drawbacks: yes, but as a system first, balance later.
-- Natural next steps, none approved yet: room drawbacks; more room kinds (workshop, chapel,
-  larder); more events (traders, fire, a fall accident); more policies (work during the night,
-  child labour); a brickworks (needs a clay pit) and a smithy on the workshop system; people
-  having children (the next step for individual peasants); clicking a building in the world to
-  buy its boosts. Raids could come in kinds now that they are events (bandits, a warband).
+- Natural next steps, none approved yet: a brickworks (needs a clay pit) and a smithy on the
+  workshop system; child labour as a policy (children working at half pace); making children the
+  main way to get peasants (hiring becomes "a traveller asks to join", an event); more policies
+  (work during the night); more events (a mystical man with dark gifts, people stuck in the mine);
+  the people in charge instead of the counts (see the design notes).
 - Also done (Henrik's notes after trying it): rooms are twice as tall and 50% wider, so the keep
   is 260 wide with 48-high storeys and the west wall is longer to fit it; builders climb to work
   on turrets and the spire; the hoist rope is lowered. Only the keep was made wider: ask Henrik
@@ -212,9 +213,11 @@ What this means for the design now (Claude's notes):
     (`hud.gd` `_make_room_picker`, signal `build_hover.rooms_wanted`) to choose its west and east
     room from `CastleData.ROOM_PICKS`. The choices live in `GameState.keep_picks` (saved), and are
     passed to `order_part("keep", [west, east])`; without a choice a storey becomes bedchambers.
-    Room kinds are entries in `CastleData.ROOMS`. What they do, per finished room
-    (`GameState.room_count`): bedchamber = room for 2 more peasants, storeroom = building costs
-    3% less, armoury = soldiers hit 10% harder (`soldier.might`). Not balanced.
+    Room kinds are entries in `CastleData.ROOMS`, each with "effects" (benefit and drawback),
+    added up per finished room by `GameState.room_effects` (cached) into `effect_total`:
+    bedchamber = room for 2 more peasants; storeroom = building costs 3% less, raids 2% bigger;
+    armoury = soldiers hit 10% harder, -1 happiness; larder = eat 5% less, food grows 3% slower;
+    chapel = +3 happiness, work 3% slower. The picker shows both sides. Not balanced.
   - Keep summary: pointing at the keep (outside build mode) shows a card with what its rooms
     add up to ("Bedchamber x3: room for 6 more peasants"); the keep's build card lists the same
     (`GameState.keep_summary`, `hud.gd` `_refresh_keep_card`, `castle.pointed_changed`).
@@ -228,6 +231,14 @@ What this means for the design now (Claude's notes):
     `GameState._begin_raid` / `end_event("raid", "done")` start and end it. "needs" keeps an event
     to happy or unhappy times or a season: Merry work (happy, faster work), Strike (unhappy, much
     slower work), Spring flowers, Drought (summer), Rich harvest (autumn), Cold snap (winter).
+    Trader: a cart east of the stockyard with one of its "offers"; clicking pays and trades
+    (`GameState.click_event`). Fire in the stockyard: click it out, or a quarter of the wood and
+    planks "burns". Fall: only while building ("needs": building); a named builder is "hurt"
+    (bandage, works and walks at half pace) until it ends; `GameState.event_info` keeps the
+    offer or the person, saved. Raid kinds (`EventData.RAID_KINDS`): bandits (first raid; few,
+    weak, fast), raiders, warband (from the third raid; many, tough, armoured, double renown).
+    The next kind is picked when a raid ends (`GameState.next_raid_kind`, saved) and shown in the
+    raid line.
   - Message log (the Log button): the last 30 messages with their day (`GameState.messages`,
     saved). Everything sent with `GameState.announced` goes in it.
   - Happiness (`GameState.happiness`, 0-100, "Mood" in the top bar with a tooltip of what adds
@@ -241,6 +252,8 @@ What this means for the design now (Claude's notes):
   - Boosts (`scripts/boost_data.gd`, the Boosts button): short-lived help bought at a building,
     once it stands: Feast (tavern), Clean water (well), Manure the fields (farm), New picks
     (quarry), Drill (garrison), Hire masons (keep). Not again while one is going on. Saved.
+    Outside build mode, pointing at a standing building with boosts shows a hand; a click
+    opens the panel with just its boosts (`build_hover.boosts_wanted`, `hud.show_boosts`).
   - Workshops (`scripts/workshop_data.gd`, `scripts/crafter.gd`): a recipe per workshop job. A
     crafter takes the inputs for a few batches from the stockyard, works them at the workshop and
     carries the output to its store. The sawmill is one (wood to planks); the Bakery (village,
@@ -253,6 +266,12 @@ What this means for the design now (Claude's notes):
     as few as it can. Each walking peasant belongs to a person (`worker.person`); when their
     job changes they are made anew where they stood. Pointing at a peasant shows their name,
     job and trait over them; the job rows' tooltips list who does each job.
+  - Children: while the Have children policy is on ("births" effect), each dawn every couple of
+    grown-ups not already raising one has a 15% chance of a child, if the houses have room
+    (children count for room). A child is a person with "child", "born" and "parents", drawn
+    smaller, not counted in `peasants`; they eat like a grown-up and their parents work 10%
+    slower ("raising"). After 3 days (`PeopleData.CHILD_DAYS`) they grow up: `peasants` +1, idle.
+    `GameState.grown_ups()` / `children()`; `_fit_people` fits only the grown-ups.
   - Policies (`scripts/policy_data.gd`, `GameState.policies`, the Policies button): rules the
     player turns on and off any time, each with a benefit and a drawback. Smaller rations (eat
     25% less, work 10% slower, less happy) and Long days (work 15% faster, eat 20% more, less

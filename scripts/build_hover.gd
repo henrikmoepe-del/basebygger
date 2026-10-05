@@ -6,6 +6,8 @@ extends Node2D
 ## orders it. Outside build mode nothing in the world can be ordered.
 ## A new storey of the keep is not ordered at once: the HUD first asks which
 ## rooms to build there (rooms_wanted).
+## Outside build mode, clicking a standing building that has boosts (see
+## boost_data.gd) asks the HUD to show them (boosts_wanted).
 ##
 ## This node sits at the castle's ground-centre point, so the positions in
 ## CastleData line up with it.
@@ -14,8 +16,11 @@ signal hovered_changed(part: String)
 signal mode_changed
 ## The player clicked a part whose new rooms they must choose first.
 signal rooms_wanted(part: String)
+## The player clicked a building that has boosts, outside build mode.
+signal boosts_wanted(part: String)
 
 const CastleData = preload("res://scripts/castle_data.gd")
+const BoostData = preload("res://scripts/boost_data.gd")
 const CAN_BUILD := Color(1.0, 0.85, 0.40)
 const CANT_AFFORD := Color(0.75, 0.62, 0.40)
 const BLOCKED := Color(0.55, 0.55, 0.55)
@@ -37,6 +42,8 @@ var active := false
 ## The part whose circle is under the mouse, or "".
 var hovered := ""
 var _press_position := Vector2.ZERO
+## The building with boosts under the mouse outside build mode, or "".
+var _boost_hovered := ""
 var _zoom := 1.0
 
 
@@ -72,6 +79,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not active:
+		_boost_input(event)
 		return
 	if event is InputEventMouseMotion:
 		_set_hovered(_part_at(make_input_local(event).position))
@@ -103,6 +111,42 @@ func _draw() -> void:
 		var arm := radius * 0.5
 		draw_line(centre - Vector2(arm, 0), centre + Vector2(arm, 0), color, 1.5 / _zoom)
 		draw_line(centre - Vector2(0, arm), centre + Vector2(0, arm), color, 1.5 / _zoom)
+
+
+## Outside build mode: a hand over a building with boosts, and a click asks
+## for its boosts.
+func _boost_input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion:
+		var part := _boost_part_at(make_input_local(event).position)
+		if part != _boost_hovered:
+			_boost_hovered = part
+			Input.set_default_cursor_shape(Input.CURSOR_POINTING_HAND if part != "" else Input.CURSOR_ARROW)
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			_press_position = event.position
+		elif _boost_hovered != "" and event.position.distance_to(_press_position) <= CLICK_SLOP:
+			boosts_wanted.emit(_boost_hovered)
+			get_viewport().set_input_as_handled()
+
+
+## The smallest standing building with boosts at a point, or "".
+func _boost_part_at(point: Vector2) -> String:
+	var found := ""
+	var smallest := INF
+	var with_boosts := {}
+	for boost: String in BoostData.BOOSTS:
+		with_boosts[BoostData.BOOSTS[boost].building] = true
+	for part: String in with_boosts:
+		var level: int = GameState.part_levels[part]
+		if level == 0 or part == GameState.job_part:
+			continue
+		var area := Rect2()
+		for shape: Array in CastleData.shapes(part, level):
+			area = shape[0] if area.size == Vector2.ZERO else area.merge(shape[0])
+		if area.has_point(point) and area.get_area() < smallest:
+			smallest = area.get_area()
+			found = part
+	return found
 
 
 ## Where a part's circle floats.

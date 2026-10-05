@@ -46,6 +46,7 @@ const PLANS := {
 	"warband": {"levels": {"walls": 2, "palisade": 1, "watchtower": 1}, "part": "", "camera": [-800, -40, 2.0], "shots": 1, "raid_kind": "warband", "events": ["raid"]},
 	"bandits": {"levels": {"walls": 2, "palisade": 1, "watchtower": 1}, "part": "", "camera": [-720, -40, 2.0], "shots": 1, "raid_kind": "bandits", "events": ["raid"]},
 	"children": {"levels": {"walls": 1, "stockhouse": 2, "houses": 4}, "stock": {"wood": 150, "stone": 80, "food": 150, "planks": 0, "iron": 0}, "part": "", "camera": [610, -40, 2.0], "shots": 1, "kids": 3, "point_peasant": true},
+	"boost_click": {"levels": {"walls": 1, "tavern": 2, "well": 1, "stockhouse": 2}, "stock": {"wood": 150, "stone": 80, "food": 150, "planks": 0, "iron": 0}, "part": "", "camera": [1296, -45, 2.0], "shots": 1, "click": [320, 150]},
 	"rooms_picker": {"levels": {"walls": 3, "keep": 2}, "part": "", "camera": [-205, 10, 1.5], "shots": 1, "picker": true},
 	"gate": {"levels": {"walls": 2}, "part": "gate", "camera": [30, -40, 2.0], "shots": 5},
 	"tavern": {"levels": {"walls": 1}, "part": "tavern", "camera": [1170, -45, 2.0], "shots": 5},
@@ -153,6 +154,22 @@ func _run() -> void:
 	if not plan.has("mouse"):
 		# Out of the way, over the sky at the top right, unless the plan points somewhere.
 		Input.warp_mouse(Vector2(630, 60) * 2.0)
+	if plan.has("click"):
+		# A click at a point on screen (in the 640x360 view), as a player would.
+		var at := Vector2(plan.click[0], plan.click[1]) * 2.0
+		Input.warp_mouse(at)
+		await process_frame
+		var motion := InputEventMouseMotion.new()
+		motion.position = at
+		Input.parse_input_event(motion)
+		await process_frame
+		for down: bool in [true, false]:
+			var press := InputEventMouseButton.new()
+			press.button_index = MOUSE_BUTTON_LEFT
+			press.pressed = down
+			press.position = at
+			Input.parse_input_event(press)
+			await process_frame
 	if plan.has("mouse"):
 		# The mouse at a point on screen (in the 640x360 view).
 		Input.warp_mouse(Vector2(plan.mouse[0], plan.mouse[1]) * 2.0)

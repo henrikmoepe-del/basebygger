@@ -81,8 +81,12 @@ var _policy_panel := Panel.new()
 var _policy_buttons := {}
 ## The boosts: per boost a button to buy it and what it does.
 var _boost_panel := Panel.new()
-## Boost id -> {"button": Button, "info": Label}.
+## Boost id -> {"row", "button": Button, "info": Label}.
 var _boost_rows := {}
+## The building whose boosts the panel shows, or "" for all of them.
+var _boost_only := ""
+var _boost_box := VBoxContainer.new()
+var _boost_title := Label.new()
 var _boost_tick := 0.0
 ## The message log: the last messages, newest first.
 var _log_panel := Panel.new()
@@ -129,8 +133,10 @@ func _ready() -> void:
 		_policy_panel.visible = on
 		_refresh())
 	boosts_button.toggled.connect(func(on: bool) -> void:
+		_boost_only = ""
 		_boost_panel.visible = on
 		_refresh())
+	build_hover.boosts_wanted.connect(show_boosts)
 	log_button.toggled.connect(func(on: bool) -> void:
 		_log_panel.visible = on
 		_refresh_log())
@@ -326,14 +332,12 @@ func _make_policy_panel() -> void:
 func _make_boost_panel() -> void:
 	_boost_panel.hide()
 	add_child(_boost_panel)
-	var box := VBoxContainer.new()
+	var box := _boost_box
 	box.position = Vector2(8, 5)
 	box.add_theme_constant_override("separation", 3)
 	_boost_panel.add_child(box)
-	var title := Label.new()
-	title.text = "BOOSTS: help bought at your buildings, for a while"
-	title.add_theme_color_override("font_color", UiTheme.GOLD)
-	box.add_child(title)
+	_boost_title.add_theme_color_override("font_color", UiTheme.GOLD)
+	box.add_child(_boost_title)
 	for id: String in BoostData.BOOSTS:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 6)
@@ -347,21 +351,34 @@ func _make_boost_panel() -> void:
 		info.custom_minimum_size.x = 170
 		row.add_child(info)
 		box.add_child(row)
-		_boost_rows[id] = {"button": button, "info": info}
+		_boost_rows[id] = {"row": row, "button": button, "info": info}
 	_refresh_boosts()
-	_boost_panel.size = box.get_combined_minimum_size() + Vector2(16, 10)
-	_boost_panel.position = Vector2(4, 318 - _boost_panel.size.y)
+
+
+## Opens the boost panel with only one building's boosts ("" for all).
+func show_boosts(part: String) -> void:
+	_boost_only = part
+	_boost_panel.visible = true
+	boosts_button.set_pressed_no_signal(true)
+	_refresh_boosts()
 
 
 func _refresh_boosts() -> void:
+	_boost_title.text = "BOOSTS: help bought at your buildings, for a while" if _boost_only == "" \
+			else "BOOSTS AT THE %s (the Boosts button shows them all)" % CastleData.PARTS[_boost_only].name.to_upper()
 	for id: String in _boost_rows:
 		var boost: Dictionary = BoostData.BOOSTS[id]
 		var row: Dictionary = _boost_rows[id]
+		row.row.visible = _boost_only == "" or boost.building == _boost_only
 		var reason := GameState.boost_block_reason(id)
 		row.button.text = "%s (%s): %s" % [boost.name, CastleData.PARTS[boost.building].name, _cost_text(boost.cost)]
 		row.button.disabled = reason != "" or not GameState.can_afford(boost.cost)
 		row.info.text = "%s, for %d min%s" % [boost.text, roundi(boost.lasts / 60.0), "\n" + reason if reason != "" else ""]
 		row.info.add_theme_color_override("font_color", UiTheme.GOLD if GameState.boosts.has(id) else UiTheme.PARCHMENT)
+	# Just big enough for the rows shown, standing on the bottom bar.
+	_boost_box.reset_size()
+	_boost_panel.size = _boost_box.get_combined_minimum_size() + Vector2(16, 10)
+	_boost_panel.position = Vector2(4, 318 - _boost_panel.size.y)
 
 
 func _process(delta: float) -> void:
