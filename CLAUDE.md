@@ -39,6 +39,19 @@
 - After finishing a feature, update "Current status" below.
 - If you believe a tool/program/pluggen would be of good use, for example to create pixel 2d art, to create sound, etc, then say so 
 
+## Where we left off (2026-10-05)
+- Next task, already approved by Henrik: let the player CHOOSE the rooms of the keep. Each new
+  storey offers a pick of what to build there, and rooms start doing something of their own
+  (e.g. a store that holds more, an armoury that makes soldiers hit harder). Today the rooms come
+  with the keep's levels in a fixed order (`CastleData.keep_rooms`) and only the kitchen and the
+  beds are used.
+- Open questions Henrik has not answered: should the keep need a click or held key to turn
+  see-through, instead of fading whenever the mouse passes over it? Which buildings count as
+  "fine" and need planks early (now: court and tavern)?
+- Nothing is balanced on purpose (building is slow, raids and planks are first guesses).
+- How to work: after any change to how building or peasants look, run `tests/screenshot.gd`
+  and LOOK at the pictures, both the close-up and the `_wide` one, then run the three tests.
+
 ## Future ideas (Henrik's list, 2026-10-05)
 Not started. Keep them in mind when building features, so new systems can connect to them later.
 - Events: traders; raids; a mystical man who wants to give you dark gifts; werewolves; a traitor
