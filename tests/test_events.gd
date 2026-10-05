@@ -25,8 +25,10 @@ func _run() -> void:
 	print("day 1, an event that may start: '%s'" % gs.pick_event())
 	ok = ok and gs.pick_event() == ""
 	gs.day = 5
-	# Day 5 is in summer: the badger, or a drought.
-	ok = ok and gs.pick_event() in ["badger", "drought"]
+	# Day 5: any chance event allowed then (the badger, a drought, a trader...).
+	var picked: String = gs.pick_event()
+	print("day 5, picked: '%s'" % picked)
+	ok = ok and picked != "" and gs.event_allowed(picked) and gs.EventData.EVENTS[picked].has("weight")
 
 	var rate_before: float = gs.site_rate("food")
 	ok = ok and gs.start_event("badger") and not gs.start_event("badger")
@@ -64,7 +66,8 @@ func _run() -> void:
 	# A trader: no trade without the price, a trade with it.
 	gs.part_levels.stockhouse = 5
 	gs.events.clear()
-	ok = ok and gs.start_event("trader")
+	var started: bool = gs.start_event("trader")
+	ok = ok and started
 	var offer: Dictionary = gs.event_offer("trader")
 	for type: String in offer.give:
 		gs.resources[type] = 0
