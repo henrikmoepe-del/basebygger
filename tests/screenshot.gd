@@ -27,6 +27,7 @@ const PLANS := {
 	"badger_close": {"levels": {"walls": 1}, "part": "", "camera": [1095, 5, 6.0], "shots": 2, "events": ["badger"]},
 	"badger_hover": {"levels": {"walls": 1}, "part": "", "camera": [1068, -45, 2.0], "shots": 1, "events": ["badger"], "mouse": [388, 172]},
 	"policies": {"levels": {"walls": 2}, "part": "", "camera": [100, 0, 1.0], "shots": 1, "policies": ["rations"]},
+	"log": {"levels": {"walls": 2}, "part": "", "camera": [100, 0, 1.0], "shots": 1, "events": ["badger", "raid"], "log": true},
 	"rooms_picker": {"levels": {"walls": 3, "keep": 2}, "part": "", "camera": [-205, 10, 1.5], "shots": 1, "picker": true},
 	"gate": {"levels": {"walls": 2}, "part": "gate", "camera": [30, -40, 2.0], "shots": 5},
 	"tavern": {"levels": {"walls": 1}, "part": "tavern", "camera": [1170, -45, 2.0], "shots": 5},
@@ -106,6 +107,8 @@ func _run() -> void:
 		current_scene.get_node("HUD").policies_button.button_pressed = true
 	for event: String in plan.get("events", []):
 		gs.start_event(event)
+	if plan.get("log", false):
+		current_scene.get_node("HUD").log_button.button_pressed = true
 	if plan.has("mouse"):
 		# The mouse at a point on screen (in the 640x360 view).
 		Input.warp_mouse(Vector2(plan.mouse[0], plan.mouse[1]) * 2.0)

@@ -45,6 +45,9 @@ func _run() -> void:
 	gs.events.clear()
 	gs.load_game()
 	print("after loading: %s" % [gs.events])
+	var last: Dictionary = gs.messages.back()
+	print("last message in the log: day %d, %s" % [last.day, last.text])
+	ok = ok and last.text == EventData.EVENTS.badger.start_text
 	ok = ok and gs.events.has("badger") and is_equal_approx(gs.events.badger, 30.0)
 
 	# It runs out by itself (the time is spent in the game's own clock).

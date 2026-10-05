@@ -145,6 +145,8 @@ const LEVELS_PER_RANK := 5
 const FIRST_RANK_UP := 20
 const RANK_UP_STEP := 28
 
+## How many messages the log keeps.
+const LOG_SIZE := 30
 const SAVE_VERSION := 12
 const AUTOSAVE_INTERVAL := 10.0
 const MAX_OFFLINE_SECONDS := 8 * 3600
@@ -201,6 +203,8 @@ var siege_active := false
 var skills := {}
 ## The events going on now: event id -> seconds left (see EventData).
 var events := {}
+## The last messages, oldest first, each {"day", "text"} (the Log button).
+var messages := []
 ## How many times each event has happened, by id.
 var event_counts := {}
 ## The policies turned on, by id (see PolicyData).
@@ -243,6 +247,7 @@ func _ready() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--save="):
 			save_path = arg.trim_prefix("--save=")
+	announced.connect(_log_message)
 	load_game()
 
 
@@ -499,6 +504,14 @@ func _resolve_raid(won: bool) -> void:
 	raid_resolved.emit(won)
 	resources_changed.emit()
 	skills_changed.emit()
+
+
+# --- The message log ---
+
+func _log_message(text: String) -> void:
+	messages.append({"day": day, "text": text})
+	if messages.size() > LOG_SIZE:
+		messages.pop_front()
 
 
 # --- Events ---
@@ -1244,6 +1257,7 @@ func save_game() -> void:
 		"skills": skills,
 		"events": events,
 		"event_counts": event_counts,
+		"messages": messages,
 		"policies": policies,
 		"income_rate": income_rate,
 		"job": {
@@ -1298,6 +1312,7 @@ func _start_over() -> void:
 	skills.clear()
 	events.clear()
 	event_counts.clear()
+	messages.clear()
 	_event_timer = 0.0
 	policies.clear()
 	day = 1
@@ -1370,6 +1385,12 @@ func load_game() -> void:
 			# An event the game ends itself (a raid) starts again when its time comes.
 			if EventData.EVENTS.has(id) and not EventData.EVENTS[id].get("until_done", false):
 				events[id] = clampf(float(saved_events[id]), 0.0, EventData.EVENTS[id].lasts)
+	messages.clear()
+	var saved_messages: Variant = data.get("messages")
+	if saved_messages is Array:
+		for message: Variant in saved_messages.slice(-LOG_SIZE):
+			if message is Dictionary and message.get("text") is String:
+				messages.append({"day": int(message.get("day", 1)), "text": message.text})
 	event_counts.clear()
 	var saved_counts: Variant = data.get("event_counts")
 	if saved_counts is Dictionary:

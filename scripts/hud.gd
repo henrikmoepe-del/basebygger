@@ -45,6 +45,7 @@ const PREVIEW_GROUND := Color(0.45, 0.68, 0.38)
 @onready var defend_button: Button = %DefendButton
 @onready var skills_button: Button = %SkillsButton
 @onready var policies_button: Button = %PoliciesButton
+@onready var log_button: Button = %LogButton
 @onready var menu_button: Button = %MenuButton
 @onready var menu_panel: Panel = %MenuPanel
 @onready var night_button: Button = %NightButton
@@ -73,12 +74,16 @@ var _castle: Node2D
 var _policy_panel := Panel.new()
 ## Policy id -> its on/off Button.
 var _policy_buttons := {}
+## The message log: the last messages, newest first.
+var _log_panel := Panel.new()
+var _log_text := Label.new()
 
 
 func _ready() -> void:
 	_make_room_picker()
 	_make_keep_card()
 	_make_policy_panel()
+	_make_log_panel()
 	var theme := UiTheme.build()
 	for child in get_children():
 		if child is Control:
@@ -111,6 +116,10 @@ func _ready() -> void:
 	policies_button.toggled.connect(func(on: bool) -> void:
 		_policy_panel.visible = on
 		_refresh())
+	log_button.toggled.connect(func(on: bool) -> void:
+		_log_panel.visible = on
+		_refresh_log())
+	GameState.announced.connect(func(_text: String) -> void: _refresh_log())
 	jobs_toggle.pressed.connect(func() -> void:
 		jobs_panel.visible = not jobs_panel.visible
 		_refresh())
@@ -280,6 +289,35 @@ func _make_policy_panel() -> void:
 		_policy_buttons[id] = button
 	_policy_panel.size = box.get_combined_minimum_size() + Vector2(16, 10)
 	_policy_panel.position = Vector2(320 - _policy_panel.size.x / 2.0, 318 - _policy_panel.size.y)
+
+
+## The log panel, above the bottom bar on the right.
+func _make_log_panel() -> void:
+	_log_panel.hide()
+	_log_panel.size = Vector2(320, 190)
+	_log_panel.position = Vector2(636 - _log_panel.size.x, 318 - _log_panel.size.y)
+	add_child(_log_panel)
+	var title := Label.new()
+	title.text = "MESSAGES, newest first"
+	title.position = Vector2(8, 4)
+	title.add_theme_color_override("font_color", UiTheme.GOLD)
+	_log_panel.add_child(title)
+	_log_text.position = Vector2(8, 20)
+	_log_text.size = Vector2(_log_panel.size.x - 16, _log_panel.size.y - 24)
+	_log_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_log_text.clip_text = true
+	_log_text.add_theme_font_size_override("font_size", 9)
+	_log_panel.add_child(_log_text)
+
+
+func _refresh_log() -> void:
+	if not _log_panel.visible:
+		return
+	var lines: PackedStringArray = []
+	for i in range(GameState.messages.size() - 1, -1, -1):
+		var message: Dictionary = GameState.messages[i]
+		lines.append("Day %d   %s" % [message.day, message.text])
+	_log_text.text = "\n".join(lines) if not lines.is_empty() else "Nothing has happened yet."
 
 
 func _picker_button(text: String) -> Button:
