@@ -28,6 +28,8 @@ func _build(part: String, limit: float) -> bool:
 	var workers := current_scene.get_node("Workers")
 	var castle := current_scene.get_node("Castle")
 	var air := 0
+	var drops := 0
+	var last := {}
 	while gs.part_levels[part] == level and t < limit:
 		await process_frame
 		t += root.get_process_delta_time()
@@ -37,10 +39,19 @@ func _build(part: String, limit: float) -> bool:
 		for w in workers.get_children():
 			if w.get("job") == "build":
 				max_up = minf(max_up, w.position.y)
+				# Nobody comes down anywhere but by a ladder, or the stairs inside.
+				var was: Vector2 = last.get(w, w.position)
+				last[w] = w.position
+				if w.visible and w.position.y < -0.5 and w.position.y > was.y + 0.01 and absf(w.position.x - was.x) < 0.01 and not _ladder_at(flats, w.position.x):
+					drops += 1
+					if drops <= 3:
+						print("     dropping: ", w.position, " state ", w._state, " placed ", gs.job_placed, "/", gs.job_size(), " next ", gs.job_pieces()[mini(gs.job_placed, gs.job_size() - 1)].kind)
 				if w.visible and w.position.y < -0.5 and not _supported(flats, w.position):
 					air += 1
 					if air <= 3:
 						print("     in the air: ", w.position, " state ", w._state, " placed ", gs.job_placed, "/", gs.job_size())
+	if drops > 0:
+		print("     %d frames with a builder dropping down in plain sight" % drops)
 	if air > 0:
 		print("     %d frames with a builder in the air" % air)
 	var ok: bool = gs.part_levels[part] == level + 1
@@ -53,6 +64,16 @@ func _build(part: String, limit: float) -> bool:
 			if w.get("job") == "build":
 				print("     builder state %d at %s" % [w._state, w.position])
 	return ok
+
+
+## True if a ladder that can be seen (a stair that is not inside a building) stands at x.
+func _ladder_at(flats: Array, x: float) -> bool:
+	for flat in flats:
+		if not flat.hidden:
+			for stair in flat.stairs:
+				if absf(stair - x) < 0.5:
+					return true
+	return false
 
 
 func _supported(flats: Array, at: Vector2) -> bool:
@@ -79,6 +100,7 @@ func _run() -> void:
 	gs.peasants_changed.emit()
 	# "-- --from=keep:6,walls:3 --parts=keep,keep" builds just those, from those levels.
 	var only := ""
+	var extra := 5
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--from="):
 			for pair in arg.trim_prefix("--from=").split(","):
@@ -86,12 +108,14 @@ func _run() -> void:
 			gs.castle_changed.emit()
 		elif arg.begins_with("--parts="):
 			only = arg.trim_prefix("--parts=")
+		elif arg.begins_with("--builders="):
+			extra = int(arg.trim_prefix("--builders="))
 	if only != "":
 		gs.peasants += 12
-		gs.jobs.build += 5
+		gs.jobs.build += extra
 		gs.peasants_changed.emit()
 		for part in only.split(","):
-			all_ok = await _build(part, 6000.0) and all_ok
+			all_ok = await _build(part, 14000.0) and all_ok
 		print("ALL OK" if all_ok else "SOMETHING FAILED")
 		Engine.time_scale = 1.0
 		quit()
@@ -101,7 +125,7 @@ func _run() -> void:
 	gs.jobs.build += 5
 	gs.peasants_changed.emit()
 	for part in ["towers", "keep", "gate", "court", "garrison", "watchtower", "houses", "walls", "towers", "towers", "keep"]:
-		all_ok = await _build(part, 6000.0) and all_ok
+		all_ok = await _build(part, 14000.0) and all_ok
 	gs.jobs.soldier = 2
 	gs.peasants_changed.emit()
 	await _wait(40.0)

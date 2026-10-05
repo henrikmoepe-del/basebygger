@@ -48,10 +48,10 @@
   is 260 wide with 48-high storeys and the west wall is longer to fit it; builders climb to work
   on turrets and the spire; the hoist rope is lowered. Only the keep was made wider: ask Henrik
   whether the garrison, court and towers should grow too.
-- Known bug, not fixed: when the gate is raised at levels 5 and up, builders who have knocked
-  down the old battlements are left standing in the air for a moment (the plan's deck drops to
-  the ground for the first new blocks at the sides). Seen with
-  `test_build.gd -- --from=walls:8,gate:5,garrison:5,court:4,keep:6,towers:5 --parts=gate`.
+- Lesson from a bug (builders walking off the roof into the air, then dropping to the ground):
+  two floors closer than `castle.FLOOR_SNAP` (16) above each other get mixed up while a peasant
+  walks. Perches are therefore never nearer than `BuildPlan.PERCH_MIN` to the deck, and the old
+  tower's perches end when it is down. A deck also never drops during a job (`state.floor`).
 - Open questions Henrik has not answered: should the keep need a click or held key to turn
   see-through, instead of fading whenever the mouse passes over it? Which buildings count as
   "fine" and need planks early (now: court and tavern)?
@@ -271,6 +271,11 @@ What this means for the design now (Claude's notes):
   screenshots at steps through it (plans inside the file; `--plan=<name> --out=<folder>`), then
   closes the window. Henrik allows this window when it helps; always let it close. Use it after
   any change to how building or peasants look. `tests/snapshot.gd` does a rougher version headless.
+- `tests/check_plans.gd` makes the plan for every part and level (a few seconds) and checks that
+  no deck drops and every piece has somewhere to stand: run it after any change to
+  `build_plan.gd`. `test_build.gd` also reports builders in the air or coming down in plain
+  sight, and takes `-- --from=keep:11,walls:6 --parts=keep --builders=9` to build just one job
+  from given levels (use the levels from a save to reproduce what Henrik sees).
 - Tests: `tests/test_build.gd` (builds every part and checks no builder is ever in the air),
   `tests/test_raid.gd` (a defended and an undefended raid), `tests/test_sawmill.gd` and
   `tests/test_rooms.gd` (choosing the keep's rooms and what they do). Run with

@@ -94,6 +94,8 @@ const SCAFFOLD_COLOR := Color(0.48, 0.32, 0.20)
 ## can reach this high from where they stand.
 const BAY_WIDTH := 45.0
 const LIFT_HEIGHT := 24.0
+## A perch is at least this far above the deck, so the two can't be mixed up.
+const PERCH_MIN := 18.0
 ## A building with stairs inside is reached by a ladder until its walls are this high.
 const START_LADDER := 40.0
 const FAR := 100000.0
@@ -208,7 +210,7 @@ static func make(part: String, level: int) -> Dictionary:
 			})
 	# A platform can be stood on from when its last bay is up until its first bay comes down.
 	for platform: Dictionary in plan.platforms:
-		var until: int = plan.pieces.size()
+		var until: int = platform.get("until", plan.pieces.size())
 		for bay: int in platform.bays:
 			until = mini(until, plan.pieces[bay].removed_by)
 		platform["until"] = until
@@ -346,6 +348,7 @@ static func _plan_section(plan: Dictionary, part: String, index: int, old_solid:
 	if not gone.is_empty():
 		state.floor = old_body.position.y if plan.scaffolded else 0.0
 		_rise(plan, part, index, state, deck)
+		var first_perch: int = plan.platforms.size()
 		var chunks := []
 		for shape: Array in gone:
 			var area: Rect2 = shape[0]
@@ -371,13 +374,19 @@ static func _plan_section(plan: Dictionary, part: String, index: int, old_solid:
 			plan.pieces[-1].fetch = false
 			plan.pieces[-1].lift = false
 			plan.gone.append([chunk[0], chunk[1], plan.pieces.size() - 1])
+		# The perches in the old tower are gone with it.
+		for perch in range(first_perch, plan.platforms.size()):
+			plan.platforms[perch]["until"] = plan.pieces.size() - 1
+		state.perches.clear()
 	var cursor: float = access.x
 	for row in courses.size():
 		var row_top: float = courses[row][0]
 		var row_bottom: float = courses[row][1]
 		var cells: Array = new_cells[row]
 		if not cells.is_empty():
-			state.floor = maxf(row_bottom, deck) if plan.scaffolded else 0.0
+			# The deck only ever rises: builders who are up on the old wall
+			# stay there, even to patch something lower down.
+			state.floor = minf(state.floor, maxf(row_bottom, deck)) if plan.scaffolded else 0.0
 			_rise(plan, part, index, state, deck)
 			var forward := absf(cursor - left) <= absf(cursor - right)
 			if not forward:
@@ -476,7 +485,8 @@ static func _perch(plan: Dictionary, index: int, state: Dictionary, area: Rect2,
 		if body.position.y >= area.end.y - 0.01 and body.position.y < y:
 			host = body
 			y = body.position.y
-	if not host.has_area() or y >= deck - 0.5:
+	# A perch barely above the deck is no use: it is set from the deck.
+	if not host.has_area() or y >= deck - PERCH_MIN:
 		return Vector2.INF
 	var x0 := host.position.x + 1.0
 	var x1 := host.end.x - 1.0

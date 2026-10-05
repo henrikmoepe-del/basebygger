@@ -407,6 +407,10 @@ func _deck_step(section: int) -> Array:
 	var piece := _next_piece()
 	if piece.section != section or piece.kind != BuildPlan.Kind.BLOCK or not piece.top or not piece.partial.has_area():
 		return []
+	# Once the deck is as high as it gets, what is laid on it is a turret or
+	# a roof, not a course to walk on.
+	if piece.floor <= GameState.job_plan.tops[section] + 0.5:
+		return []
 	# Only the course that sits right on the deck: anything higher (a roof, a
 	# turret) is built from the deck itself.
 	if absf(piece.partial.end.y - piece.floor) > 0.5:
