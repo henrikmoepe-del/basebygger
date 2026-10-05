@@ -43,9 +43,10 @@ const EventData = preload("res://scripts/event_data.gd")
 const PolicyData = preload("res://scripts/policy_data.gd")
 const SeasonData = preload("res://scripts/season_data.gd")
 const BoostData = preload("res://scripts/boost_data.gd")
+const WorkshopData = preload("res://scripts/workshop_data.gd")
 
-const START_JOBS := {"wood": 1, "stone": 1, "hunter": 0, "build": 1, "cook": 0, "soldier": 0, "iron": 0, "sawyer": 0, "forester": 0}
-const NO_JOBS := {"wood": 0, "stone": 0, "hunter": 0, "build": 0, "cook": 0, "soldier": 0, "iron": 0, "sawyer": 0, "forester": 0}
+const START_JOBS := {"wood": 1, "stone": 1, "hunter": 0, "build": 1, "cook": 0, "soldier": 0, "iron": 0, "sawyer": 0, "baker": 0, "forester": 0}
+const NO_JOBS := {"wood": 0, "stone": 0, "hunter": 0, "build": 0, "cook": 0, "soldier": 0, "iron": 0, "sawyer": 0, "baker": 0, "forester": 0}
 const START_PEASANTS := 3
 ## How much better a trained peasant does their job.
 const TRAINED_MULT := 2.0
@@ -183,7 +184,7 @@ var cows := 0
 var part_levels := {
 	"walls": 0, "towers": 0, "gate": 0, "keep": 0, "garrison": 0, "court": 0,
 	"palisade": 0, "watchtower": 0,
-	"houses": 0, "well": 0, "tavern": 0, "quarry": 0, "farm": 0, "mine": 0, "sawmill": 0, "stockhouse": 0,
+	"houses": 0, "well": 0, "tavern": 0, "quarry": 0, "farm": 0, "mine": 0, "sawmill": 0, "stockhouse": 0, "bakery": 0,
 }
 ## The rooms the player chose for each storey of the keep above the first
 ## keep's own, lowest first, each [left room, right room] (see CastleData.ROOMS).
@@ -318,15 +319,6 @@ func _notification(what: int) -> void:
 
 
 # --- Resources ---
-
-## A sawyer takes up to this many logs from the wood stack. Returns how many they got.
-func take_wood(logs: int) -> int:
-	var taken := mini(logs, resources.wood)
-	resources.wood -= taken
-	if taken > 0:
-		resources_changed.emit()
-	return taken
-
 
 ## Peasants deliver to the stockhouse through this, so income can be
 ## measured. What does not fit in a full store is lost.
@@ -849,8 +841,9 @@ func job_limit(job: String) -> int:
 		return part_levels.garrison * (SOLDIERS_PER_GARRISON_LEVEL + int(skill_total("soldier_room")))
 	if job == "iron":
 		return part_levels.mine * MINERS_PER_MINE_LEVEL
-	if job == "sawyer":
-		return part_levels.sawmill * CastleData.SAWYERS_PER_LEVEL
+	if WorkshopData.WORKSHOPS.has(job):
+		var shop: Dictionary = WorkshopData.WORKSHOPS[job]
+		return part_levels[shop.part] * shop.per_level
 	return -1
 
 

@@ -59,7 +59,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 
 func play(sound: String) -> void:
-	# Nothing plays while the scene is closing (a sawyer hands in planks then).
+	# Nothing plays while the scene is closing (a crafter hands in their goods then).
 	if _muted or not _sounds.has(sound) or not is_inside_tree():
 		return
 	var now := Time.get_ticks_msec() / 1000.0

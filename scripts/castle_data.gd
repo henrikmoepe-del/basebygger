@@ -47,7 +47,6 @@ const IRON_PER_LEVEL := 10
 const PLANKS_FROM_LEVEL := 3
 const PLANKS_PER_LEVEL := 6
 const FINE := ["court", "tavern"]
-const SAWYERS_PER_LEVEL := 2
 
 const STONE := Color(0.64, 0.64, 0.68)
 const STONE_LIGHT := Color(0.70, 0.70, 0.74)
@@ -114,6 +113,12 @@ const PARTS := {
 		"name": "Stockhouse", "defence": 0, "renown": 1, "cost": {"wood": 20, "stone": 6}, "work": 8.0,
 		"site_x": 610.0, "village": true, "max_level": 25,
 	},
+	# The bakery: bakers turn grain and firewood into bread (see workshop_data.gd).
+	"bakery": {
+		"benefit": "Lets peasants bake: 2 food and 1 wood make 4 food. Room for 2 bakers per level", "drawback": "",
+		"name": "Bakery", "defence": 0, "renown": 1, "cost": {"wood": 25, "stone": 20}, "work": 8.0,
+		"site_x": 495.0, "village": true, "max_level": 6,
+	},
 	"sawmill": {
 		"benefit": "Lets peasants saw wood into planks: room for 2 sawyers per level", "drawback": "",
 		"name": "Sawmill", "defence": 0, "renown": 1, "cost": {"wood": 30, "stone": 10}, "work": 10.0,
@@ -164,7 +169,7 @@ const PARTS := {
 	},
 }
 ## Back to front.
-const DRAW_ORDER := ["stockhouse", "houses", "tavern", "well", "sawmill", "mine", "farm", "quarry", "watchtower", "palisade", "walls", "gate", "court", "garrison", "keep", "towers"]
+const DRAW_ORDER := ["bakery", "stockhouse", "houses", "tavern", "well", "sawmill", "mine", "farm", "quarry", "watchtower", "palisade", "walls", "gate", "court", "garrison", "keep", "towers"]
 ## The parts that stand in the courtyard, in front of the curtain wall. A
 ## peasant up on the wall walks behind them.
 const FRONT := ["court", "garrison", "keep", "towers"]
@@ -176,6 +181,7 @@ const MINE_X := 1126.0
 const SAWMILL_X := 1185.0
 ## The stockyard's barn stands at the same place as Workers.stock_x.
 const STOCKHOUSE_X := 610.0
+const BAKERY_X := 495.0
 ## How much each store of the stockyard holds before the stockhouse is built,
 ## and how much more each level of it holds.
 const STORE_BASE := 100
@@ -656,6 +662,17 @@ static func shapes(part: String, level: int) -> Array:
 			out.append([Rect2(STOCKHOUSE_X - 6, -14, 12, 14), WOOD_DARK])
 			if level >= 2:
 				out.append([Rect2(STOCKHOUSE_X - 4, -h + 4, 8, 7), WOOD_DARK])
+		"bakery":
+			# A little bakehouse with a domed oven against its wall and a
+			# chimney; the oven glows. More levels, a wider house.
+			var wide := 26.0 + 3.0 * mini(v, 4)
+			out.append([Rect2(BAKERY_X - wide / 2.0, -20, wide, 20), PLASTER])
+			out.append([Rect2(BAKERY_X - wide / 2.0 - 3, -26, wide + 6, 7), ROOF_RED])
+			out.append([Rect2(BAKERY_X + wide / 2.0 - 8, -34, 5, 10), STONE_DARK])
+			out.append([Rect2(BAKERY_X - wide / 2.0 + 3, -8, 4, 8), WOOD_DARK])
+			out.append([Rect2(BAKERY_X - 6, -10, 14, 10), STONE])
+			out.append([Rect2(BAKERY_X - 4, -12, 10, 2), STONE])
+			out.append([Rect2(BAKERY_X - 1, -6, 5, 5), Color(0.95, 0.55, 0.20)])
 		"sawmill":
 			# An open shed over a saw bench, with a stack of sawn planks beside it.
 			h = 18.0 + 2.0 * mini(v, 4)

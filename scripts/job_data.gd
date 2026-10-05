@@ -45,6 +45,10 @@ const JOBS := {
 		"name": "Saw planks", "trade": "Sawyer", "trade_skill": "t_wood",
 		"color": Color(0.70, 0.52, 0.28), "requires_part": "sawmill",
 	},
+	"baker": {
+		"name": "Bake bread", "trade": "Baker", "trade_skill": "cook",
+		"color": Color(0.86, 0.80, 0.62), "requires_part": "bakery",
+	},
 	# Tending the grove takes know-how: only trained foresters can do it.
 	"forester": {
 		"name": "Tend the grove", "trade": "Forester", "trade_skill": "forester",

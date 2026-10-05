@@ -13,7 +13,7 @@ const Builder = preload("res://scripts/builder.gd")
 const Forester = preload("res://scripts/forester.gd")
 const Cook = preload("res://scripts/cook.gd")
 const Soldier = preload("res://scripts/soldier.gd")
-const Sawyer = preload("res://scripts/sawyer.gd")
+const Crafter = preload("res://scripts/crafter.gd")
 const Cow = preload("res://scripts/cow.gd")
 ## Which script runs each job ("" = idle).
 const BUMP_TIME := 0.15
@@ -53,7 +53,7 @@ const FLOAT_COLORS := {
 }
 const JOB_SCRIPTS := {
 	"": Worker, "wood": Gatherer, "stone": Gatherer, "hunter": Gatherer, "iron": Gatherer,
-	"build": Builder, "forester": Forester, "cook": Cook, "soldier": Soldier, "sawyer": Sawyer,
+	"build": Builder, "forester": Forester, "cook": Cook, "soldier": Soldier, "sawyer": Crafter, "baker": Crafter,
 }
 
 @export var grove: Node2D
