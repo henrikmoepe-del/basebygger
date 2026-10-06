@@ -54,7 +54,21 @@ which is why it is tried out on the test map first.
    - *Raids:* the alarm bell, drafting and torches are new; the main game's raids
      (`raiders.gd`, `soldier.gd`) have posts, a palisade and archers instead.
      Which way raids go is undecided (CLAUDE.md).
-   - *Forbidding, hover info, the character card, the Work overview:* HUD only.
+   - *Forbidding, hover info, the character card, the Work overview, pause:* HUD
+     and input only.
+   - *Events* (travellers, the hooded man, cave-ins, werewolves, strikes, the
+     traitor, storms): the main game has an event system (`event_data.gd`,
+     `GameState.events`, "effects", "schedule", "needs"). Most of these would be
+     entries there; what is new is that they create *work* (dig someone out, put
+     a fire out, catch a thief) or *questions* for the player (the sandbox's
+     `ask`, a small dialog with buttons), instead of only effects and clicks.
+   - *Children and Child labour:* the main game has children and a "Have
+     children" policy (`people_data.gd`); Child labour would be one more policy.
+   - *Mood:* the main game has village happiness (`GameState.happiness`). The
+     sandbox's mood is per person, from thoughts; the two could meet as "the
+     village's happiness is the average of its people's moods".
+   - *Light at night:* `sb_light.gd` (PointLight2D under a CanvasModulate) would
+     work the same way in the main game, which already darkens at night.
 
 A smaller first step for the main game: keep the line of ground, and bring in
 only people-with-priorities, free will and orders (1, 2, 4, 5).
