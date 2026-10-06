@@ -327,6 +327,19 @@ func _run() -> void:
 	var gone := await _wait(60.0, func(): return not is_instance_id_valid(other_id))
 	_check(gone and w.peasants.size() == before_n + 1, "sent away, they leave")
 
+	# 20. Children: one is born, does no work, works with Child labour, grows up.
+	var kid: Node2D = w.birth()
+	_check(kid != null and kid.child and kid.parents.size() == 2, "a child is born to two parents")
+	await _wait(10.0)
+	_check(kid.prio.values().all(func(v): return v == 0), "a child does no work")
+	w.set_child_labour(true)
+	_check(kid.prio.haul == 1, "with Child labour on, the child hauls")
+	_check(w.peasants.filter(func(p): return not p.child)[0].thoughts().any(func(t): return t[0] == "Children made to work"), "and the grown-ups mind it")
+	w.set_child_labour(false)
+	kid.born -= SbData.CHILD_DAYS * SbData.DAY_LENGTH
+	await _wait(1.0)
+	_check(not kid.child and kid.job == "hauler", "after 3 days the child grows up and works")
+
 	_check(_off_band == 0, "nobody leaves the ground band (%d frames off it)" % _off_band)
 	print("ALL PASSED" if _fails == 0 else "%d FAILED" % _fails)
 	quit(1 if _fails > 0 else 0)

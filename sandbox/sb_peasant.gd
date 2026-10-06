@@ -63,6 +63,11 @@ var _safe := false
 ## The hurt peasant this one is carrying.
 var _patient: Node2D = null
 var selected := false
+## A child: when they were born (world time) and their parents. Children
+## do no work unless the Child labour policy is on; they grow up in time.
+var child := false
+var born := 0.0
+var parents: Array = []
 ## A traveller not yet taken in (does no work), and one sent on their way.
 var guest := false
 var leaving := false
@@ -124,6 +129,8 @@ func skill_mult(work: String) -> float:
 		pace *= SbData.BOOST
 	if mood >= SbData.MOOD_HIGH:
 		pace *= SbData.MOOD_HIGH_PACE
+	if child:
+		pace *= SbData.CHILD_PACE
 	pace *= SbData.TRAITS[trait_key].get("work", 1.0)
 	return (0.6 + 0.08 * float(skill.get(work, 5))) * pace
 
@@ -154,6 +161,8 @@ func thoughts() -> Array:
 		list.append(["Drafted", -3.0])
 	if world.night_work:
 		list.append(["Night work", -5.0])
+	if world.child_labour and not child and world.peasants.any(func(o): return o.child):
+		list.append(["Children made to work", -4.0])
 	for key in memories:
 		list.append([SbData.MEMORIES[key].text, SbData.MEMORIES[key].value])
 	list.sort_custom(func(a, b): return absf(a[1]) > absf(b[1]))
@@ -212,6 +221,9 @@ func learn(work: String, seconds: float) -> void:
 
 
 func set_job(job_: String) -> void:
+	if child and job_ != "hauler":
+		# Children have no job until they grow up.
+		return
 	job = job_
 	prio.clear()
 	for w in SbData.WORK:
@@ -241,6 +253,8 @@ func is_open() -> bool:
 func hit(p: Vector2) -> bool:
 	if not visible:
 		return false
+	if child and not downed:
+		return Rect2(position + Vector2(-4, -11), Vector2(8, 12)).has_point(p)
 	if downed:
 		return Rect2(position + Vector2(-9, -6), Vector2(18, 8)).has_point(p)
 	return Rect2(position + Vector2(-5, -18), Vector2(10, 20)).has_point(p)
@@ -251,7 +265,33 @@ func label() -> String:
 
 
 func job_name() -> String:
-	return SbData.JOBS[job].name
+	return "Child" if child else SbData.JOBS[job].name
+
+
+## Makes this peasant a newborn child of the two parents.
+func make_child(parents_: Array) -> void:
+	child = true
+	born = world.time
+	parents = parents_
+	_set_child_prio()
+	hp = 6.0
+	max_hp = 6.0
+
+
+## Children's priorities follow the Child labour policy.
+func _set_child_prio() -> void:
+	for w in SbData.WORK:
+		prio[w] = SbData.CHILD_WORK.get(w, 0) if world.child_labour else 0
+
+
+## Grown up: a Hauler from now on.
+func grow_up() -> void:
+	child = false
+	parents = []
+	set_job("hauler")
+	max_hp = 10.0
+	hp = max_hp
+	world.announce("%s has grown up and joins the work." % person_name)
 
 
 ## Give an order from the player. It comes before anything else. With
@@ -278,7 +318,7 @@ func set_order(o: Dictionary, add := false) -> void:
 
 ## Draft or undraft. Drafting drops the work in hand (and what is carried).
 func set_drafted(on: bool) -> void:
-	if on == drafted:
+	if on == drafted or (on and child):
 		return
 	drafted = on
 	queue.clear()
@@ -976,6 +1016,16 @@ func _do_idle(delta: float) -> void:
 		if _go(yard.work_spot(self), delta):
 			_put_away(yard)
 		return
+	if child:
+		# Children stay near a parent (or the stockyard).
+		var near: Vector2 = world.stockyard.position + Vector2(10, 30)
+		for par in parents:
+			if is_instance_valid(par) and not par.downed and par.visible:
+				near = par.position + Vector2(-10, 6)
+				break
+		if position.distance_to(near) > 16.0:
+			_go(near, delta)
+		return
 	if job == "guard":
 		_go(world.guard_post + Vector2(float(hash(name) % 24) - 12.0, float(hash(name) % 14)), delta)
 		return
@@ -1121,6 +1171,9 @@ func _draw() -> void:
 		return
 	var t := Time.get_ticks_msec() / 1000.0
 	var step := int(t / 0.14 + position.x) % 2 if _walking else -1
+	if child:
+		_draw_child(step, tunic)
+		return
 	draw_rect(Rect2(-2, -3, 2, 2 if step == 0 else 3), SbData.INK)
 	draw_rect(Rect2(1, -3, 2, 2 if step == 1 else 3), SbData.INK)
 	var bob := 0.0
@@ -1215,6 +1268,18 @@ func _draw() -> void:
 		var to := (_arrow_to - position) * Vector2(scale.x, 1.0)
 		var at := Vector2(4, -12).lerp(to, 1.0 - _arrow / 0.25)
 		draw_line(at, at - (to - Vector2(4, -12)).normalized() * 5.0, SbData.WOOD3, 1.0)
+
+
+## A child: 10 high (art direction), drawn as its own small figure.
+func _draw_child(step: int, tunic: Color) -> void:
+	draw_rect(Rect2(-2, -2, 1, 2 if step != 0 else 1), SbData.INK)
+	draw_rect(Rect2(1, -2, 1, 2 if step != 1 else 1), SbData.INK)
+	draw_rect(Rect2(-2, -7, 4, 5), SbData.DAUB if not world.child_labour else tunic)
+	draw_rect(Rect2(-1, -10, 3, 3), SbData.SKIN1)
+	match carrying:
+		"wood", "stone", "food", "planks":
+			draw_rect(Rect2(2, -6, 3, 3), SbData.WOOD3 if carrying != "stone" else SbData.STONE3)
+	_draw_marks(-16.0)
 
 
 ## A tool raised or swung while working.

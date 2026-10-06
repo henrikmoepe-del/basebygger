@@ -147,6 +147,7 @@ const MEMORIES := {
 	"saw_down": {"text": "Saw someone go down", "value": -6.0, "time": 120.0},
 	"raid_won": {"text": "A raid beaten", "value": 8.0, "time": 180.0},
 	"sulked": {"text": "Let off steam", "value": 15.0, "time": 120.0},
+	"new_child": {"text": "A child was born", "value": 6.0, "time": 240.0},
 }
 
 ## Travellers who ask to join: the first on FIRST_TRAVELLER_DAY at
@@ -154,6 +155,15 @@ const MEMORIES := {
 const FIRST_TRAVELLER_DAY := 1
 const TRAVELLER_HOUR := 14.0
 const TRAVELLER_EVERY := 1.5
+
+## Children: at each dawn, while there are fewer children than finished
+## Huts, a couple has a child with BIRTH_CHANCE. A child grows up after
+## CHILD_DAYS days (then a Hauler). The Child labour policy lets children
+## haul and forage at CHILD_PACE; every grown-up minds that (a thought).
+const BIRTH_CHANCE := 0.5
+const CHILD_DAYS := 3.0
+const CHILD_PACE := 0.5
+const CHILD_WORK := {"haul": 1, "forage": 2}
 
 ## Beds in a finished Hut; the hurt get better faster in one.
 const HUT_BEDS := 2

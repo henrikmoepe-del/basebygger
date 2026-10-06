@@ -74,6 +74,12 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
      their trait). Taken in, they start as a Hauler and get a place in the bar of
      names; sent away, they walk off. (From Henrik's next steps: "a traveller asks
      to join".)
+   - **Children:** at each dawn, while there are fewer children than finished Huts,
+     a couple may have a child (everyone is glad: a good thought). Children are
+     small (10 high, as the art direction says), have no job, follow a parent
+     around, and grow up after 3 days as Haulers. The **Child labour** policy
+     (top bar, from Henrik's list) lets them haul and pick berries at half pace;
+     every grown-up minds it (-4 mood).
    - **Mood:** each peasant's mood drifts towards 55 plus their thoughts: needs
      (hungry, tired), states (in pain, drafted, Night work) and memories that
      fade (ate a meal, slept in a bed or on the ground, was hurt, saw someone go

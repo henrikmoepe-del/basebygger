@@ -44,6 +44,8 @@ const PLANS := {
 	"point": {"steps": [[1.0, "point"], [0.5, "shot"]]},
 	# A traveller asks to join.
 	"traveller": {"steps": [[0.5, "traveller"], [10.0, "shot"]]},
+	# A child born and following a parent; Child labour on for the second picture.
+	"child": {"steps": [[0.5, "child"], [6.0, "shot"], [0.1, "labour"], [8.0, "shot"]]},
 	# The hunter in the wood, aiming at a deer.
 	"hunt": {"steps": [[0.5, "hunt"], [5.5, "shot"], [3.0, "shot"]]},
 	"box": {"steps": [[2.0, "box"], [0.1, "goto"], [0.4, "shot"]]},
@@ -193,6 +195,13 @@ func _do(what: String) -> void:
 		"traveller":
 			w.arrive_traveller()
 			w.camera.position = Vector2(260, -20)
+		"child":
+			var kid: Node2D = w.birth()
+			w.camera.position = Vector2(kid.position.x, -10)
+			w.camera.zoom = Vector2(2, 2)
+			w.select([kid])
+		"labour":
+			w.set_child_labour(true)
 		"hunt":
 			w.camera.position = Vector2(480, -20)
 			w.camera.zoom = Vector2(2, 2)

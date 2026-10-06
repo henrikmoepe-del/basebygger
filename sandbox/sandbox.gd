@@ -66,6 +66,9 @@ var raid_on := false
 ## Seconds since the first morning, and the Night work policy.
 var time := 0.0
 var night_work := false
+## The Child labour policy (children haul and forage at half pace).
+var child_labour := false
+var _last_hour := 8.0
 ## The alarm bell: while rung, everyone left to themselves shelters inside
 ## the castle (guards go to their post).
 var alarm := false
@@ -724,6 +727,44 @@ func set_alarm(on: bool) -> void:
 		p.rethink()
 
 
+func set_child_labour(on: bool) -> void:
+	child_labour = on
+	for p in peasants:
+		if p.child:
+			p._set_child_prio()
+			p.rethink()
+	announce("Child labour: " + ("children haul and pick berries at half pace." if on else "children play."))
+
+
+## At dawn, maybe a child is born to a couple (while the Huts have room).
+func _maybe_birth() -> void:
+	var huts := sites.filter(func(s): return s.has_beds()).size()
+	var kids := peasants.filter(func(p): return p.child).size()
+	if kids >= huts or randf() >= SbData.BIRTH_CHANCE:
+		return
+	birth()
+
+
+## A child is born to two grown-ups (picked at random).
+func birth() -> Node2D:
+	var adults: Array = peasants.filter(func(p): return not p.child and not p.downed)
+	if adults.size() < 2:
+		return null
+	adults.shuffle()
+	var used := peasants.map(func(p): return p.person_name)
+	var free: Array = SbData.NAMES.filter(func(n): return not used.has(n))
+	var name_: String = free.pick_random() if not free.is_empty() else "Child %d" % (peasants.size() + 1)
+	var kid: Node2D = _add(Peasant, adults[0].position + Vector2(-8, 4))
+	kid.setup(name_, "hauler")
+	kid.make_child([adults[0], adults[1]])
+	peasants.append(kid)
+	for p in peasants:
+		p.remember("new_child")
+	announce("A child, %s, is born to %s and %s." % [name_, adults[0].person_name, adults[1].person_name])
+	traveller_changed.emit()
+	return kid
+
+
 func set_night_work(on: bool) -> void:
 	night_work = on
 	announce("Night work: " + ("everyone works through the night." if on else "everyone sleeps at night."))
@@ -745,6 +786,15 @@ func darkness() -> float:
 
 func _process(delta: float) -> void:
 	time += delta
+	# Dawn: maybe a birth. Children grow up.
+	var h := hour()
+	if _last_hour < SbData.NIGHT_TO and h >= SbData.NIGHT_TO:
+		_maybe_birth()
+	_last_hour = h
+	for p in peasants:
+		if p.child and time - p.born >= SbData.CHILD_DAYS * SbData.DAY_LENGTH:
+			p.grow_up()
+			traveller_changed.emit()
 	if auto_raids and time >= next_traveller:
 		next_traveller += SbData.TRAVELLER_EVERY * SbData.DAY_LENGTH
 		if traveller == null:
