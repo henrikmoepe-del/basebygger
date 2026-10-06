@@ -161,6 +161,9 @@ func site_fits(building: String, x: float) -> bool:
 func cancel_site(site: Node2D) -> void:
 	for i in mini(site.placed, 8):
 		spawn_item(site.laid[i], site.position + Vector2(randf_range(-site.width() / 2.0, site.width() / 2.0), randf_range(6, 14)))
+	for res in site.stock:
+		for i in site.stock[res]:
+			spawn_item(res, site.pile_spot() + Vector2(randf_range(-6, 6), randf_range(0, 6)))
 	announce("The %s is cancelled." % site.title)
 	if picked_site == site:
 		pick_site(null)
@@ -214,6 +217,7 @@ func announce(text: String) -> void:
 func find_work(p: Node2D, work: String) -> Dictionary:
 	var best: Node2D = null
 	var best_score := INF
+	var supply := ""
 	var list: Array = []
 	match work:
 		"firefight":
@@ -234,7 +238,7 @@ func find_work(p: Node2D, work: String) -> Dictionary:
 		var score := p.position.distance_to(t.position)
 		if work == "build":
 			var need: String = t.next_material()
-			if p.carrying != need and stockyard.stock.get(need, 0) <= 0:
+			if p.carrying != need and stockyard.stock.get(need, 0) <= 0 and t.stock[need] <= 0:
 				continue
 			# Spread out: a site with fewer builders on it is better; an
 			# urgent one comes first.
@@ -246,8 +250,25 @@ func find_work(p: Node2D, work: String) -> Dictionary:
 		if score < best_score:
 			best_score = score
 			best = t
+	if work == "haul":
+		# Hauling also means bringing building material to the sites.
+		for site in sites:
+			if site.done():
+				continue
+			for res in ["stone", "wood"]:
+				if site.wanted(res) <= 0 or stockyard.stock[res] <= 0:
+					continue
+				var score := p.position.distance_to(stockyard.position) + stockyard.position.distance_to(site.position) * 0.5
+				if site.urgent:
+					score -= 1000.0
+				if score < best_score:
+					best_score = score
+					best = site
+					supply = res
 	if best == null:
 		return {}
+	if supply != "":
+		return {"kind": "supply", "target": best, "score": best_score, "res": supply}
 	return {"kind": work, "target": best, "score": best_score}
 
 

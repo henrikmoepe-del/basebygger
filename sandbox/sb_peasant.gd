@@ -123,6 +123,8 @@ func activity() -> String:
 	var prefix := "Ordered: " if task.get("forced", false) else ""
 	var t: Node2D = task.get("target")
 	match task.get("kind", ""):
+		"supply":
+			return prefix + "bringing %s to %s" % [task.res, t.label()]
 		"build":
 			if _short != "":
 				return prefix + "waiting for %s for %s" % [_short, t.label()]
@@ -225,7 +227,7 @@ func _choose() -> void:
 				best_score = cand.score
 				best = cand
 		if not best.is_empty():
-			task = {"kind": best.kind, "target": best.target, "forced": false}
+			task = {"kind": best.kind, "target": best.target, "forced": false, "res": best.get("res", "")}
 			_claim_task()
 			return
 	task = {"kind": "idle"}
@@ -235,9 +237,13 @@ func _choose() -> void:
 func _claim_task() -> void:
 	var t = task.get("target")
 	if t != null and is_instance_valid(t):
-		t.claim(self)
+		# Bringing material to a site is not building there.
+		if task.get("kind", "") != "supply":
+			t.claim(self)
 		if t.kind == "item":
 			t.carried_by = self
+		if task.get("kind", "") == "supply":
+			t.incoming[task.res] += 1
 
 
 func _end_task() -> void:
@@ -246,6 +252,8 @@ func _end_task() -> void:
 		t.release(self)
 		if t.kind == "item" and t.carried_by == self:
 			t.carried_by = null
+		if task.get("kind", "") == "supply":
+			t.incoming[task.res] = maxi(t.incoming[task.res] - 1, 0)
 	task = {}
 	_timer = 0.0
 	_short = ""
@@ -277,6 +285,8 @@ func _do_task(delta: float) -> void:
 	match task.get("kind", ""):
 		"build":
 			_do_build(t, delta)
+		"supply":
+			_do_supply(t, delta)
 		"chop":
 			_do_gather(t, delta, "chop")
 		"mine":
@@ -301,6 +311,14 @@ func _do_task(delta: float) -> void:
 
 func _do_build(site: Node2D, delta: float) -> void:
 	var need: String = site.next_material()
+	if carrying != need and site.stock[need] > 0 and carrying == "":
+		# Material brought by a hauler lies at the site: take it from there.
+		if _go(site.pile_spot() + Vector2(4, 2), delta):
+			if site.stock[need] > 0:
+				site.stock[need] -= 1
+				site.queue_redraw()
+				carrying = need
+		return
 	if carrying != need:
 		var yard: Node2D = world.stockyard
 		if _go(yard.work_spot(self), delta):
@@ -323,6 +341,26 @@ func _do_build(site: Node2D, delta: float) -> void:
 			site.add_block(carrying)
 			carrying = ""
 			_finish_unit()
+
+
+## Brings one load of material from the stockyard to a building site.
+func _do_supply(site: Node2D, delta: float) -> void:
+	var res: String = task.res
+	if carrying != res:
+		if carrying != "":
+			_drop()
+		var yard: Node2D = world.stockyard
+		if _go(yard.work_spot(self), delta):
+			if yard.take(res):
+				carrying = res
+			else:
+				_end_task()
+		return
+	if _go(site.pile_spot() + Vector2(6, 4), delta):
+		site.stock[res] += 1
+		site.queue_redraw()
+		carrying = ""
+		_end_task()
 
 
 func _do_gather(thing: Node2D, delta: float, how: String) -> void:

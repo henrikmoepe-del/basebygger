@@ -50,6 +50,9 @@ func _run() -> void:
 	var started: int = w.sites.filter(func(s): return s.placed > 0).size()
 	_check(started >= 2, "builders spread over sites by themselves (%d sites started)" % started)
 
+	var supplied := await _wait(60.0, func(): return w.sites.any(func(s): return s.stock.stone + s.stock.wood > 0))
+	_check(supplied, "the hauler brings material to a building site")
+
 	# 2. Order three builders to the Tower.
 	var builders: Array = w.peasants.filter(func(p): return p.job == "builder")
 	var tower: Node2D = w.sites[2]

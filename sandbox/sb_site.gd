@@ -13,6 +13,10 @@ var cols := 5
 ## One material per block, bottom course first, left to right.
 var mats: Array = []
 var placed := 0
+## Material brought here by haulers, waiting to be laid, and what is on
+## its way (so two haulers do not bring the same block).
+var stock := {"wood": 0, "stone": 0}
+var incoming := {"wood": 0, "stone": 0}
 ## Builders choosing for themselves prefer a site marked urgent.
 var urgent := false
 var selected := false
@@ -44,6 +48,21 @@ func done() -> bool:
 ## The material the next block needs, or "" when finished.
 func next_material() -> String:
 	return "" if done() else mats[placed]
+
+
+## How many more of this material the site still needs brought, past what
+## lies here or is on its way. At most a few at a time are wanted.
+func wanted(res: String) -> int:
+	var left := 0
+	for i in range(placed, mats.size()):
+		if mats[i] == res:
+			left += 1
+	return mini(left, 6) - stock[res] - incoming[res]
+
+
+## Where delivered material lies: a pile at the front left of the site.
+func pile_spot() -> Vector2:
+	return position + Vector2(-width() / 2.0 - 8.0, 8.0)
 
 
 func add_block(material: String) -> void:
@@ -144,6 +163,14 @@ func _draw() -> void:
 		_draw_finish(left, w)
 	if _flash > 0.0:
 		draw_rect(Rect2(left, -height(), w, height()), Color(SbData.LIGHT, _flash * 0.6))
+	# The pile of delivered material, beside the name board.
+	var pile := pile_spot() - position
+	var n := 0
+	for res in ["stone", "wood"]:
+		for i in mini(stock[res], 6):
+			var c: Color = (SbData.STONE3 if i % 2 == 0 else SbData.STONE2) if res == "stone" else (SbData.WOOD2 if i % 2 == 0 else SbData.WOOD3)
+			draw_rect(Rect2(pile.x - 6.0 + (n % 3) * 4.0, pile.y - 3.0 - (n / 3) * 3.0, 4, 3), c)
+			n += 1
 	if selected:
 		draw_rect(Rect2(left - 3.0, -height() - 3.0, w + 6.0, height() + 6.0), SbData.GOLD, false, 1.0)
 	if urgent and not done():
