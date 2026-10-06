@@ -69,6 +69,14 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
      stockyard to steal (dropped loot can be hauled back). Each carries a torch and
      may set one building alight as they pass it: fires knock blocks off until put
      out (a fire with nothing left to burn dies down).
+   - **Mood:** each peasant's mood drifts towards 55 plus their thoughts: needs
+     (hungry, tired), states (in pain, drafted, Night work) and memories that
+     fade (ate a meal, slept in a bed or on the ground, was hurt, saw someone go
+     down, a raid beaten). The card shows the mood bar, where it is heading (a
+     tick) and the strongest thoughts. At 75 and up they work 10% faster. Below
+     15, someone left to themselves has had enough and sulks for 30 seconds (a
+     little dark cloud), then feels better; orders, drafting and the bell still
+     come first.
    - **Traits** (as in the main game): Quick and Slow walk faster or slower,
      Hard-working and Lazy work faster or slower. Shown on the card.
    - **Dozing** (one of the "small things to click"): by day, someone working while

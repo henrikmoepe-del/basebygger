@@ -159,6 +159,9 @@ func _do(what: String) -> void:
 			var p: Node2D = w.peasants[4]
 			p.hunger = 70.0
 			p.hp = 6.0
+			p.remember("saw_down")
+			p.remember("ate")
+			p.mood = 40.0
 			w.select([p])
 		"mill":
 			var mill: Node2D = w.sites.filter(func(s): return s.is_workshop())[0]

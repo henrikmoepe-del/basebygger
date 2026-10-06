@@ -263,10 +263,10 @@ func _make_site_panel() -> void:
 func _make_card() -> void:
 	_card = PanelContainer.new()
 	_card.visible = false
-	_card.position = Vector2(4, 118)
+	_card.position = Vector2(4, 80)
 	_root.add_child(_card)
 	_card_body = Control.new()
-	_card_body.custom_minimum_size = Vector2(136, 120)
+	_card_body.custom_minimum_size = Vector2(136, 160)
 	_card_body.draw.connect(_draw_card)
 	_card.add_child(_card_body)
 
@@ -281,13 +281,20 @@ func _draw_card() -> void:
 	var c := _card_body
 	c.draw_string(font, Vector2(0, 9), "%s, %s" % [p.person_name, p.job_name()], HORIZONTAL_ALIGNMENT_LEFT, -1, 10, UiTheme.GOLD)
 	c.draw_string(font, Vector2(0, 19), "%s: %s" % [p.trait_name(), SbData.TRAITS[p.trait_key].text], HORIZONTAL_ALIGNMENT_LEFT, 136, 8, UiTheme.PARCHMENT_DIM)
-	var bars := [["Health", p.hp / p.max_hp, SbData.GRASS3], ["Fed", 1.0 - p.hunger / 100.0, SbData.GOLD], ["Rested", 1.0 - p.tired / 100.0, SbData.SKY2]]
+	var bars := [["Health", p.hp / p.max_hp, SbData.GRASS3], ["Fed", 1.0 - p.hunger / 100.0, SbData.GOLD], ["Rested", 1.0 - p.tired / 100.0, SbData.SKY2], ["Mood", p.mood / 100.0, SbData.RED1 if p.mood < SbData.MOOD_BREAK + 10.0 else SbData.TEAL]]
 	var y := 23.0
 	for bar in bars:
 		c.draw_string(font, Vector2(0, y + 7), bar[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 8, UiTheme.PARCHMENT)
 		c.draw_rect(Rect2(40, y + 1, 78, 6), SbData.INK)
 		c.draw_rect(Rect2(40, y + 1, 78.0 * clampf(bar[1], 0.0, 1.0), 6), bar[2])
 		y += 10.0
+	# The mood's target, as a tick on the bar, and the strongest thoughts.
+	var target: float = p.mood_target() / 100.0
+	c.draw_rect(Rect2(40 + 78.0 * target - 1.0, y - 10.0, 1, 8), UiTheme.PARCHMENT)
+	for th in p.thoughts().slice(0, 3):
+		var col := UiTheme.GOOD if th[1] > 0.0 else UiTheme.BAD
+		c.draw_string(font, Vector2(4, y + 7), "%s %+d" % [th[0], int(th[1])], HORIZONTAL_ALIGNMENT_LEFT, 130, 8, col)
+		y += 9.0
 	y += 3.0
 	for w in SbData.SKILLED:
 		var lvl: int = p.skill[w]

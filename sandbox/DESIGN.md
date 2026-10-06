@@ -72,8 +72,10 @@ something. Buildings stand at the back edge; the hurt lie in front of the Hut.
 1. **Jobs or priorities in front?** Is the Work overview (W) too much? It could
    be hidden behind a "Details" button, leaving only jobs.
 2. **Should orders beat needs?** Now an ordered peasant works on even when
-   starving (slower). RimWorld lets a starving colonist break; we could add
-   "breaks" (refuse orders, sit down) when needs are at 100.
+   starving (slower). A first version of breaks is in: mood below 15 makes a
+   peasant left to themselves sulk for a while, but orders and drafting still
+   come first. RimWorld goes further: a break ignores orders too. Which feels
+   right here?
 3. **Skills or trades?** Skills grow by doing here. The main game buys trades
    with renown (a trained peasant wears a hat). Both could live together:
    trades unlock a job, skills make a person good at it.

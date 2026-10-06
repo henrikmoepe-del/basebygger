@@ -41,6 +41,11 @@ var prio := {}
 ## towards the next level in seconds.
 var skill := {}
 var practice := {}
+## Mood, 0-100, memories (key of SbData.MEMORIES -> seconds left) and
+## sulking (seconds left of a break).
+var mood := 55.0
+var memories := {}
+var sulking := 0.0
 ## Needs, 0-100 (see SbData.HUNGER_TIME and TIRED_TIME).
 var hunger := 0.0
 var tired := 0.0
@@ -114,12 +119,57 @@ func skill_mult(work: String) -> float:
 		pace *= SbData.NIGHT_PACE
 	if _boost > 0.0:
 		pace *= SbData.BOOST
+	if mood >= SbData.MOOD_HIGH:
+		pace *= SbData.MOOD_HIGH_PACE
 	pace *= SbData.TRAITS[trait_key].get("work", 1.0)
 	return (0.6 + 0.08 * float(skill.get(work, 5))) * pace
 
 
 func trait_name() -> String:
 	return SbData.TRAITS[trait_key].name
+
+
+## Something to remember for a while (a key of SbData.MEMORIES).
+func remember(key: String) -> void:
+	memories[key] = SbData.MEMORIES[key].time
+
+
+## What the peasant is thinking: [text, value] pairs, worst and best first.
+func thoughts() -> Array:
+	var list: Array = []
+	if hunger >= 100.0:
+		list.append(["Starving", -20.0])
+	elif hunger >= SbData.HUNGER_NEED:
+		list.append(["Hungry", -8.0])
+	if tired >= 100.0:
+		list.append(["Worn out", -15.0])
+	elif tired >= SbData.TIRED_NEED:
+		list.append(["Tired", -6.0])
+	if hp < max_hp:
+		list.append(["In pain", -4.0])
+	if drafted:
+		list.append(["Drafted", -3.0])
+	if world.night_work:
+		list.append(["Night work", -5.0])
+	for key in memories:
+		list.append([SbData.MEMORIES[key].text, SbData.MEMORIES[key].value])
+	list.sort_custom(func(a, b): return absf(a[1]) > absf(b[1]))
+	return list
+
+
+func mood_target() -> float:
+	var t := SbData.MOOD_BASE
+	for th in thoughts():
+		t += th[1]
+	return clampf(t, 0.0, 100.0)
+
+
+func _update_mood(delta: float) -> void:
+	for key in memories.keys():
+		memories[key] -= delta
+		if memories[key] <= 0.0:
+			memories.erase(key)
+	mood = move_toward(mood, mood_target(), SbData.MOOD_DRIFT * delta)
 
 
 ## Woken by the player's click: a start, and a short burst of effort.
@@ -284,6 +334,8 @@ func activity() -> String:
 		return "Down, hurt"
 	if dozing > 0.0:
 		return "Dozing on the job! (click to wake)"
+	if sulking > 0.0 and task.get("kind", "") == "sulk":
+		return "Sulking (mood too low)"
 	if drafted and not task.get("forced", false):
 		return "Drafted: fighting a raider" if task.get("kind", "") == "fight" else "Drafted: holding"
 	var prefix := ("Drafted: " if drafted else "Ordered: ") if task.get("forced", false) else ""
@@ -340,11 +392,16 @@ func damage(n: float) -> void:
 		downed = true
 		drafted = false
 		dozing = 0.0
+		sulking = 0.0
 		_drop()
 		queue.clear()
 		order = {}
 		_end_task()
 		world.sound("lost")
+		remember("hurt")
+		for other in world.peasants:
+			if other != self and other.position.distance_to(position) < 90.0:
+				other.remember("saw_down")
 		world.announce("%s is down!" % person_name)
 	queue_redraw()
 
@@ -357,6 +414,7 @@ func _process(delta: float) -> void:
 	_walking = false
 	_anim = ""
 	hunger = minf(hunger + 100.0 / SbData.HUNGER_TIME * delta, 100.0)
+	_update_mood(delta)
 	if not _asleep:
 		var tiring := SbData.NIGHT_TIRING if world.is_night() else 1.0
 		tired = minf(tired + 100.0 / SbData.TIRED_TIME * tiring * delta, 100.0)
@@ -384,6 +442,27 @@ func _process(delta: float) -> void:
 		return
 	if order.is_empty() and not queue.is_empty() and task.get("kind", "") != "deliver":
 		_next_order()
+	if sulking > 0.0:
+		# Had enough: sulking, no work. Orders, drafting, the bell and danger break it.
+		sulking -= delta
+		if order.is_empty() and not drafted and not world.alarm and world.nearest_raider(position, FLEE_FROM) == null and sulking > 0.0:
+			if task.get("kind", "") != "sulk":
+				_end_task()
+				if carrying == "person":
+					_drop()
+				task = {"kind": "sulk"}
+			_do_idle(delta)
+			queue_redraw()
+			return
+		if sulking <= 0.0:
+			remember("sulked")
+		sulking = 0.0
+		if task.get("kind", "") == "sulk":
+			_end_task()
+	elif mood < SbData.MOOD_BREAK and order.is_empty() and not drafted and not world.alarm:
+		sulking = SbData.SULK_TIME
+		world.announce("%s has had enough and sulks for a while." % person_name)
+		return
 	if dozing > 0.0:
 		# Nodding off on the job: nothing gets done until it passes or a click wakes them.
 		dozing -= delta
@@ -467,7 +546,7 @@ func _check_needs() -> void:
 
 ## Working by day while tired, one may nod off (lazy ones more often).
 func _may_doze(delta: float) -> bool:
-	if not order.is_empty() or drafted or world.is_night() or tired < SbData.DOZE_TIRED:
+	if not order.is_empty() or drafted or world.is_night() or tired < SbData.DOZE_TIRED or sulking > 0.0:
 		return false
 	var k: String = task.get("kind", "")
 	if not (k in ["build", "chop", "mine", "forage", "craft"]) or carrying == "person":
@@ -922,6 +1001,7 @@ func _do_eat(delta: float) -> void:
 			_timer = 0.0
 			if yard.take("food"):
 				hunger = maxf(hunger - 70.0, 0.0)
+				remember("ate")
 			_end_task()
 
 
@@ -944,6 +1024,7 @@ func _do_sleep(delta: float) -> void:
 	var time := SbData.SLEEP_TIME_BED if _sleep_bed != null else SbData.SLEEP_TIME
 	tired = maxf(tired - 100.0 / time * delta, 0.0)
 	if tired <= 0.0 and not _bedtime():
+		remember("bed" if _sleep_bed != null else "ground")
 		_end_task()
 
 
@@ -1103,6 +1184,12 @@ func _draw() -> void:
 	if _anim == "throw":
 		draw_rect(Rect2(6, bob - 14, 3, 2), SbData.SKY3)
 		draw_rect(Rect2(9, bob - 12, 2, 2), SbData.SKY2)
+	if sulking > 0.0:
+		# A little dark cloud over the head.
+		draw_rect(Rect2(-4, bob - 28, 8, 3), SbData.STONE1)
+		draw_rect(Rect2(-3, bob - 30, 5, 2), SbData.STONE1)
+		draw_rect(Rect2(-2, bob - 25, 1, 2), SbData.SKY2)
+		draw_rect(Rect2(2, bob - 25, 1, 2), SbData.SKY2)
 	if dozing > 0.0:
 		var zt := fmod(Time.get_ticks_msec() / 1000.0, 2.0)
 		draw_rect(Rect2(4 + zt * 2.0, bob - 22 - zt * 4.0, 3, 1), SbData.WHITE)

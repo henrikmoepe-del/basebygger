@@ -128,6 +128,27 @@ const DOZE_TIME := 25.0
 const BOOST := 1.25
 const BOOST_TIME := 20.0
 
+## Mood, 0-100: drifts (MOOD_DRIFT a second) towards MOOD_BASE plus the
+## peasant's thoughts. Thoughts come from needs and states (see sb_peasant.gd
+## `thoughts`) and from MEMORIES that last a while. At MOOD_HIGH and above
+## they work faster; below MOOD_BREAK, left to themselves, they sulk for
+## SULK_TIME and then feel better ("let off steam").
+const MOOD_BASE := 55.0
+const MOOD_DRIFT := 1.0
+const MOOD_HIGH := 75.0
+const MOOD_HIGH_PACE := 1.1
+const MOOD_BREAK := 15.0
+const SULK_TIME := 30.0
+const MEMORIES := {
+	"ate": {"text": "Ate a meal", "value": 4.0, "time": 90.0},
+	"bed": {"text": "Slept in a bed", "value": 6.0, "time": 150.0},
+	"ground": {"text": "Slept on the ground", "value": -5.0, "time": 150.0},
+	"hurt": {"text": "Was hurt", "value": -12.0, "time": 240.0},
+	"saw_down": {"text": "Saw someone go down", "value": -6.0, "time": 120.0},
+	"raid_won": {"text": "A raid beaten", "value": 8.0, "time": 180.0},
+	"sulked": {"text": "Let off steam", "value": 15.0, "time": 120.0},
+}
+
 ## Beds in a finished Hut; the hurt get better faster in one.
 const HUT_BEDS := 2
 const HEAL := 0.15

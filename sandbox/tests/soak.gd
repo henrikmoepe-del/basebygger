@@ -9,6 +9,7 @@ const SPEED := 8.0
 var _world: Node2D
 var _days := 3.0
 var _idle := {}
+var _sulks := 0
 
 
 func _initialize() -> void:
@@ -17,6 +18,7 @@ func _initialize() -> void:
 			_days = float(arg.substr(7))
 	_world = load("res://sandbox/sandbox.tscn").instantiate()
 	root.add_child(_world)
+	_world.announced.connect(func(text): if text.contains("has had enough"): _sulks += 1)
 	_run.call_deferred()
 
 
@@ -50,9 +52,9 @@ func _run() -> void:
 			next_report += hour * 3.0
 			var line := "Day %d %02d:00 stock %s sites %s items %d |" % [w.day(), int(w.hour()), w.stockyard.stock, w.sites.map(func(s): return "%s %d/%d" % [s.title, s.placed, s.mats.size()]), w.items.size()]
 			for p in w.peasants:
-				line += " %s:%s%s" % [p.person_name.substr(0, 3), p.task.get("kind", "-"), "(down)" if p.downed else ""]
+				line += " %s:%s%s/%d" % [p.person_name.substr(0, 3), p.task.get("kind", "-"), "(down)" if p.downed else "", int(p.mood)]
 			print(line)
-	print("raids: %d, deer shot: %d" % [w.raids, w.deer_shot])
+	print("raids: %d, deer shot: %d, sulks: %d, moods now: %s" % [w.raids, w.deer_shot, _sulks, w.peasants.map(func(p): return int(p.mood))])
 	if not w.fires.is_empty():
 		print("WARN fires still burning: ", w.fires.size())
 	var counts := {}

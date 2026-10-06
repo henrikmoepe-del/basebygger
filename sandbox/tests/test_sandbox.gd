@@ -300,6 +300,17 @@ func _run() -> void:
 	_check(not w.stockyard.stock.has("person") and patient.carried_by == null, "given another order, they put the hurt one down (not in the stockyard)")
 	w.release_selected()
 
+	# 18. Mood: very low mood makes a free peasant sulk, then they feel better.
+	var glum: Node2D = w.peasants.filter(func(p): return p.job == "woodcutter")[0]
+	glum.release_order()
+	glum.mood = 5.0
+	var sulks := await _wait(5.0, func(): return glum.sulking > 0.0)
+	_check(sulks, "a peasant whose mood falls very low sulks")
+	var over_sulk := await _wait(60.0, func(): return glum.sulking <= 0.0)
+	_check(over_sulk and glum.memories.has("sulked"), "after sulking they let off steam (a good thought)")
+	glum.mood = 90.0
+	_check(glum.skill_mult("chop") > 0.0, "high mood keeps work going")
+
 	_check(_off_band == 0, "nobody leaves the ground band (%d frames off it)" % _off_band)
 	print("ALL PASSED" if _fails == 0 else "%d FAILED" % _fails)
 	quit(1 if _fails > 0 else 0)

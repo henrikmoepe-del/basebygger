@@ -254,6 +254,7 @@ func remove_thing(t: Node2D) -> void:
 		sound("won")
 		announce("The raid is over.")
 		for p in peasants:
+			p.remember("raid_won")
 			p.rethink()
 
 
