@@ -97,9 +97,12 @@
   whose raiders carry torches; fires peasants put out with buckets; mood from thoughts
   (sulking when very low); traits and dozing (click to wake); children and a Child labour
   policy; travellers asking to join; the hooded man with dark gifts; cave-ins that trap
-  miners. Several of these are from Henrik's lists. `sandbox/DESIGN.md` explains the
+  miners; werewolves at night (deep shadow and red); strikes (a feast ends them); a traitor
+  stealing at night; pause (Space) with orders while paused; warm light at night. Many of
+  these are from Henrik's lists. `sandbox/README.md` starts with a "try this first" list. `sandbox/DESIGN.md` explains the
   choices and lists open questions for Henrik.
-- Sandbox tests: `sandbox/tests/run_tests.sh` (stops at script errors, exits non-zero on any
+- Sandbox tests: `sandbox/tests/run_tests.sh` (stops at script errors, runs the logic test
+  and, with xvfb, `test_input.gd` with real mouse and key events; exits non-zero on any
   failed check; commit only when it passes). Tests set `world.calm` so random mishaps stay
   out of checks that need things to go as planned.
 - `sandbox/tests/soak.gd` runs the map for days and reports anything stuck; it found real
