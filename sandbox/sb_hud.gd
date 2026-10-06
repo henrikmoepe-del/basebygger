@@ -21,6 +21,7 @@ var _jobs: HBoxContainer
 var _grid: HBoxContainer
 var _log: VBoxContainer
 var _work: PanelContainer
+var _draft_button: Button
 var _build: PanelContainer
 var _site_panel: PanelContainer
 var _site_label: Label
@@ -43,7 +44,7 @@ func _ready() -> void:
 	_make_build()
 	_make_site_panel()
 	var help := Label.new()
-	help.text = "Left-click: select (Shift adds)  Drag: box  Right-click: order  R: release  1-5: job  W: work  B: build  A/D: pan"
+	help.text = "Left-click: select (Shift adds)  Drag: box  Right-click: order  R: release  1-5: job  G: draft  W: work  B: build"
 	help.add_theme_font_size_override("font_size", 8)
 	help.add_theme_color_override("font_color", UiTheme.PARCHMENT_DIM)
 	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
@@ -126,6 +127,10 @@ func _make_panel() -> void:
 		b.tooltip_text = "Priority for %s work: 1 first, 3 last, - never. Click to change." % SbData.WORK_NAMES[w]
 		b.set_meta("work", w)
 		_grid.add_child(b)
+	_draft_button = _button("Draft (G)", func(): world.toggle_draft_selected())
+	_compact(_draft_button)
+	_draft_button.tooltip_text = "Drafted: they stop working, stand where you send them and fight raiders who come near."
+	_grid.add_child(_draft_button)
 	var release := _button("Release (R)", func(): world.release_selected())
 	UiTheme.make_compact(release)
 	release.add_theme_font_size_override("font_size", 9)
@@ -370,12 +375,16 @@ func _rebuild_panel() -> void:
 		more.text = "and %d more" % (world.selected.size() - shown)
 		_rows.add_child(more)
 	var first: Node2D = world.selected[0]
+	var all_drafted: bool = world.selected.all(func(p): return p.drafted)
+	_draft_button.text = "Undraft (G)" if all_drafted else "Draft (G)"
+	_draft_button.add_theme_color_override("font_color", UiTheme.BAD if all_drafted else UiTheme.PARCHMENT)
 	for b in _jobs.get_children():
 		var all_same: bool = world.selected.all(func(p): return p.job == b.get_meta("job"))
 		b.add_theme_color_override("font_color", UiTheme.GOLD if all_same else UiTheme.PARCHMENT)
 	for b in _grid.get_children():
 		if not b.has_meta("work"):
 			continue
+		b.disabled = all_drafted
 		var w: String = b.get_meta("work")
 		var v: int = first.prio[w]
 		b.text = "%s %s" % [SbData.WORK_NAMES[w], str(v) if v > 0 else "-"]

@@ -48,6 +48,7 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
 | Left-click a building site | Its progress; make it **Urgent** (builders go there first, red pennant) or **Cancel** it |
 | W (or Work) | The Work overview: every peasant's job and priorities, click to change |
 | Shift + right-click | Queue the order after the ones already given (numbered dotted lines) |
+| G (or Draft) | Draft the selected: they drop their work, get a cudgel and a red shield mark, stand where you send them and fight any raider who comes near. G again to undraft |
 | R | Release the selected: back to free will (clears the queue too) |
 | 1-5 | Make the selected Builders, Woodcutters, Miners, Haulers or Guards |
 | Esc | Deselect |

@@ -416,6 +416,15 @@ func release_selected() -> void:
 	selection_changed.emit()
 
 
+## Drafts the selected, or undrafts them if they all are already.
+func toggle_draft_selected() -> void:
+	var all_drafted := selected.all(func(p): return p.drafted)
+	for p in selected:
+		if not p.downed:
+			p.set_drafted(not all_drafted)
+	selection_changed.emit()
+
+
 func set_job_selected(job: String) -> void:
 	for p in selected:
 		p.set_job(job)
@@ -472,6 +481,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		match (event as InputEventKey).keycode:
 			KEY_R:
 				release_selected()
+			KEY_G:
+				toggle_draft_selected()
 			KEY_ESCAPE:
 				placing = ""
 				select([])

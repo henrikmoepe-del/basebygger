@@ -103,13 +103,26 @@ func _run() -> void:
 	var out := await _wait(90.0, func(): return w.fires.is_empty())
 	_check(out, "a fire in the stockyard is put out by the peasants")
 
-	# 6. A raid ends (beaten or gone) and the non-fighters flee meanwhile.
+	# 6. A raid. Two builders are drafted and sent west to meet it.
+	var drafted: Array = builders.slice(0, 2)
+	w.select(drafted)
+	w.toggle_draft_selected()
+	_check(drafted.all(func(p): return p.drafted and p.task.get("kind", "") != "build"), "drafting stops their work")
+	w.give_order(Vector2(-200, 40))
+	await _wait(10.0)
+	_check(drafted.all(func(p): return p.position.distance_to(Vector2(-200, 40)) < 20.0 and p.order.is_empty()), "drafted peasants go where sent and hold there")
 	w.start_raid(3)
+	var engaged := await _wait(40.0, func(): return drafted.any(func(p): return p.task.get("kind", "") == "fight"))
+	_check(engaged, "drafted peasants fight raiders who come near")
 	await _wait(25.0)
-	var fighting_auto: int = w.peasants.filter(func(p): return p.task.get("kind", "") == "fight" and p.prio.fight == 0 and not p.task.get("forced", false)).size()
+	var fighting_auto: int = w.peasants.filter(func(p): return p.task.get("kind", "") == "fight" and p.prio.fight == 0 and not p.drafted and not p.task.get("forced", false)).size()
 	_check(fighting_auto == 0, "peasants who are not guards do not fight by themselves")
 	var over := await _wait(200.0, func(): return not w.raid_on)
 	_check(over, "the raid ends")
+	w.select(drafted.filter(func(p): return not p.downed))
+	w.toggle_draft_selected()
+	await _wait(3.0)
+	_check(drafted.all(func(p): return not p.drafted), "undrafting gives them back to work")
 
 	# 7. Placing a building: not over another one; a new one gets built.
 	_check(not w.site_fits("hut", w.sites[0].position.x), "a building cannot be placed over another")

@@ -20,6 +20,8 @@ const PLANS := {
 	"build": {"steps": [[1.0, "place"], [0.2, "shot"], [0.1, "placed"], [15.0, "shot"]]},
 	# Queued orders (Shift + right-click): numbered dotted lines.
 	"queue": {"steps": [[1.0, "queue"], [1.5, "shot"]]},
+	# Three builders drafted and sent to meet a raid.
+	"draft": {"steps": [[2.0, "draft"], [0.1, "raid"], [11.0, "shot"], [4.0, "shot"]]},
 	"box": {"steps": [[2.0, "box"], [0.1, "goto"], [0.4, "shot"]]},
 }
 
@@ -99,6 +101,10 @@ func _do(what: String) -> void:
 			w.give_order(w.trees[2].position + Vector2(0, -4))
 			w.give_order(w.rocks[1].position + Vector2(0, -4), true)
 			w.give_order(Vector2(260, 60), true)
+		"draft":
+			w.select(w.peasants.filter(func(p): return p.job == "builder"))
+			w.toggle_draft_selected()
+			w.give_order(Vector2(-220, 40))
 		"work":
 			w.peasants[3].cycle_prio("haul")
 			w.hud.toggle_work()

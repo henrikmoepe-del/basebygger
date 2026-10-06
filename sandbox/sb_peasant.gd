@@ -14,6 +14,8 @@ const THROW_TIME := 0.5
 const HIT_EVERY := 1.0
 const REACH := 9.0
 const FLEE_FROM := 70.0
+## How near a raider must come before a drafted peasant goes for it.
+const DRAFT_ENGAGE := 45.0
 
 var person_name := ""
 var job := "builder"
@@ -27,6 +29,10 @@ var selected := false
 var order := {}
 ## Orders queued after this one (Shift + right-click), done in turn.
 var queue: Array = []
+## Drafted (G): no work and no fleeing; stands where told and fights any
+## raider that comes near, until undrafted.
+var drafted := false
+var _hold := Vector2.ZERO
 var task := {}
 ## What is on the shoulder: "", "wood", "stone" or "water".
 var carrying := ""
@@ -99,6 +105,20 @@ func set_order(o: Dictionary, add := false) -> void:
 	queue_redraw()
 
 
+## Draft or undraft. Drafting drops the work in hand (and what is carried).
+func set_drafted(on: bool) -> void:
+	if on == drafted:
+		return
+	drafted = on
+	queue.clear()
+	order = {}
+	_end_task()
+	if on:
+		_drop()
+		_hold = position
+	queue_redraw()
+
+
 ## Drop the order and go back to choosing work by oneself.
 func release_order() -> void:
 	queue.clear()
@@ -144,7 +164,9 @@ func forget(t: Node2D) -> void:
 func activity() -> String:
 	if downed:
 		return "Down, hurt"
-	var prefix := "Ordered: " if task.get("forced", false) else ""
+	if drafted and not task.get("forced", false):
+		return "Drafted: fighting a raider" if task.get("kind", "") == "fight" else "Drafted: holding"
+	var prefix := ("Drafted: " if drafted else "Ordered: ") if task.get("forced", false) else ""
 	var t: Node2D = task.get("target")
 	match task.get("kind", ""):
 		"supply":
@@ -180,7 +202,9 @@ func damage(n: float) -> void:
 	if hp <= 0.0:
 		hp = 0.0
 		downed = true
+		drafted = false
 		_drop()
+		queue.clear()
 		order = {}
 		_end_task()
 		world.announce("%s is down!" % person_name)
@@ -205,6 +229,8 @@ func _process(delta: float) -> void:
 		_next_order()
 	if not order.is_empty():
 		task = order
+	elif drafted:
+		_drafted_think()
 	else:
 		_check_flee()
 		if not _task_valid():
@@ -212,6 +238,22 @@ func _process(delta: float) -> void:
 	_do_task(delta)
 	position.y = clampf(position.y, SbData.WALK_TOP, SbData.WALK_BOTTOM)
 	queue_redraw()
+
+
+## Drafted and without an order: go for a raider that comes near, else
+## stand at the spot one was sent to.
+func _drafted_think() -> void:
+	var t = task.get("target")
+	if task.get("kind", "") == "fight" and t != null and is_instance_valid(t) and t.is_open():
+		return
+	var r: Node2D = world.nearest_raider(position, DRAFT_ENGAGE)
+	if r == null:
+		r = world.nearest_raider(_hold, DRAFT_ENGAGE)
+	if r != null:
+		task = {"kind": "fight", "target": r, "forced": false}
+		_claim_task()
+	else:
+		task = {"kind": "goto", "pos": _hold, "forced": false}
 
 
 func _check_flee() -> void:
@@ -324,8 +366,11 @@ func _do_task(delta: float) -> void:
 		"fight":
 			_do_fight(t, delta)
 		"goto":
-			if _go(task.pos, delta) and not queue.is_empty():
-				# Holding a spot ends when there is more to do after it.
+			if _go(task.pos, delta) and forced and (drafted or not queue.is_empty()):
+				# Holding a spot ends when there is more to do after it. A
+				# drafted peasant holds the new spot from now on.
+				if drafted:
+					_hold = task.pos
 				_order_done()
 		"deliver":
 			_process_deliver(delta)
@@ -442,7 +487,7 @@ func _do_fight(raider: Node2D, delta: float) -> void:
 	_anim = "fight"
 	if _cool <= 0.0:
 		_cool = HIT_EVERY
-		raider.damage(3.0 if job == "guard" else 1.5)
+		raider.damage(3.0 if job == "guard" else (2.0 if drafted else 1.5))
 
 
 func _do_idle(delta: float) -> void:
@@ -534,6 +579,10 @@ func _draw() -> void:
 		"hauler":
 			draw_rect(Rect2(-4, bob - 18, 8, 1), SbData.THATCH)
 			draw_rect(Rect2(-2, bob - 19, 4, 1), SbData.THATCH)
+	if drafted and job != "guard":
+		# A cudgel in hand.
+		draw_rect(Rect2(4, bob - 15, 1, 9), SbData.WOOD0)
+		draw_rect(Rect2(3, bob - 17, 3, 3), SbData.WOOD1)
 	# What is carried, on the shoulder.
 	match carrying:
 		"wood":
@@ -575,7 +624,12 @@ func _draw_marks(top: float) -> void:
 		draw_rect(Rect2(r + 1, top + 4, 1, 2), c)
 		draw_rect(Rect2(l, b - 1, 1, 2), c)
 		draw_rect(Rect2(r + 1, b - 1, 1, 2), c)
-	if not order.is_empty() or not queue.is_empty():
+	if drafted:
+		# A small red shield over the head.
+		draw_rect(Rect2(-2, top - 4, 5, 4), SbData.RED1)
+		draw_rect(Rect2(-1, top, 3, 1), SbData.RED1)
+		draw_rect(Rect2(0, top - 3, 1, 2), SbData.GOLD)
+	elif not order.is_empty() or not queue.is_empty():
 		draw_rect(Rect2(-1, top - 4, 2, 4), SbData.GOLD)
 		draw_rect(Rect2(-1, top + 1, 2, 1), SbData.GOLD)
 	if hp < max_hp:
