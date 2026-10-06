@@ -593,6 +593,13 @@ func _unhandled_input(event: InputEvent) -> void:
 				placing = ""
 			return
 		if mb.button_index == MOUSE_BUTTON_LEFT:
+			if mb.pressed and mb.double_click:
+				# Double-click: everyone with the same job.
+				var q := peasant_at(at)
+				if q != null:
+					select(peasants.filter(func(o): return o.job == q.job and not o.downed))
+				_drag_from = Vector2.INF
+				return
 			if mb.pressed:
 				_drag_from = at
 			elif _drag_from != Vector2.INF:
@@ -638,6 +645,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				set_alarm(not alarm)
 			KEY_X:
 				toggle_forbid(get_global_mouse_position())
+			KEY_A when (event as InputEventKey).ctrl_pressed:
+				select(peasants.filter(func(o): return not o.downed))
 			KEY_ESCAPE:
 				placing = ""
 				select([])
@@ -707,7 +716,7 @@ func _process(delta: float) -> void:
 			_add_deer(Vector2(SbData.EAST_EDGE - 10, randf_range(10, 70)))
 	_tint.color = Color.WHITE.lerp(SbData.NIGHT_TINT, darkness())
 	var pan := Input.get_axis("ui_left", "ui_right")
-	if Input.is_key_pressed(KEY_A):
+	if Input.is_key_pressed(KEY_A) and not Input.is_key_pressed(KEY_CTRL):
 		pan -= 1.0
 	if Input.is_key_pressed(KEY_D):
 		pan += 1.0

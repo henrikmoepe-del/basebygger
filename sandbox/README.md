@@ -85,6 +85,8 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
 |---|---|
 | Left-click a peasant | Select (Shift adds or removes) |
 | Drag with the left button | Select everyone in the box |
+| Double-click a peasant | Select everyone with the same job |
+| Ctrl+A | Select everyone |
 | Click a name in the bar at the top | Select that peasant |
 | Right-click a site | Build there |
 | Right-click a tree / rock / berry bush | Chop it / mine it / pick it, until it is used up |
