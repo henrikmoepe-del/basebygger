@@ -94,8 +94,14 @@
   sleep) with berry bushes and foragers; day and night with a Night work policy; a Sawmill
   with a bill (keep N planks) and a Crafter; hunting deer in the wood to the east; an alarm
   bell (everyone shelters inside the gate); forbidding things (X); raids on a timetable
-  whose raiders carry torches; fires peasants put out with buckets. `sandbox/DESIGN.md`
-  explains the choices and lists open questions for Henrik.
+  whose raiders carry torches; fires peasants put out with buckets; mood from thoughts
+  (sulking when very low); traits and dozing (click to wake); children and a Child labour
+  policy; travellers asking to join; the hooded man with dark gifts; cave-ins that trap
+  miners. Several of these are from Henrik's lists. `sandbox/DESIGN.md` explains the
+  choices and lists open questions for Henrik.
+- Sandbox tests: `sandbox/tests/run_tests.sh` (stops at script errors, exits non-zero on any
+  failed check; commit only when it passes). Tests set `world.calm` so random mishaps stay
+  out of checks that need things to go as planned.
 - `sandbox/tests/soak.gd` runs the map for days and reports anything stuck; it found real
   problems the short test missed (hauling never worked, items piling up, endless fires).
 - Tests: `godot --headless --fixed-fps 60 --path . -s sandbox/tests/test_sandbox.gd`;
