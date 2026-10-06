@@ -93,8 +93,10 @@ func add_block(material: String) -> void:
 		return
 	laid.append(material)
 	placed += 1
+	world.sound("place", position)
 	if done():
 		_flash = 1.0
+		world.sound("built", position)
 		world.announce("The %s is finished." % title)
 	queue_redraw()
 
@@ -274,3 +276,7 @@ func _draw_finish(left: float, w: float) -> void:
 			draw_colored_polygon(PackedVector2Array([Vector2(left + w / 2.0, top - 32), Vector2(left + w / 2.0 + 7, top - 30), Vector2(left + w / 2.0, top - 28)]), SbData.RED1)
 			draw_rect(Rect2(left + w / 2.0 - 1.0, top + 8.0, 2, 4), SbData.INK)
 			draw_rect(Rect2(left + w / 2.0 - 3.0, -10.0, 6, 10), SbData.WOOD0)
+
+
+func describe() -> String:
+	return progress_text() + (" (forbidden)" if forbidden else "")

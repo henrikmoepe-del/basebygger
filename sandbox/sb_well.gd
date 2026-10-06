@@ -25,3 +25,7 @@ func _draw() -> void:
 	draw_rect(Rect2(5, -20, 2, 12), SbData.WOOD1)
 	draw_colored_polygon(PackedVector2Array([Vector2(-10, -18), Vector2(0, -25), Vector2(10, -18)]), SbData.WOOD2)
 	draw_rect(Rect2(-1, -15, 2, 4), SbData.STONE1)
+
+
+func describe() -> String:
+	return "The well: buckets for putting out fires"

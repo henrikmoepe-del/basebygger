@@ -33,6 +33,7 @@ func mine(amount: float) -> bool:
 	if _progress < MINE_TIME:
 		return false
 	_progress = 0.0
+	world.sound("mine", position)
 	stone -= 1
 	world.spawn_item("stone", position + Vector2(randf_range(-12, 12), randf_range(3, 8)))
 	if stone == 0:
@@ -73,3 +74,9 @@ func _draw() -> void:
 	draw_colored_polygon(pts, SbData.STONE2)
 	draw_colored_polygon(PackedVector2Array([Vector2(-10 + jig, -10 * f), Vector2(-3 + jig, -15 * f), Vector2(1 + jig, -9 * f), Vector2(-6 + jig, -6 * f)]), SbData.STONE3)
 	draw_line(Vector2(2 + jig, -12 * f), Vector2(5 + jig, -4 * f), SbData.STONE1, 1.0)
+
+
+func describe() -> String:
+	if stone <= 0:
+		return "A rock, used up for now"
+	return "A rock: %d stone left%s" % [stone, " (forbidden)" if forbidden else ""]

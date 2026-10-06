@@ -78,3 +78,7 @@ func _draw() -> void:
 	for i in 6:
 		var p := Vector2(sin(t + i) * 4.0, -20.0 - strength * 10.0 - i * 4.0 - fmod(t * 6.0, 4.0))
 		draw_rect(Rect2(p, Vector2(2, 2)), Color(SbData.STONE1, 0.5))
+
+
+func describe() -> String:
+	return "Fire at %s (%d%%)" % [host.label(), roundi(strength * 100.0)]

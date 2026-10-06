@@ -69,3 +69,9 @@ func _draw() -> void:
 	draw_circle(Vector2(3 + j, -6), 4.0, SbData.GRASS2)
 	for i in berries * 2:
 		draw_rect(Rect2(-5 + (i * 7) % 11 + j, -9 + (i * 5) % 7, 2, 2), SbData.RED1)
+
+
+func describe() -> String:
+	if berries <= 0:
+		return "A berry bush, picked bare"
+	return "A berry bush: %d basket%s%s" % [berries, "" if berries == 1 else "s", " (forbidden)" if forbidden else ""]

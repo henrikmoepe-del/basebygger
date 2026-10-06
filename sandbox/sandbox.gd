@@ -32,6 +32,8 @@ const Stockyard := preload("res://sandbox/sb_stockyard.gd")
 const Well := preload("res://sandbox/sb_well.gd")
 const Backdrop := preload("res://sandbox/sb_backdrop.gd")
 const Hud := preload("res://sandbox/sb_hud.gd")
+## The main game's sound effects, made in code (M mutes).
+const Sfx := preload("res://scripts/sfx.gd")
 
 const ZOOMS := [0.5, 1.0, 2.0, 3.0]
 
@@ -103,6 +105,7 @@ func _ready() -> void:
 	camera.make_current()
 	next_raid = time_at(SbData.FIRST_RAID_DAY, SbData.RAID_HOUR)
 	_build_map()
+	add_child(Sfx.new())
 	hud = CanvasLayer.new()
 	hud.set_script(Hud)
 	hud.world = self
@@ -248,9 +251,32 @@ func remove_thing(t: Node2D) -> void:
 	t.queue_free()
 	if t.kind == "raider" and raid_on and raiders.is_empty():
 		raid_on = false
+		sound("won")
 		announce("The raid is over.")
 		for p in peasants:
 			p.rethink()
+
+
+## Plays one of the main game's sounds, if where it happens is on screen.
+func sound(name_: String, at := Vector2.INF) -> void:
+	if at != Vector2.INF:
+		var half := get_viewport_rect().size / 2.0 / camera.zoom
+		if absf(at.x - camera.position.x) > half.x + 20.0 or absf(at.y - camera.position.y) > half.y + 40.0:
+			return
+	get_tree().call_group("sfx", "play", name_)
+
+
+## What is under the mouse: the first thing whose shape is there, open or not.
+func thing_at(at: Vector2) -> Node2D:
+	for list in [raiders, fires, deer, items, bushes, rocks, trees, sites]:
+		for t in list:
+			if t.hit(at):
+				return t
+	if stockyard.hit(at):
+		return stockyard
+	if well.hit(at):
+		return well
+	return null
 
 
 func announce(text: String) -> void:
@@ -755,7 +781,11 @@ func _draw_hint(at: Vector2) -> void:
 	var p := peasant_at(at)
 	if p != null and not (p.is_open() and not selected.is_empty()):
 		text = "%s, %s: %s" % [p.person_name, p.job_name(), p.activity().to_lower()]
-	elif not selected.is_empty():
+	elif selected.is_empty():
+		var t := thing_at(at)
+		if t != null:
+			text = t.describe()
+	else:
 		var o := order_at(at)
 		if o.kind == "goto":
 			text = "Go here" + (" and hold" if selected.any(func(s): return s.drafted) else "")

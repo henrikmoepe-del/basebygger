@@ -133,3 +133,7 @@ func _draw() -> void:
 	if hp < 8.0:
 		draw_rect(Rect2(-5, -22, 10, 1), SbData.RED0)
 		draw_rect(Rect2(-5, -22, 10.0 * hp / 8.0, 1), SbData.GOLD)
+
+
+func describe() -> String:
+	return "A raider: %d / 8 health%s" % [ceili(hp), ", carrying %s" % loot if loot != "" and loot != "none" else ""]

@@ -34,6 +34,7 @@ func chop(amount: float) -> bool:
 	if _progress < CHOP_TIME:
 		return false
 	_progress = 0.0
+	world.sound("chop", position)
 	wood -= 1
 	world.spawn_item("wood", position + Vector2(randf_range(-12, 12), randf_range(3, 9)))
 	if wood == 0:
@@ -79,3 +80,9 @@ func _draw() -> void:
 	# A notch shows how far the chopping has got.
 	if wood < _full or _progress > 0.0:
 		draw_rect(Rect2(-2 * s, -5, 2, 3), SbData.WOOD3)
+
+
+func describe() -> String:
+	if wood <= 0:
+		return "A stump, growing back"
+	return "A tree: %d log%s left%s" % [wood, "" if wood == 1 else "s", " (forbidden)" if forbidden else ""]

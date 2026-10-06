@@ -19,6 +19,8 @@ func take(res: String) -> bool:
 
 func put(res: String, n := 1) -> void:
 	stock[res] = stock.get(res, 0) + n
+	if world != null:
+		world.sound("deliver", position)
 	queue_redraw()
 
 
@@ -78,3 +80,7 @@ func _draw() -> void:
 		draw_string(ThemeDB.fallback_font, Vector2(-62, -12), "%d" % stock.planks, HORIZONTAL_ALIGNMENT_RIGHT, 22, 8, SbData.PLANK)
 	draw_string(ThemeDB.fallback_font, Vector2(-30, -36), str(stock.wood), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, SbData.WHITE)
 	draw_string(ThemeDB.fallback_font, Vector2(10, -36), str(stock.stone), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, SbData.WHITE)
+
+
+func describe() -> String:
+	return "The stockyard: %d wood, %d stone, %d food, %d planks" % [stock.wood, stock.stone, stock.food, stock.planks]

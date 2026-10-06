@@ -40,6 +40,8 @@ const PLANS := {
 	"torch": {"steps": [[0.5, "torch"], [13.0, "shot"]]},
 	# Someone dozing on the job, and the card showing their trait.
 	"doze": {"steps": [[2.0, "doze"], [1.0, "shot"]]},
+	# Pointing at a rock with nobody selected.
+	"point": {"steps": [[1.0, "point"], [0.5, "shot"]]},
 	# The hunter in the wood, aiming at a deer.
 	"hunt": {"steps": [[0.5, "hunt"], [5.5, "shot"], [3.0, "shot"]]},
 	"box": {"steps": [[2.0, "box"], [0.1, "goto"], [0.4, "shot"]]},
@@ -178,6 +180,11 @@ func _do(what: String) -> void:
 			w.select([w.peasants[1]])
 			w.camera.position = Vector2(p.position.x, -20)
 			w.camera.zoom = Vector2(2, 2)
+		"point":
+			w.camera.position = Vector2(330, -20)
+			var r: Node2D = w.rocks[0]
+			var screen: Vector2 = (r.position + Vector2(0, -6) - w.camera.position) * w.camera.zoom + Vector2(320, 180)
+			Input.warp_mouse(screen * 2.0)
 		"hunt":
 			w.camera.position = Vector2(480, -20)
 			w.camera.zoom = Vector2(2, 2)

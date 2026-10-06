@@ -44,6 +44,11 @@ func label() -> String:
 	return kind
 
 
+## A line for pointing at it with nobody selected.
+func describe() -> String:
+	return label().capitalize() + (" (forbidden)" if forbidden else "")
+
+
 func claim(peasant: Node2D) -> void:
 	if not workers.has(peasant):
 		workers.append(peasant)

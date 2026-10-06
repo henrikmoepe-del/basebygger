@@ -339,6 +339,7 @@ func damage(n: float) -> void:
 		queue.clear()
 		order = {}
 		_end_task()
+		world.sound("lost")
 		world.announce("%s is down!" % person_name)
 	queue_redraw()
 
@@ -647,6 +648,8 @@ func _do_build(site: Node2D, delta: float) -> void:
 		return
 	if _go(site.work_spot(self), delta):
 		_anim = "build"
+		if int((_timer + delta) / 0.4) != int(_timer / 0.4):
+			world.sound("hammer", position)
 		_timer += delta * skill_mult("build")
 		learn("build", delta)
 		if _timer >= PLACE_TIME:
@@ -758,6 +761,7 @@ func _do_hunt(prey: Node2D, delta: float) -> void:
 		_timer = 0.0
 		_arrow = 0.25
 		_arrow_to = prey.position + Vector2(0, -6)
+		world.sound("arrow", position)
 		if randf() < HIT_BASE + HIT_PER_LEVEL * float(skill.hunt):
 			var where: Vector2 = prey.position
 			prey.shot()
