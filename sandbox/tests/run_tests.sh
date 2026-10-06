@@ -7,4 +7,7 @@ if [ -n "$errors" ]; then
 	echo "$errors"
 	exit 1
 fi
-timeout 600 godot --headless --fixed-fps 60 --path . -s sandbox/tests/test_sandbox.gd 2>&1 | grep -E "PASS|FAIL|ALL|SCRIPT ERROR|^  "
+out=$(timeout 600 godot --headless --fixed-fps 60 --path . -s sandbox/tests/test_sandbox.gd 2>&1 | grep -E "PASS|FAIL|ALL|SCRIPT ERROR|^  ")
+echo "$out"
+# Exit 0 only when every check passed.
+echo "$out" | grep -q "ALL PASSED"

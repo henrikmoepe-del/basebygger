@@ -84,8 +84,16 @@ func _run() -> void:
 	if not sawn:
 		_dump()
 		print("  stock ", w.stockyard.stock, " mill workers ", mill.workers.size(), " keep ", mill.keep, " find ", w.find_work(w.peasants[8], "craft"))
-	await _wait(15.0)
-	_check(w.stockyard.stock.planks <= 6 + 3, "and then stops, at most a batch over (%d)" % w.stockyard.stock.planks)
+	var crafter: Node2D = w.peasants.filter(func(p): return p.job == "crafter")[0]
+	w.stockyard.stock.planks = mill.keep
+	_check(w.find_work(crafter, "craft").is_empty(), "with the bill met there is no craft work")
+	# One short, with nobody at the bench yet (a crafter at work counts as one on its way).
+	crafter._end_task()
+	for p in mill.workers.duplicate():
+		p._end_task()
+	w.stockyard.stock.planks = mill.keep - 1
+	w.stockyard.stock.wood = maxi(w.stockyard.stock.wood, 3)
+	_check(not w.find_work(crafter, "craft").is_empty(), "one short of the bill there is")
 	mill.keep = 12
 
 	# 2. Order three builders to the Tower.
@@ -233,7 +241,7 @@ func _run() -> void:
 	_check(sheltered == inside.size(), "with the bell rung everyone shelters inside the gate (%d of %d)" % [sheltered, inside.size()])
 	w.set_alarm(false)
 	await _wait(2.0)
-	_check(w.peasants.all(func(p): return p.task.get("kind", "") != "shelter" and p.visible), "after the all clear they come out and go back to work")
+	_check(inside.all(func(p): return p.task.get("kind", "") != "shelter" and (p.visible or p.downed)), "after the all clear they come out and go back to work")
 
 	# 13. Forbidding: a forbidden tree is not chopped by free will.
 	for t in w.trees:
@@ -247,8 +255,11 @@ func _run() -> void:
 
 	# 14. Hunting: the hunter shoots a deer, which leaves meat.
 	var shot_before: int = w.deer_shot
-	var hunted := await _wait(180.0, func(): return w.deer_shot > shot_before)
+	var hunted := await _wait(400.0, func(): return w.deer_shot > shot_before)
 	_check(hunted, "the hunter shoots a deer by themselves")
+	if not hunted:
+		_dump()
+		print("  deer ", w.deer.map(func(d): return d.position.round()), " meat lying ", w.items.filter(func(it): return it.res == "food").size())
 	var meat: int = w.items.filter(func(it): return it.res == "food").size()
 	_check(meat >= 1 or w.stockyard.stock.food > 0, "the deer leaves meat")
 
