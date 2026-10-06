@@ -74,6 +74,12 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
      their trait). Taken in, they start as a Hauler and get a place in the bar of
      names; sent away, they walk off. (From Henrik's next steps: "a traveller asks
      to join".)
+   - **The hooded man** (Henrik's "mystical man with dark gifts"): from day 3,
+     every 3 days, a hooded stranger waits at the edge of the wood and offers a
+     gift: strange fruit (+25 food), black planks (+15), or making someone far
+     better at their trade (+3 skill levels). Take it, and a while later the
+     price comes, unannounced: someone falls ill, a cold blue fire starts, or
+     everyone has dark dreams (a bad thought).
    - **Children:** at each dawn, while there are fewer children than finished Huts,
      a couple may have a child (everyone is glad: a good thought). Children are
      small (10 high, as the art direction says), have no job, follow a parent
@@ -142,6 +148,7 @@ dotted line to what they are working on (gold for an order, white for free will)
 - `sb_thing.gd`: the base for anything that can be worked on or ordered to.
 - `sb_site.gd`, `sb_tree.gd`, `sb_rock.gd`, `sb_bush.gd`, `sb_deer.gd`, `sb_item.gd`, `sb_fire.gd`,
   `sb_raider.gd`, `sb_stockyard.gd`, `sb_well.gd`: the things in the world.
+- `sb_stranger.gd`: the hooded man (looks only).
 - `sb_backdrop.gd`: sky, mountains, the castle wall, the ground band and path.
 - `sb_hud.gd`: top bar, the bar of peasants, the panel for the selected, messages.
 - `tests/run_tests.sh`: loads the map once to catch script errors, then runs

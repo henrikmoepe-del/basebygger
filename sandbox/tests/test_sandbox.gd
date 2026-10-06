@@ -315,9 +315,10 @@ func _run() -> void:
 	var before_n: int = w.peasants.size()
 	w.arrive_traveller()
 	var guest: Node2D = w.traveller
+	_check(not w.question.is_empty(), "the player is asked about the traveller")
 	await _wait(30.0)
 	_check(guest.position.distance_to(w.stockyard.position) < 60.0 and guest.task.get("kind", "") == "goto", "a traveller walks to the stockyard and waits")
-	w.answer_traveller(true)
+	w.answer_question(0)
 	await _wait(10.0)
 	_check(w.peasants.size() == before_n + 1 and not guest.guest, "taken in, they join the village")
 	_check(guest.task.get("kind", "") != "goto", "and get to work by themselves")
@@ -339,6 +340,17 @@ func _run() -> void:
 	kid.born -= SbData.CHILD_DAYS * SbData.DAY_LENGTH
 	await _wait(1.0)
 	_check(not kid.child and kid.job == "hauler", "after 3 days the child grows up and works")
+
+	# 21. The hooded man: take his gift, and the price comes later.
+	var food_before: int = w.stockyard.stock.food
+	var planks_before: int = w.stockyard.stock.planks
+	w.arrive_stranger()
+	_check(not w.question.is_empty() and w.stranger != null, "the hooded man offers a gift")
+	w.answer_question(0)
+	_check(w.stranger == null and w._price_at > 0.0, "taking it, a price is owed")
+	var messages_before: int = w.messages.size()
+	await _wait(SbData.STRANGER_PRICE_AFTER + 5.0)
+	_check(w._price_at < 0.0, "the price comes due later")
 
 	_check(_off_band == 0, "nobody leaves the ground band (%d frames off it)" % _off_band)
 	print("ALL PASSED" if _fails == 0 else "%d FAILED" % _fails)

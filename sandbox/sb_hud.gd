@@ -55,7 +55,8 @@ func _ready() -> void:
 	_make_site_panel()
 	_make_card()
 	_make_ask()
-	world.traveller_changed.connect(_on_traveller)
+	world.traveller_changed.connect(rebuild_bar)
+	world.question_changed.connect(_on_question)
 	var help := Label.new()
 	help.text = "Left-click: select (Shift adds)  Drag: box  Right-click: order  R: release  1-8: job  G: draft  X: forbid  L: bell"
 	help.add_theme_font_size_override("font_size", 8)
@@ -313,31 +314,39 @@ func _draw_card() -> void:
 		y += 9.0
 
 
-## The question when a traveller asks to join.
+## The question box: whatever the world asks (a traveller, the hooded man).
+var _ask_row: HBoxContainer
+
+
 func _make_ask() -> void:
 	_ask = PanelContainer.new()
 	_ask.visible = false
-	_ask.position = Vector2(200, 60)
+	_ask.position = Vector2(150, 60)
 	_root.add_child(_ask)
 	var box := VBoxContainer.new()
 	_ask.add_child(box)
 	_ask_label = Label.new()
 	_ask_label.add_theme_font_size_override("font_size", 10)
+	_ask_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_ask_label.custom_minimum_size = Vector2(320, 0)
 	box.add_child(_ask_label)
-	var row := HBoxContainer.new()
-	box.add_child(row)
-	for spec in [["Take them in", true], ["Send them away", false]]:
-		var b := _button(spec[0], func(): world.answer_traveller(spec[1]))
+	_ask_row = HBoxContainer.new()
+	box.add_child(_ask_row)
+
+
+func _on_question() -> void:
+	var q: Dictionary = world.question
+	_ask.visible = not q.is_empty()
+	for c in _ask_row.get_children():
+		c.queue_free()
+	if q.is_empty():
+		return
+	_ask_label.text = q.text
+	for i in q.options.size():
+		var b := _button(q.options[i], func(): world.answer_question(i))
 		_compact(b)
-		row.add_child(b)
-
-
-func _on_traveller() -> void:
-	var t: Node2D = world.traveller
-	_ask.visible = t != null
-	if t != null:
-		_ask_label.text = "%s (%s: %s) asks to join." % [t.person_name, t.trait_name(), SbData.TRAITS[t.trait_key].text]
-	rebuild_bar()
+		_ask_row.add_child(b)
+	_ask.reset_size()
 
 
 ## The bar of names, rebuilt when someone joins. Buttons shrink to fit.

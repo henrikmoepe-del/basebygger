@@ -148,6 +148,7 @@ const MEMORIES := {
 	"raid_won": {"text": "A raid beaten", "value": 8.0, "time": 180.0},
 	"sulked": {"text": "Let off steam", "value": 15.0, "time": 120.0},
 	"new_child": {"text": "A child was born", "value": 6.0, "time": 240.0},
+	"dreams": {"text": "Dark dreams", "value": -10.0, "time": 200.0},
 }
 
 ## Travellers who ask to join: the first on FIRST_TRAVELLER_DAY at
@@ -164,6 +165,24 @@ const BIRTH_CHANCE := 0.5
 const CHILD_DAYS := 3.0
 const CHILD_PACE := 0.5
 const CHILD_WORK := {"haul": 1, "forage": 2}
+
+## The mystical man: from STRANGER_FIRST_DAY at STRANGER_HOUR, every
+## STRANGER_EVERY days, a hooded stranger offers one of the GIFTS. Taken, one
+## of the PRICES comes STRANGER_PRICE_AFTER seconds later.
+const STRANGER_FIRST_DAY := 3
+const STRANGER_HOUR := 11.0
+const STRANGER_EVERY := 3
+const STRANGER_PRICE_AFTER := 90.0
+const GIFTS := {
+	"food": "a cart of strange, sweet fruit (+25 food)",
+	"skill": "to make one of your people far better at their work (+3 skill levels)",
+	"planks": "a stack of black, never-rotting planks (+15 planks)",
+}
+const PRICES := {
+	"sick": "%s falls ill with a strange fever.",
+	"fire": "A cold blue fire starts at %s.",
+	"dreams": "Everyone dreams of the hooded man.",
+}
 
 ## Beds in a finished Hut; the hurt get better faster in one.
 const HUT_BEDS := 2

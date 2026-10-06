@@ -40,6 +40,8 @@ const ZOOMS := [0.5, 1.0, 2.0, 3.0]
 signal selection_changed
 ## A traveller waits at the stockyard to be taken in or sent away (null when gone).
 signal traveller_changed
+## A question for the player is up or gone (see `ask`).
+signal question_changed
 signal announced(text: String)
 
 var peasants: Array = []
@@ -81,6 +83,13 @@ var next_raid := 0.0
 ## The traveller asking to join, if any, and when the next one comes.
 var traveller: Node2D = null
 var next_traveller := 0.0
+## The question the player is asked, or {}: "text", "options" (button
+## labels) and "answer" (a Callable taking the chosen index).
+var question := {}
+## The mystical man: when he comes next, and the price still owed.
+var next_stranger := 0.0
+var stranger: Node2D = null
+var _price_at := -1.0
 
 var camera: Camera2D
 var things: Node2D
@@ -113,6 +122,7 @@ func _ready() -> void:
 	camera.make_current()
 	next_raid = time_at(SbData.FIRST_RAID_DAY, SbData.RAID_HOUR)
 	next_traveller = time_at(SbData.FIRST_TRAVELLER_DAY, SbData.TRAVELLER_HOUR)
+	next_stranger = time_at(SbData.STRANGER_FIRST_DAY, SbData.STRANGER_HOUR)
 	_build_map()
 	add_child(Sfx.new())
 	hud = CanvasLayer.new()
@@ -243,6 +253,77 @@ func _add_deer(at: Vector2) -> void:
 	deer.append(d)
 
 
+## Asks the player something: buttons for the options, and `answer` is
+## called with the index chosen.
+func ask(text: String, options: Array, answer: Callable) -> void:
+	question = {"text": text, "options": options, "answer": answer}
+	question_changed.emit()
+
+
+func answer_question(i: int) -> void:
+	if question.is_empty():
+		return
+	var q := question
+	question = {}
+	question_changed.emit()
+	q.answer.call(i)
+
+
+## The mystical man: a hooded stranger at the edge of the wood offers a gift.
+func arrive_stranger() -> void:
+	var gift: String = SbData.GIFTS.keys().pick_random()
+	stranger = Node2D.new()
+	stranger.set_script(preload("res://sandbox/sb_stranger.gd"))
+	stranger.position = Vector2(WOOD_FROM - 20.0, 22)
+	things.add_child(stranger)
+	announce("A hooded stranger waits at the edge of the wood.")
+	ask("A hooded man offers %s. \"Only a small favour in return, later.\"" % SbData.GIFTS[gift], ["Take the gift", "Send him away"], func(i: int) -> void:
+		if i == 0:
+			_take_gift(gift)
+		else:
+			announce("The hooded man bows and is gone.")
+		stranger.queue_free()
+		stranger = null)
+
+
+func _take_gift(gift: String) -> void:
+	match gift:
+		"food":
+			stockyard.put("food", 25)
+		"planks":
+			stockyard.put("planks", 15)
+		"skill":
+			var adults: Array = peasants.filter(func(p): return not p.child)
+			var p: Node2D = adults.pick_random()
+			# Their own trade's skill (a guard's is fighting).
+			var own: Array = SbData.JOBS[p.job].work.keys().filter(func(k): return SbData.SKILLED.has(k) and SbData.JOBS[p.job].work[k] == 1)
+			var w: String = own.front() if not own.is_empty() else "fight"
+			p.skill[w] = mini(p.skill[w] + 3, SbData.SKILL_MAX)
+			announce("%s wakes up knowing far more about %s." % [p.person_name, SbData.WORK_NAMES[w].to_lower()])
+	announce("The gift is yours. The hooded man smiles.")
+	_price_at = time + SbData.STRANGER_PRICE_AFTER
+
+
+## The price of the gift comes due.
+func pay_price() -> void:
+	var price: String = SbData.PRICES.keys().pick_random()
+	match price:
+		"sick":
+			var p: Node2D = peasants.filter(func(o): return not o.downed).pick_random()
+			if p != null:
+				p.hp = 1.0
+				p.remember("hurt")
+				announce(SbData.PRICES.sick % p.person_name)
+		"fire":
+			var hosts: Array = sites.filter(func(s): return s.placed > 0)
+			var host: Node2D = hosts.pick_random() if not hosts.is_empty() else stockyard
+			start_fire(host, SbData.PRICES.fire % host.label())
+		"dreams":
+			for p in peasants:
+				p.remember("dreams")
+			announce(SbData.PRICES.dreams)
+
+
 ## A traveller walks in from the east and waits at the stockyard.
 func arrive_traveller() -> void:
 	var used := peasants.map(func(p): return p.person_name)
@@ -256,12 +337,16 @@ func arrive_traveller() -> void:
 	traveller = t
 	announce("A traveller, %s (%s), asks to join the village." % [name_, t.trait_name()])
 	traveller_changed.emit()
+	ask("%s (%s: %s) asks to join." % [name_, t.trait_name(), SbData.TRAITS[t.trait_key].text], ["Take them in", "Send them away"], func(i: int) -> void: answer_traveller(i == 0))
 
 
 ## Takes the traveller in (a Hauler to start with) or sends them away.
 func answer_traveller(take: bool) -> void:
 	if traveller == null:
 		return
+	if not question.is_empty() and question.text.begins_with(traveller.person_name):
+		question = {}
+		question_changed.emit()
 	var t := traveller
 	traveller = null
 	if take:
@@ -797,8 +882,15 @@ func _process(delta: float) -> void:
 			traveller_changed.emit()
 	if auto_raids and time >= next_traveller:
 		next_traveller += SbData.TRAVELLER_EVERY * SbData.DAY_LENGTH
-		if traveller == null:
+		if traveller == null and question.is_empty():
 			arrive_traveller()
+	if auto_raids and time >= next_stranger:
+		next_stranger += SbData.STRANGER_EVERY * SbData.DAY_LENGTH
+		if question.is_empty():
+			arrive_stranger()
+	if _price_at >= 0.0 and time >= _price_at:
+		_price_at = -1.0
+		pay_price()
 	if auto_raids and time >= next_raid:
 		next_raid += SbData.RAID_EVERY * SbData.DAY_LENGTH
 		start_raid(SbData.RAID_BASE + raids)
