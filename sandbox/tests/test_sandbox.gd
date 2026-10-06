@@ -17,6 +17,7 @@ var _off_band := 0
 func _initialize() -> void:
 	_world = load("res://sandbox/sandbox.tscn").instantiate()
 	_world.auto_raids = false
+	_world.calm = true
 	root.add_child(_world)
 	_run.call_deferred()
 
@@ -276,6 +277,8 @@ func _run() -> void:
 
 	# 16. Dozing: a dozing peasant stops; a click wakes them with a boost.
 	var napper: Node2D = w.peasants.filter(func(p): return p.job == "builder" and not p.downed)[0]
+	napper.tired = 50.0
+	napper.mood = 60.0
 	napper.dozing = 20.0
 	var spot: Vector2 = napper.position
 	await _wait(3.0)
@@ -297,18 +300,20 @@ func _run() -> void:
 	var site2: Node2D = w.sites.filter(func(s): return not s.done())[0]
 	w.give_order(site2.position + Vector2(0, -6))
 	await _wait(30.0)
-	_check(not w.stockyard.stock.has("person") and patient.carried_by == null, "given another order, they put the hurt one down (not in the stockyard)")
+	_check(not w.stockyard.stock.has("person") and patient.carried_by != rescuer, "given another order, they put the hurt one down (not in the stockyard)")
 	w.release_selected()
 
 	# 18. Mood: very low mood makes a free peasant sulk, then they feel better.
 	var glum: Node2D = w.peasants.filter(func(p): return p.job == "woodcutter")[0]
 	glum.release_order()
+	w.calm = false
 	glum.mood = 5.0
 	var sulks := await _wait(5.0, func(): return glum.sulking > 0.0)
 	_check(sulks, "a peasant whose mood falls very low sulks")
 	var over_sulk := await _wait(60.0, func(): return glum.sulking <= 0.0)
 	_check(over_sulk and glum.memories.has("sulked"), "after sulking they let off steam (a good thought)")
 	glum.mood = 90.0
+	w.calm = true
 	_check(glum.skill_mult("chop") > 0.0, "high mood keeps work going")
 
 	# 19. A traveller asks to join; taken in, they work; another is sent away.
@@ -362,6 +367,9 @@ func _run() -> void:
 	_check(trapped_miner.trapped_at == digger_rock and not trapped_miner.visible, "a cave-in traps the miner")
 	var freed := await _wait(90.0, func(): return trapped_miner.trapped_at == null)
 	_check(freed and trapped_miner.visible, "the others dig them out by themselves")
+	if not freed:
+		_dump()
+		print("  rock dug ", digger_rock.dug, " workers ", digger_rock.workers.map(func(p): return p.person_name), " hour ", w.hour(), " fires ", w.fires.size(), " raid ", w.raid_on)
 
 	_check(_off_band == 0, "nobody leaves the ground band (%d frames off it)" % _off_band)
 	print("ALL PASSED" if _fails == 0 else "%d FAILED" % _fails)

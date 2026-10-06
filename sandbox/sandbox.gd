@@ -79,6 +79,9 @@ var _tint: CanvasModulate
 var raids := 0
 ## Raids on a timetable (tests turn it off), and when the next one comes.
 var auto_raids := true
+## No random mishaps (cave-ins, dozing off, sulking): for tests that need
+## things to go as planned; those mishaps are tested on their own.
+var calm := false
 var next_raid := 0.0
 ## The traveller asking to join, if any, and when the next one comes.
 var traveller: Node2D = null

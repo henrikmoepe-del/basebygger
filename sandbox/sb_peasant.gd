@@ -539,7 +539,7 @@ func _process(delta: float) -> void:
 		sulking = 0.0
 		if task.get("kind", "") == "sulk":
 			_end_task()
-	elif mood < SbData.MOOD_BREAK and order.is_empty() and not drafted and not world.alarm:
+	elif mood < SbData.MOOD_BREAK and order.is_empty() and not drafted and not world.alarm and not world.calm:
 		sulking = SbData.SULK_TIME
 		world.announce("%s has had enough and sulks for a while." % person_name)
 		return
@@ -627,7 +627,7 @@ func _check_needs() -> void:
 ## Working by day while tired, one may nod off (lazy ones more often).
 func _may_doze(delta: float) -> bool:
 	# Only while somewhat tired: past TIRED_NEED they go to bed instead.
-	if not order.is_empty() or drafted or world.is_night() or tired < SbData.DOZE_TIRED or tired >= SbData.TIRED_NEED or sulking > 0.0:
+	if world.calm or not order.is_empty() or drafted or world.is_night() or tired < SbData.DOZE_TIRED or tired >= SbData.TIRED_NEED or sulking > 0.0:
 		return false
 	var k: String = task.get("kind", "")
 	if not (k in ["build", "chop", "mine", "forage", "craft"]) or carrying == "person":

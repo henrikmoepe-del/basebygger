@@ -41,7 +41,7 @@ func mine(amount: float) -> bool:
 	_progress = 0.0
 	world.sound("mine", position)
 	stone -= 1
-	if trapped == null and randf() < SbData.CAVE_IN_CHANCE:
+	if trapped == null and not world.calm and randf() < SbData.CAVE_IN_CHANCE:
 		_cave_in()
 		return true
 	world.spawn_item("stone", position + Vector2(randf_range(-12, 12), randf_range(3, 8)))
