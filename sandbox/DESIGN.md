@@ -116,3 +116,54 @@ Lower priority, or try again later:
 What I would not bring over as it is: the sandbox's simple "carry a block, set
 it" building (the main game's building is far richer), and its numbers (nothing
 is balanced).
+
+## Henrik's feedback after playing it (2026-10-06, his words, unedited)
+
+> 1. I like this, but I do not like the exact copy of the Rimworld priority system. I believe their priorities should be incorportated in what their job is, for example, a builder will always want to build unless ordered to do something else, a drunk cook will want to cook or drink alcohol, but can haul if you force him. If theres something like a fire, people will want to take it out, no matter their job (so in life and death situations people abandon their job, unless you press a toggle that forces them to do their job until death). There should be an option to have everyone of a certain job to always perform their job in certain emergencies, like builders will always build even if theres a raid. Then if you force someone to do something that isnt their job, they can do it but worse, so it is more like a last resort type of thing/not ideal. I am still not sure how you decide peoples job. Perhaps when kids are grown, you can choose what their job would be, people who join your colony in events etc can have certain jobs already, or they can be a good at 3 things, and you decide which one of those things you want them to become.
+> 2. Several buildings at once is good, but there should be a priority system for this. Two buildings can have the same priority, and then people will work at both at them at the same time.
+> 3. Emergencies are good and should be there as parts of events. See (1) for more info about behavior (people can abandon their jobs in certain situations unless you have forced them to always do their job.
+> 4. I dont like detailed needs and moods for specific persons, as there will be a lot of peasents. It can perhaps be simpler ("happy because of x", "sad because of y"), and it can often reflect a job type as a whole, or the whole village as a whole, unless something specific has happened to that one person (sad because of wifes death). Most of the village can be angry because of lack of food, or afraid because of a storm.
+> 5. Good, I think I will want this in the main game. However, buildings, expect the castle, should be able to be placed depth wise, so perhaps one building over the road, and one under, then certain smaller buildings such as flower beds can be placed over the road but under the building.
+
+## Plan for step 1: jobs first (not started, waiting for Henrik's OK)
+
+Done in the sandbox first, so Henrik can play it before anything goes into the
+main game. It replaces the RimWorld priority grid (point 1 above).
+
+**How a peasant chooses what to do, in this order:**
+1. **An order** from the player. Always obeyed.
+2. **An emergency**, if their job is set to help with that kind (see below).
+3. **Their own job's work.** A builder builds, a woodcutter chops, a cook
+   cooks. Each job also carries its own goods: a woodcutter takes logs home,
+   a builder fetches material for the site.
+4. **Nothing to do for their job:** rest, chat or stroll near their work. They
+   never take up another job's work by themselves.
+
+**Work that isn't their job** is only done when ordered, at half speed, and
+it doesn't train their skill. The card and the order line say "not their job".
+That makes it a last resort, as Henrik asked.
+
+**Emergencies.** The Work overview (W) becomes an **Emergency rules** table:
+one row per job, one column per emergency (Fire, Raid, Hurt, Cave-in). Each
+cell is either **Help** (the default; for a raid it means hide or fight) or
+**Keep working** (stay at the job no matter what, e.g. builders build through a
+raid). One click on a job's name sets the whole row. Emergencies keep coming
+from events, as now.
+
+**Removed:** the priority numbers 1-3 and the Fight/Rescue/Haul columns. The
+Hauler job stays, as a job whose work is carrying.
+
+**Not in step 1** (later steps, so this one stays small):
+- How jobs are chosen (a grown child picks one, newcomers bring one, "good at
+  3 things"). For now jobs are changed as today (keys 1-8, the card).
+- Site priorities (point 2), simpler mood (point 4), buildings placed in depth
+  (point 5). Each is a step of its own.
+- Traits that pull away from work (the drunk cook).
+
+**Question for Henrik:** when a builder has no site, should they rest (the plan
+above), or help the haulers carry? Resting is closer to "only their job";
+carrying keeps the village busier.
+
+**Tests:** the logic test gets checks for each rule: nobody takes another job's
+work unasked; an order off the job works at half speed; a fire pulls everyone
+with Help and nobody with Keep working.
