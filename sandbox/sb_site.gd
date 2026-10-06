@@ -98,6 +98,11 @@ func burn() -> void:
 	lose_block()
 
 
+## A fire here needs something to burn: what has been laid so far.
+func has_fuel() -> bool:
+	return placed > 0
+
+
 func rows() -> int:
 	return mats.size() / cols
 

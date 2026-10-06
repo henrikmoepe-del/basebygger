@@ -30,9 +30,13 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
    - **Emergencies come by themselves:** a fire gets up to 3 peasants per fire
      running buckets from the well; guards fight raiders; anyone with Fight "-"
      runs away from raiders that come near.
-   - **Hauling** means taking loose logs and stones to the stockyard, and bringing
+   - **Hauling** means taking loose logs and stones to the stockyard (up to 3 of a
+     kind lying close together in one trip), and bringing
      building material from the stockyard to the sites (it lies in a pile there,
      and builders take from it before walking to the stockyard themselves).
+   - **Gatherers stop when it piles up:** when 4 or more loose things lie by a tree,
+     rock or bush, nobody works there by themselves until some are hauled away, so
+     the woodcutter, miner and forager turn to hauling (their priority 3).
    - **Skills** (Build, Chop, Mine, Fight) grow by doing the work: level 0 works at
      60% speed, 5 at 100%, 10 at 140%. Shown as "·n" in the Work overview.
    - **The hurt:** a peasant beaten in a fight goes down. Anyone with Rescue carries
@@ -91,6 +95,9 @@ dotted line to what they are working on (gold for an order, white for free will)
 - `sb_hud.gd`: top bar, the bar of peasants, the panel for the selected, messages.
 - `tests/test_sandbox.gd`: logic test (headless):
   `godot --headless --fixed-fps 60 --path . -s sandbox/tests/test_sandbox.gd`
+- `tests/soak.gd`: runs the map for days with no player (raids and fires now and
+  then) and reports what everyone does and anything that looks stuck:
+  `godot --headless --fixed-fps 60 --path . -s sandbox/tests/soak.gd -- --days=3`
 - `tests/shots.gd`: screenshots in a real window:
   `godot --path . -s sandbox/tests/shots.gd -- --plan=orders --out=<folder>`
   (plans: start, orders, raid, fire, box).

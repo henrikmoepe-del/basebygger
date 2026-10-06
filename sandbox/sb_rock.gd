@@ -1,13 +1,16 @@
 extends "res://sandbox/sb_thing.gd"
 ## A rock outcrop: mined a stone at a time; the stone falls beside it for
-## someone to haul. When it is used up it is gone.
+## someone to haul. Used up, it slowly fills again (fresh stone is exposed),
+## like the quarry in the main game.
 
 const MINE_TIME := 4.0
+const REFILL_TIME := 150.0
 
 var stone := 6
 var _full := 6
 var _progress := 0.0
 var _shake := 0.0
+var _refill := 0.0
 
 
 func setup(stones: int) -> void:
@@ -33,7 +36,8 @@ func mine(amount: float) -> bool:
 	stone -= 1
 	world.spawn_item("stone", position + Vector2(randf_range(-12, 12), randf_range(3, 8)))
 	if stone == 0:
-		world.announce("A rock is used up.")
+		_refill = REFILL_TIME
+		world.announce("A rock is used up for now.")
 	return true
 
 
@@ -49,6 +53,11 @@ func _process(delta: float) -> void:
 	if _shake > 0.0:
 		_shake = maxf(_shake - delta, 0.0)
 		queue_redraw()
+	if stone == 0:
+		_refill -= delta
+		if _refill <= 0.0:
+			stone = _full
+			queue_redraw()
 
 
 func _draw() -> void:

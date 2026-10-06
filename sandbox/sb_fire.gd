@@ -3,8 +3,10 @@ extends "res://sandbox/sb_thing.gd"
 ## does damage to what it burns on (blocks fall off a site, the stockyard
 ## loses stock) until peasants put it out with buckets from the well.
 
-const GROW := 0.03
-const DOUSE := 0.22
+const GROW := 0.02
+const DOUSE := 0.3
+## How fast a fire with nothing left to burn dies down.
+const STARVE := 0.08
 
 var host: Node2D
 var strength := 0.4
@@ -47,7 +49,15 @@ func label() -> String:
 func _process(delta: float) -> void:
 	if strength <= 0.0:
 		return
-	strength = minf(strength + GROW * delta, 1.0)
+	if host.has_method("has_fuel") and not host.has_fuel():
+		strength -= STARVE * delta
+		if strength <= 0.0:
+			strength = 0.0
+			world.announce("The fire at %s has burned out." % host.label())
+			world.remove_thing(self)
+			return
+	else:
+		strength = minf(strength + GROW * delta, 1.0)
 	_burn_timer += delta * strength
 	if _burn_timer >= 2.0:
 		_burn_timer = 0.0

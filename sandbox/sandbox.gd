@@ -254,6 +254,9 @@ func find_work(p: Node2D, work: String) -> Dictionary:
 	for t in list:
 		if not t.is_open() or t.workers.size() >= t.capacity():
 			continue
+		if (work == "chop" or work == "mine" or work == "forage") and loose_near(t.position) >= LOOSE_LIMIT:
+			# Enough lies here already: haul it first.
+			continue
 		var score := p.position.distance_to(t.position)
 		if work == "build":
 			var need: String = t.next_material()
@@ -287,6 +290,18 @@ func find_work(p: Node2D, work: String) -> Dictionary:
 	if supply != "":
 		return {"kind": "supply", "target": best, "score": best_score, "res": supply}
 	return {"kind": work, "target": best, "score": best_score}
+
+
+const LOOSE_LIMIT := 4
+
+
+## How many loose things lie within 40 of this point.
+func loose_near(at: Vector2) -> int:
+	var n := 0
+	for it in items:
+		if it.position.distance_to(at) < 40.0:
+			n += 1
+	return n
 
 
 ## A finished Hut with a free bed, or null.

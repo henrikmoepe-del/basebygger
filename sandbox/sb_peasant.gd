@@ -14,6 +14,9 @@ const THROW_TIME := 0.5
 const HIT_EVERY := 1.0
 const REACH := 9.0
 const FLEE_FROM := 70.0
+const MAX_LOAD := 3
+## Loose things this near the one picked up are taken along on the same trip.
+const GATHER_RADIUS := 26.0
 ## How near a raider must come before a drafted peasant goes for it.
 const DRAFT_ENGAGE := 45.0
 
@@ -51,8 +54,14 @@ var queue: Array = []
 var drafted := false
 var _hold := Vector2.ZERO
 var task := {}
-## What is on the shoulder: "", "wood", "stone" or "water".
-var carrying := ""
+## What is on the shoulder: "", "wood", "stone", "food", "water" or
+## "person", and how many (a hauler takes up to MAX_LOAD of one kind).
+## Setting `carrying` makes it one again.
+var carrying := "":
+	set(value):
+		carrying = value
+		carry_n = 1
+var carry_n := 1
 
 var _timer := 0.0
 var _cool := 0.0
@@ -259,7 +268,7 @@ func activity() -> String:
 		"fight":
 			return prefix + "fighting " + t.label()
 		"deliver":
-			return prefix + "taking %s to the stockyard" % carrying
+			return prefix + "taking %s%s to the stockyard" % [(str(carry_n) + " ") if carry_n > 1 else "", carrying]
 		"goto":
 			return prefix + ("holding here" if _at(task.pos) else "going there")
 		"flee":
@@ -518,7 +527,7 @@ func _do_build(site: Node2D, delta: float) -> void:
 		var yard: Node2D = world.stockyard
 		if _go(yard.work_spot(self), delta):
 			if carrying != "" and carrying != "water":
-				yard.put(carrying)
+				yard.put(carrying, carry_n)
 			carrying = ""
 			if yard.take(need):
 				carrying = need
@@ -611,8 +620,18 @@ func _do_haul(item: Node2D, delta: float) -> void:
 	if carrying != "" and carrying != item.res:
 		_drop()
 	if _go(item.work_spot(self), delta):
-		carrying = item.res
+		var res: String = item.res
+		var n := 1
+		# Take along others of the same kind lying close by that nobody has claimed.
+		for other in world.items.duplicate():
+			if n >= MAX_LOAD:
+				break
+			if other != item and other.res == res and other.workers.is_empty() and other.position.distance_to(item.position) < GATHER_RADIUS:
+				world.remove_thing(other)
+				n += 1
 		world.remove_thing(item)
+		carrying = res
+		carry_n = n
 		task = {"kind": "deliver", "forced": task.get("forced", false)}
 		if not order.is_empty():
 			order = {}
@@ -658,7 +677,7 @@ func _do_idle(delta: float) -> void:
 		# Put away what one carries before resting.
 		var yard: Node2D = world.stockyard
 		if _go(yard.work_spot(self), delta):
-			yard.put(carrying)
+			yard.put(carrying, carry_n)
 			carrying = ""
 		return
 	carrying = ""
@@ -675,7 +694,7 @@ func _do_idle(delta: float) -> void:
 func _process_deliver(delta: float) -> void:
 	var yard: Node2D = world.stockyard
 	if _go(yard.work_spot(self), delta):
-		yard.put(carrying)
+		yard.put(carrying, carry_n)
 		carrying = ""
 		_end_task()
 
@@ -686,7 +705,7 @@ func _do_eat(delta: float) -> void:
 		carrying = ""
 	if carrying != "":
 		if _go(yard.work_spot(self), delta):
-			yard.put(carrying)
+			yard.put(carrying, carry_n)
 			carrying = ""
 		return
 	if _go(yard.position + Vector2(46 + float(hash(name) % 10), 8), delta):
@@ -732,7 +751,8 @@ func _drop() -> void:
 		_patient.bed = null
 		_patient = null
 	if carrying == "wood" or carrying == "stone" or carrying == "food":
-		world.spawn_item(carrying, position + Vector2(4, 1))
+		for i in carry_n:
+			world.spawn_item(carrying, position + Vector2(4 + i * 3, 1 + i))
 	carrying = ""
 
 
@@ -811,11 +831,13 @@ func _draw() -> void:
 	# What is carried, on the shoulder.
 	match carrying:
 		"wood":
-			draw_rect(Rect2(-7, bob - 16, 13, 3), SbData.WOOD2)
-			draw_rect(Rect2(-7, bob - 16, 13, 1), SbData.WOOD3)
+			for i in carry_n:
+				draw_rect(Rect2(-7, bob - 16 - i * 3, 13, 3), SbData.WOOD2)
+				draw_rect(Rect2(-7, bob - 16 - i * 3, 13, 1), SbData.WOOD3)
 		"stone":
-			draw_rect(Rect2(-4, bob - 21, 8, 5), SbData.STONE3)
-			draw_rect(Rect2(-4, bob - 21, 8, 1), SbData.STONE4)
+			for i in carry_n:
+				draw_rect(Rect2(-4, bob - 21 - i * 5, 8, 5), SbData.STONE3)
+				draw_rect(Rect2(-4, bob - 21 - i * 5, 8, 1), SbData.STONE4)
 		"food":
 			draw_rect(Rect2(3, bob - 9, 5, 4), SbData.WOOD3)
 			draw_rect(Rect2(4, bob - 10, 3, 1), SbData.RED1)

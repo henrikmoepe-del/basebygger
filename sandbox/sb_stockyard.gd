@@ -29,6 +29,10 @@ func burn() -> void:
 	queue_redraw()
 
 
+func has_fuel() -> bool:
+	return stock.wood > 0
+
+
 func hit(p: Vector2) -> bool:
 	return Rect2(position + Vector2(-34, -30), Vector2(92, 34)).has_point(p)
 
