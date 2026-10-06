@@ -86,3 +86,33 @@ something. Buildings stand at the back edge; the hurt lie in front of the Hut.
    note in CLAUDE.md)?
 6. **Bringing it into the main game:** see HOOKUP.md. The smallest useful step
    is people-with-priorities, free will and orders on the existing flat ground.
+
+## Claude's recommendation: what to bring over, in what order
+
+The sandbox grew big on purpose (Henrik: "use your own imagination"), but the
+main game should take it a piece at a time, each one played and liked first.
+
+1. **Priorities, free will and orders** (the core). Jobs as presets, the Work
+   overview, right-click orders, Release, the order mark. Without depth at first
+   (on the main game's flat ground). This is what Henrik asked for, and
+   everything else hangs on it. Pause comes with it: orders want a pause.
+2. **Several building sites at once**, with haulers bringing material. This is
+   the biggest change in the main game (one build job today), but it is what
+   lets "3 builders on the Tower, the rest on the Wall" happen.
+3. **Emergencies as work:** fires put out with buckets, the hurt rescued to
+   beds. They make the priority columns matter (Fires and Rescue first).
+4. **Needs and mood per person,** replacing village-wide happiness, with the
+   card to read them. Strikes and sulking come from this.
+5. **The ground with depth,** when the art for it is ready (it touches walking,
+   stairs and every building's position).
+
+Lower priority, or try again later:
+- *Drafting and the bell* depend on how raids end up (undecided).
+- *Skills* overlap with the main game's trades; decide on one (DESIGN question 3).
+- *The many events* (werewolves, traitor, storms, the hooded man...) are content:
+  each is small on its own, and the main game's event system can take them one
+  at a time once the people are in charge.
+
+What I would not bring over as it is: the sandbox's simple "carry a block, set
+it" building (the main game's building is far richer), and its numbers (nothing
+is balanced).
