@@ -67,6 +67,11 @@
   a few frames mid-build (state 8, near x = -358 or 223) or for ~20-30 frames at the start of the
   job on a tower top (y about -107). Reproduce with
   `tests/test_build.gd -- --from=walls:2,towers:2 --parts=towers --builders=6`, run a few times.
+- Art direction (2026-10-06, not yet in the game): `art/ART_DIRECTION.md` and concept art in
+  `art/concept/` (day, night raid, winter, character sheet, 39-colour palette, `.aseprite` files),
+  painted in code by `art/tools/paint_concepts.py`. "The Castle in Cross-Section": pixel art at
+  1 unit = 1 pixel, the keep as a cutaway doll's house, night and seasons as palette swaps.
+  Waiting for Henrik's verdict before any of it goes into the game. `art/` has a `.gdignore`.
 - Nothing is balanced on purpose (building is slow, raids and planks are first guesses).
 - How to work: after any change to how anything looks (building, peasants, the HUD), run
   `tests/screenshot.gd` in a real window and LOOK at the pictures, both the close-up and the
