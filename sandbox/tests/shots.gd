@@ -14,6 +14,8 @@ const PLANS := {
 	# A fire in the stockyard: peasants run buckets from the well.
 	"fire": {"steps": [[5.0, "fire"], [6.0, "shot"]]},
 	# Box selection and a hold-here order.
+	# The Work overview.
+	"work": {"steps": [[1.0, "work"], [0.3, "shot"]]},
 	"box": {"steps": [[2.0, "box"], [0.1, "goto"], [0.4, "shot"]]},
 }
 
@@ -77,3 +79,6 @@ func _do(what: String) -> void:
 			w.select(inside)
 		"goto":
 			w.give_order(Vector2(0, 40))
+		"work":
+			w.peasants[3].cycle_prio("haul")
+			w.hud.toggle_work()

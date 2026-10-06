@@ -20,6 +20,8 @@ var _rows: VBoxContainer
 var _jobs: HBoxContainer
 var _grid: HBoxContainer
 var _log: VBoxContainer
+var _work: PanelContainer
+var _work_grid: GridContainer
 var _refresh := 0.0
 
 
@@ -33,8 +35,9 @@ func _ready() -> void:
 	_make_bar()
 	_make_panel()
 	_make_log()
+	_make_work()
 	var help := Label.new()
-	help.text = "Left-click: select (Shift adds)  Drag: box  Right-click: order  R: release  1-5: job  A/D: pan"
+	help.text = "Left-click: select (Shift adds)  Drag: box  Right-click: order  R: release  1-5: job  W: work  A/D: pan"
 	help.add_theme_font_size_override("font_size", 8)
 	help.add_theme_color_override("font_color", UiTheme.PARCHMENT_DIM)
 	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
@@ -67,7 +70,7 @@ func _make_top() -> void:
 	_raid_label.add_theme_color_override("font_color", UiTheme.BAD)
 	_raid_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(_raid_label)
-	for spec in [["Raid (T)", func(): world.start_raid()], ["Fire (F)", func(): world.start_fire()]]:
+	for spec in [["Work (W)", toggle_work], ["Raid (T)", func(): world.start_raid()], ["Fire (F)", func(): world.start_fire()]]:
 		var b := _button(spec[0], spec[1])
 		row.add_child(b)
 	_speed_button = _button("Speed 1x", _cycle_speed)
@@ -133,6 +136,82 @@ func _make_log() -> void:
 	_root.add_child(_log)
 
 
+## The Work overview: every peasant in a row, their job and a priority per
+## kind of work. Click a job to change it, click a priority to cycle it.
+func _make_work() -> void:
+	_work = PanelContainer.new()
+	_work.visible = false
+	_work.position = Vector2(150, 48)
+	_root.add_child(_work)
+	var box := VBoxContainer.new()
+	_work.add_child(box)
+	var title := Label.new()
+	title.text = "Work: 1 first, 3 last, - never"
+	title.add_theme_color_override("font_color", UiTheme.GOLD)
+	box.add_child(title)
+	_work_grid = GridContainer.new()
+	_work_grid.columns = 2 + SbData.WORK.size()
+	_work_grid.add_theme_constant_override("h_separation", 2)
+	_work_grid.add_theme_constant_override("v_separation", 1)
+	box.add_child(_work_grid)
+
+
+func toggle_work() -> void:
+	_work.visible = not _work.visible
+	if _work.visible:
+		_rebuild_work()
+
+
+func _rebuild_work() -> void:
+	for c in _work_grid.get_children():
+		c.queue_free()
+	for head in ["", "Job"]:
+		_work_grid.add_child(_small_label(head))
+	for w in SbData.WORK:
+		_work_grid.add_child(_small_label(SbData.WORK_NAMES[w]))
+	for p in world.peasants:
+		var name_button := _button(p.person_name, func(): world.select([p]))
+		_compact(name_button)
+		_work_grid.add_child(name_button)
+		var job_button := _button(p.job_name(), _next_job.bind(p))
+		_compact(job_button)
+		job_button.tooltip_text = "Click for the next job. A job sets all the priorities."
+		_work_grid.add_child(job_button)
+		for w in SbData.WORK:
+			var v: int = p.prio[w]
+			var cell := _button(str(v) if v > 0 else "-", _cycle_one.bind(p, w))
+			_compact(cell)
+			cell.custom_minimum_size = Vector2(30, 0)
+			cell.add_theme_color_override("font_color", UiTheme.GOLD if v == 1 else (UiTheme.PARCHMENT if v > 0 else UiTheme.PARCHMENT_DIM))
+			_work_grid.add_child(cell)
+
+
+func _next_job(p: Node2D) -> void:
+	var i := SbData.JOB_ORDER.find(p.job)
+	p.set_job(SbData.JOB_ORDER[(i + 1) % SbData.JOB_ORDER.size()])
+	_rebuild_work()
+	_rebuild_panel()
+
+
+func _cycle_one(p: Node2D, w: String) -> void:
+	p.cycle_prio(w)
+	_rebuild_work()
+	_rebuild_panel()
+
+
+func _small_label(text: String) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_size_override("font_size", 9)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	return l
+
+
+func _compact(b: Button) -> void:
+	UiTheme.make_compact(b)
+	b.add_theme_font_size_override("font_size", 9)
+
+
 func _button(text: String, call: Callable) -> Button:
 	var b := Button.new()
 	b.text = text
@@ -193,6 +272,8 @@ func _process(delta: float) -> void:
 
 
 func _rebuild_panel() -> void:
+	if _work != null and _work.visible:
+		_rebuild_work.call_deferred()
 	_panel.visible = not world.selected.is_empty()
 	if not _panel.visible:
 		return

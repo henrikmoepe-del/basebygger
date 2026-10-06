@@ -387,6 +387,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				start_raid()
 			KEY_F:
 				start_fire()
+			KEY_W:
+				hud.toggle_work()
 			KEY_1, KEY_2, KEY_3, KEY_4, KEY_5:
 				set_job_selected(SbData.JOB_ORDER[(event as InputEventKey).keycode - KEY_1])
 
