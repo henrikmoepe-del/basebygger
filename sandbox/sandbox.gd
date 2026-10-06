@@ -569,9 +569,44 @@ func _draw_overlay() -> void:
 			n += 1
 	if placing != "":
 		_draw_ghost(get_global_mouse_position())
+	else:
+		_draw_hint(get_global_mouse_position())
 	for ping in _pings:
 		var r: float = 3.0 + (0.6 - ping.t) * 14.0
 		overlay.draw_arc(ping.pos, r, 0, TAU, 12, Color(SbData.GOLD, ping.t / 0.6), 1.0)
+
+
+const ORDER_WORDS := {
+	"fight": "Fight %s", "firefight": "Put out %s", "haul": "Haul %s", "chop": "Chop %s",
+	"mine": "Mine %s", "forage": "Pick %s", "build": "Build %s", "rescue": "Rescue %s",
+}
+
+
+## Under the mouse: with peasants selected, what a right-click would order;
+## over a peasant, their name, job and what they are doing.
+func _draw_hint(at: Vector2) -> void:
+	var text := ""
+	var p := peasant_at(at)
+	if p != null and not (p.is_open() and not selected.is_empty()):
+		text = "%s, %s: %s" % [p.person_name, p.job_name(), p.activity().to_lower()]
+	elif not selected.is_empty():
+		var o := order_at(at)
+		if o.kind == "goto":
+			text = "Go here" + (" and hold" if selected.any(func(s): return s.drafted) else "")
+		else:
+			text = ORDER_WORDS[o.kind] % o.target.label()
+		if Input.is_key_pressed(KEY_SHIFT):
+			text += " (after the rest)"
+	if text == "":
+		return
+	var font := ThemeDB.fallback_font
+	var size := 8
+	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	var pos := at + Vector2(8, -6) / camera.zoom
+	overlay.draw_set_transform(pos, 0.0, Vector2.ONE / camera.zoom)
+	overlay.draw_rect(Rect2(-2, -8, w + 4, 11), Color(SbData.INK, 0.8))
+	overlay.draw_string(font, Vector2(0, 0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, SbData.WHITE)
+	overlay.draw_set_transform(Vector2.ZERO)
 
 
 ## The building being placed, as a see-through outline under the mouse:

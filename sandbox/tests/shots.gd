@@ -26,6 +26,8 @@ const PLANS := {
 	"rescue": {"steps": [[1.0, "hurt"], [5.0, "shot"], [10.0, "shot"]]},
 	# Needs: after a while some eat at the stockyard and sleep; berry bushes.
 	"needs": {"steps": [[1.0, "needs"], [12.0, "shot"]]},
+	# The hint under the mouse with builders selected, over a tree.
+	"hint": {"steps": [[1.0, "hint"], [0.5, "shot"]]},
 	"box": {"steps": [[2.0, "box"], [0.1, "goto"], [0.4, "shot"]]},
 }
 
@@ -124,6 +126,12 @@ func _do(what: String) -> void:
 			w.peasants[1].tired = 99.0
 			w.peasants[5].tired = 99.0
 			w.select([w.peasants[0], w.peasants[1], w.peasants[7]])
+		"hint":
+			w.camera.position = Vector2(330, -20)
+			w.select(w.peasants.filter(func(p): return p.job == "builder"))
+			var t: Node2D = w.trees[3]
+			var screen: Vector2 = (t.position + Vector2(0, -20) - w.camera.position) * w.camera.zoom + Vector2(320, 180)
+			Input.warp_mouse(screen * 2.0)
 		"work":
 			w.peasants[3].cycle_prio("haul")
 			w.hud.toggle_work()
