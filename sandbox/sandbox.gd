@@ -573,6 +573,9 @@ func _unhandled_input(event: InputEvent) -> void:
 				var rect := Rect2(_drag_from, at - _drag_from).abs()
 				if rect.size.length() < 4.0:
 					var p := peasant_at(at)
+					if p != null and p.dozing > 0.0:
+						# A click on someone dozing wakes them (and selects them).
+						p.wake()
 					if p != null and mb.shift_pressed and selected.has(p):
 						p.selected = false
 						selected.erase(p)

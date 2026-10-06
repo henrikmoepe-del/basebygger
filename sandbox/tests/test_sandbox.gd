@@ -263,6 +263,17 @@ func _run() -> void:
 	_check(lit, "raiders set a building on fire as they pass")
 	await _wait(200.0, func(): return not w.raid_on and w.fires.is_empty())
 
+	# 16. Dozing: a dozing peasant stops; a click wakes them with a boost.
+	var napper: Node2D = w.peasants.filter(func(p): return p.job == "builder" and not p.downed)[0]
+	napper.dozing = 20.0
+	var spot: Vector2 = napper.position
+	await _wait(3.0)
+	_check(napper.position.distance_to(spot) < 0.5, "a dozing peasant does nothing")
+	w.select([])
+	napper.wake()
+	_check(napper.dozing <= 0.0 and napper._boost > 0.0, "a click wakes them, with a burst of effort")
+	_check(napper.skill_mult("build") > 0.0, "traits and boosts keep work going")
+
 	_check(_off_band == 0, "nobody leaves the ground band (%d frames off it)" % _off_band)
 	print("ALL PASSED" if _fails == 0 else "%d FAILED" % _fails)
 	quit(1 if _fails > 0 else 0)

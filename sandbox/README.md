@@ -69,6 +69,12 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
      stockyard to steal (dropped loot can be hauled back). Each carries a torch and
      may set one building alight as they pass it: fires knock blocks off until put
      out (a fire with nothing left to burn dies down).
+   - **Traits** (as in the main game): Quick and Slow walk faster or slower,
+     Hard-working and Lazy work faster or slower. Shown on the card.
+   - **Dozing** (one of the "small things to click"): by day, someone working while
+     tired may nod off where they stand (Lazy ones often, Hard-working ones rarely):
+     a drooping head and z's, and nothing gets done. Click them to wake them: they
+     work 25% faster for a while.
    - **Orders:** select peasants and right-click something. The order comes before
      everything else (even fleeing) until it is done, then they go back to free will.
      **R** (or Release) ends the order early.
@@ -115,6 +121,8 @@ dotted line to what they are working on (gold for an order, white for free will)
   `sb_raider.gd`, `sb_stockyard.gd`, `sb_well.gd`: the things in the world.
 - `sb_backdrop.gd`: sky, mountains, the castle wall, the ground band and path.
 - `sb_hud.gd`: top bar, the bar of peasants, the panel for the selected, messages.
+- `tests/run_tests.sh`: loads the map once to catch script errors, then runs
+  the logic test (a parse error would otherwise make the test hang).
 - `tests/test_sandbox.gd`: logic test (headless):
   `godot --headless --fixed-fps 60 --path . -s sandbox/tests/test_sandbox.gd`
 - `tests/soak.gd`: runs the map for days with no player (raids and fires now and

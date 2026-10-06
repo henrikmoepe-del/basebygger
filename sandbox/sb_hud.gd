@@ -263,10 +263,10 @@ func _make_site_panel() -> void:
 func _make_card() -> void:
 	_card = PanelContainer.new()
 	_card.visible = false
-	_card.position = Vector2(4, 150)
+	_card.position = Vector2(4, 118)
 	_root.add_child(_card)
 	_card_body = Control.new()
-	_card_body.custom_minimum_size = Vector2(120, 92)
+	_card_body.custom_minimum_size = Vector2(136, 120)
 	_card_body.draw.connect(_draw_card)
 	_card.add_child(_card_body)
 
@@ -280,8 +280,9 @@ func _draw_card() -> void:
 	var font := ThemeDB.fallback_font
 	var c := _card_body
 	c.draw_string(font, Vector2(0, 9), "%s, %s" % [p.person_name, p.job_name()], HORIZONTAL_ALIGNMENT_LEFT, -1, 10, UiTheme.GOLD)
+	c.draw_string(font, Vector2(0, 19), "%s: %s" % [p.trait_name(), SbData.TRAITS[p.trait_key].text], HORIZONTAL_ALIGNMENT_LEFT, 136, 8, UiTheme.PARCHMENT_DIM)
 	var bars := [["Health", p.hp / p.max_hp, SbData.GRASS3], ["Fed", 1.0 - p.hunger / 100.0, SbData.GOLD], ["Rested", 1.0 - p.tired / 100.0, SbData.SKY2]]
-	var y := 14.0
+	var y := 23.0
 	for bar in bars:
 		c.draw_string(font, Vector2(0, y + 7), bar[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 8, UiTheme.PARCHMENT)
 		c.draw_rect(Rect2(40, y + 1, 78, 6), SbData.INK)
@@ -433,8 +434,10 @@ func _process(delta: float) -> void:
 		if p == null:
 			continue
 		var c := UiTheme.GOLD if p.selected else (UiTheme.BAD if p.downed else UiTheme.PARCHMENT)
+		b.tooltip_text = "%s, %s (%s): %s" % [p.person_name, p.job_name(), p.trait_name(), p.activity()]
+		if p.dozing > 0.0:
+			c = SbData.SKY3
 		b.add_theme_color_override("font_color", c)
-		b.tooltip_text = "%s, %s: %s" % [p.person_name, p.job_name(), p.activity()]
 	_update_rows()
 	_update_site()
 	_card.visible = world.selected.size() == 1

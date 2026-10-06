@@ -28,6 +28,11 @@ const GATHER_RADIUS := 26.0
 const DRAFT_ENGAGE := 45.0
 
 var person_name := ""
+## A key of SbData.TRAITS.
+var trait_key := "plain"
+## Dozing on the job (seconds left), and a short boost after being woken.
+var dozing := 0.0
+var _boost := 0.0
 var job := "builder"
 ## Work type -> priority (1 first, 3 last, 0 never).
 var prio := {}
@@ -90,6 +95,7 @@ func setup(name_: String, job_: String) -> void:
 	for w in SbData.SKILLED:
 		skill[w] = randi_range(0, 2)
 		practice[w] = 0.0
+	trait_key = SbData.TRAITS.keys().pick_random()
 	hunger = randf_range(0.0, 45.0)
 	tired = randf_range(0.0, 50.0)
 	set_job(job_)
@@ -105,7 +111,24 @@ func skill_mult(work: String) -> float:
 	var pace := SbData.STARVED_PACE if hunger >= 100.0 or tired >= 100.0 else 1.0
 	if world.is_night():
 		pace *= SbData.NIGHT_PACE
+	if _boost > 0.0:
+		pace *= SbData.BOOST
+	pace *= SbData.TRAITS[trait_key].get("work", 1.0)
 	return (0.6 + 0.08 * float(skill.get(work, 5))) * pace
+
+
+func trait_name() -> String:
+	return SbData.TRAITS[trait_key].name
+
+
+## Woken by the player's click: a start, and a short burst of effort.
+func wake() -> void:
+	if dozing <= 0.0:
+		return
+	dozing = 0.0
+	_boost = SbData.BOOST_TIME
+	world.announce("%s wakes with a start and works all the harder." % person_name)
+	queue_redraw()
 
 
 ## " · hungry", " · tired" and so on, for the HUD.
@@ -255,6 +278,8 @@ func forget(t: Node2D) -> void:
 func activity() -> String:
 	if downed:
 		return "Down, hurt"
+	if dozing > 0.0:
+		return "Dozing on the job! (click to wake)"
 	if drafted and not task.get("forced", false):
 		return "Drafted: fighting a raider" if task.get("kind", "") == "fight" else "Drafted: holding"
 	var prefix := ("Drafted: " if drafted else "Ordered: ") if task.get("forced", false) else ""
@@ -322,6 +347,7 @@ func _process(delta: float) -> void:
 	_cool = maxf(_cool - delta, 0.0)
 	_hurt = maxf(_hurt - delta, 0.0)
 	_arrow = maxf(_arrow - delta, 0.0)
+	_boost = maxf(_boost - delta, 0.0)
 	_walking = false
 	_anim = ""
 	hunger = minf(hunger + 100.0 / SbData.HUNGER_TIME * delta, 100.0)
@@ -352,6 +378,17 @@ func _process(delta: float) -> void:
 		return
 	if order.is_empty() and not queue.is_empty() and task.get("kind", "") != "deliver":
 		_next_order()
+	if dozing > 0.0:
+		# Nodding off on the job: nothing gets done until it passes or a click wakes them.
+		dozing -= delta
+		if order.is_empty() and not drafted and not world.alarm and world.nearest_raider(position, FLEE_FROM) == null:
+			queue_redraw()
+			return
+		dozing = 0.0
+	elif _may_doze(delta):
+		dozing = SbData.DOZE_TIME
+		queue_redraw()
+		return
 	if not order.is_empty():
 		task = order
 	elif drafted:
@@ -420,6 +457,16 @@ func _check_needs() -> void:
 	elif tired >= SbData.TIRED_NEED or (_bedtime() and k != "firefight" and k != "rescue" and k != "fight"):
 		_end_task()
 		task = {"kind": "sleep"}
+
+
+## Working by day while tired, one may nod off (lazy ones more often).
+func _may_doze(delta: float) -> bool:
+	if not order.is_empty() or drafted or world.is_night() or tired < SbData.DOZE_TIRED:
+		return false
+	var k: String = task.get("kind", "")
+	if not (k in ["build", "chop", "mine", "forage", "craft"]) or carrying == "person":
+		return false
+	return randf() < SbData.DOZE_CHANCE * SbData.TRAITS[trait_key].get("doze", 1.0) * delta
 
 
 ## Night, and the Night work policy is off: time to sleep.
@@ -901,6 +948,10 @@ func _drop() -> void:
 	carrying = ""
 
 
+func _walk_mult() -> float:
+	return SbData.TRAITS[trait_key].get("speed", 1.0)
+
+
 func _at(p: Vector2) -> bool:
 	return position.distance_to(p) < 1.0
 
@@ -917,9 +968,9 @@ func _go(p: Vector2, delta: float, pace := 1.0) -> bool:
 	if absf(dx) > PATH_FROM:
 		var lane := float(hash(name) % 7) - 3.0
 		var vy := clampf((world.path_y(position.x) + lane - position.y) * 0.08, -0.8, 0.8)
-		position += Vector2(signf(dx), vy).normalized() * SPEED * pace * delta
+		position += Vector2(signf(dx), vy).normalized() * SPEED * pace * _walk_mult() * delta
 	else:
-		position = position.move_toward(p, SPEED * pace * delta)
+		position = position.move_toward(p, SPEED * pace * _walk_mult() * delta)
 	if absf(p.x - position.x) > 0.5:
 		scale.x = 1.0 if p.x > position.x else -1.0
 	return _at(p)
@@ -954,7 +1005,8 @@ func _draw() -> void:
 	if _anim != "" and _anim != "fill":
 		bob = -1.0 if int(t * 4.0) % 2 == 0 else 0.0
 	draw_rect(Rect2(-3, bob - 13, 6, 10), tunic)
-	draw_rect(Rect2(-2, bob - 17, 4, 4), SbData.SKIN1)
+	# The head droops while dozing.
+	draw_rect(Rect2(-2 + (1 if dozing > 0.0 else 0), bob - 17 + (2 if dozing > 0.0 else 0), 4, 4), SbData.SKIN1)
 	# Read the job from the silhouette: what they wear and hold.
 	match job:
 		"guard":
@@ -1021,6 +1073,14 @@ func _draw() -> void:
 	if _anim == "throw":
 		draw_rect(Rect2(6, bob - 14, 3, 2), SbData.SKY3)
 		draw_rect(Rect2(9, bob - 12, 2, 2), SbData.SKY2)
+	if dozing > 0.0:
+		var zt := fmod(Time.get_ticks_msec() / 1000.0, 2.0)
+		draw_rect(Rect2(4 + zt * 2.0, bob - 22 - zt * 4.0, 3, 1), SbData.WHITE)
+		draw_rect(Rect2(5 + zt * 2.0, bob - 21 - zt * 4.0, 1, 1), SbData.WHITE)
+		draw_rect(Rect2(4 + zt * 2.0, bob - 20 - zt * 4.0, 3, 1), SbData.WHITE)
+	if _boost > 0.0 and int(Time.get_ticks_msec() / 200) % 3 == 0:
+		draw_rect(Rect2(-5, bob - 15, 1, 1), SbData.GOLD)
+		draw_rect(Rect2(5, bob - 10, 1, 1), SbData.GOLD)
 	_draw_marks(bob - 24.0)
 	if _arrow > 0.0:
 		# The arrow in flight, drawn from the bow towards the target.

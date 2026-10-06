@@ -108,6 +108,26 @@ const RAID_HOUR := 17.0
 const RAID_EVERY := 2
 const RAID_BASE := 3
 
+## Traits, as in the main game (scripts/people_data.gd), without the mood
+## ones (the sandbox has no mood). "speed" scales walking, "work" all work,
+## "doze" how often they nod off on the job.
+const TRAITS := {
+	"quick": {"name": "Quick", "text": "walks 15% faster", "speed": 1.15},
+	"slow": {"name": "Slow", "text": "walks 15% slower", "speed": 0.85},
+	"diligent": {"name": "Hard-working", "text": "15% faster work", "work": 1.15, "doze": 0.3},
+	"lazy": {"name": "Lazy", "text": "15% slower work, dozes", "work": 0.85, "doze": 3.0},
+	"plain": {"name": "Plain", "text": "nothing special"},
+}
+
+## Dozing: by day, a peasant working while tired past DOZE_TIRED may nod off
+## where they stand (chance per second, times the trait's "doze"), for up to
+## DOZE_TIME. A click wakes them, with BOOST faster work for BOOST_TIME.
+const DOZE_TIRED := 45.0
+const DOZE_CHANCE := 0.006
+const DOZE_TIME := 25.0
+const BOOST := 1.25
+const BOOST_TIME := 20.0
+
 ## Beds in a finished Hut; the hurt get better faster in one.
 const HUT_BEDS := 2
 const HEAL := 0.15
