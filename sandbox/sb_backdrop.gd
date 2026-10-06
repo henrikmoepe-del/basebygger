@@ -43,6 +43,7 @@ func _draw() -> void:
 	# The dirt path runs along the middle of the band, gently winding.
 	x = LEFT
 	while x < RIGHT:
+		# Keep in step with sandbox.gd path_y.
 		var y := 34.0 + 6.0 * sin(x / 90.0)
 		draw_rect(Rect2(x, y, 4, 9), SbData.DIRT)
 		draw_rect(Rect2(x, y + 9, 4, 1), SbData.DIRT.darkened(0.2))

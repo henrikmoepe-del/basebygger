@@ -75,6 +75,6 @@ func _draw() -> void:
 	for i in mini(stock.planks, 10):
 		draw_rect(Rect2(-31 + (i % 5) * 5, -14 - (i / 5) * 2, 5, 1), SbData.PLANK)
 	if stock.planks > 0:
-		draw_string(ThemeDB.fallback_font, Vector2(-30, -44), "%d planks" % stock.planks, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, SbData.PLANK)
+		draw_string(ThemeDB.fallback_font, Vector2(-62, -12), "%d" % stock.planks, HORIZONTAL_ALIGNMENT_RIGHT, 22, 8, SbData.PLANK)
 	draw_string(ThemeDB.fallback_font, Vector2(-30, -36), str(stock.wood), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, SbData.WHITE)
 	draw_string(ThemeDB.fallback_font, Vector2(10, -36), str(stock.stone), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, SbData.WHITE)

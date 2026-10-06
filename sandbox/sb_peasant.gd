@@ -15,6 +15,8 @@ const HIT_EVERY := 1.0
 const REACH := 9.0
 const FLEE_FROM := 70.0
 const MAX_LOAD := 3
+## Further than this along the ground, one keeps to the path.
+const PATH_FROM := 60.0
 ## Loose things this near the one picked up are taken along on the same trip.
 const GATHER_RADIUS := 26.0
 ## How near a raider must come before a drafted peasant goes for it.
@@ -817,13 +819,21 @@ func _at(p: Vector2) -> bool:
 	return position.distance_to(p) < 1.0
 
 
-## Walks towards p across the ground band. Returns true once there.
+## Walks towards p across the ground band. Returns true once there. On a
+## long way they keep to the dirt path, each in their own lane on it, and
+## leave it near the end.
 func _go(p: Vector2, delta: float, pace := 1.0) -> bool:
 	p.y = clampf(p.y, SbData.WALK_TOP, SbData.WALK_BOTTOM)
 	if _at(p):
 		return true
 	_walking = true
-	position = position.move_toward(p, SPEED * pace * delta)
+	var dx := p.x - position.x
+	if absf(dx) > PATH_FROM:
+		var lane := float(hash(name) % 7) - 3.0
+		var vy := clampf((world.path_y(position.x) + lane - position.y) * 0.08, -0.8, 0.8)
+		position += Vector2(signf(dx), vy).normalized() * SPEED * pace * delta
+	else:
+		position = position.move_toward(p, SPEED * pace * delta)
 	if absf(p.x - position.x) > 0.5:
 		scale.x = 1.0 if p.x > position.x else -1.0
 	return _at(p)

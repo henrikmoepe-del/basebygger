@@ -329,6 +329,11 @@ func loose_near(at: Vector2) -> int:
 	return n
 
 
+## The middle of the dirt path at x (it winds gently, see sb_backdrop.gd).
+func path_y(x: float) -> float:
+	return 38.5 + 6.0 * sin(x / 90.0)
+
+
 ## A finished Hut with a free bed, or null.
 func free_bed() -> Node2D:
 	for s in sites:
