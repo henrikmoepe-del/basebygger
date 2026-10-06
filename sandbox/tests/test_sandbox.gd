@@ -437,6 +437,20 @@ func _run() -> void:
 	guard.set_drafted(false)
 	w.time = w.time_at(w.day() + 1, 9.0)
 
+	# 27. A storm: work is slower, lightning strikes, then it passes.
+	var stormy: Node2D = w.peasants.filter(func(p): return not p.child)[0]
+	var calm_pace: float = stormy.skill_mult("build")
+	w.start_storm()
+	_check(stormy.skill_mult("build") < calm_pace, "in a storm, work is slower")
+	var fires_before: int = w.fires.size()
+	var down_before: int = w.trees.filter(func(t): return t.wood == 0).size()
+	for i in 12:
+		w._strike_lightning()
+	_check(w.fires.size() > fires_before or w.trees.filter(func(t): return t.wood == 0).size() > down_before, "lightning starts a fire or brings down a tree")
+	var passed := await _wait(SbData.STORM_TIME + 5.0, func(): return w.storm <= 0.0)
+	_check(passed, "the storm passes")
+	await _wait(120.0, func(): return w.fires.is_empty())
+
 	_check(_off_band == 0, "nobody leaves the ground band (%d frames off it)" % _off_band)
 	print("ALL PASSED" if _fails == 0 else "%d FAILED" % _fails)
 	quit(1 if _fails > 0 else 0)

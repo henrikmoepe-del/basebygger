@@ -131,6 +131,8 @@ func skill_mult(work: String) -> float:
 	var pace := SbData.STARVED_PACE if hunger >= 100.0 or tired >= 100.0 else 1.0
 	if world.is_night():
 		pace *= SbData.NIGHT_PACE
+	if world.storm > 0.0:
+		pace *= SbData.STORM_PACE
 	if _boost > 0.0:
 		pace *= SbData.BOOST
 	if mood >= SbData.MOOD_HIGH:

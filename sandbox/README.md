@@ -99,6 +99,9 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
      their trait). Taken in, they start as a Hauler and get a place in the bar of
      names; sent away, they walk off. (From Henrik's next steps: "a traveller asks
      to join".)
+   - **Storms** (Henrik's "nature catastrophes"): from day 2, a storm may roll in
+     for a minute and a half: rain, a darker sky, work 20% slower, and lightning
+     that may set a building alight or bring a tree down (its logs to collect).
    - **Werewolves** (from Henrik's list): from day 4, each night has a 25% chance
      of a werewolf coming out of the wood: much tougher and faster than a raider,
      after people, not goods. At dawn it slinks back into the wood. Drawn as deep

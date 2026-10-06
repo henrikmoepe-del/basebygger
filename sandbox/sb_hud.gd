@@ -503,6 +503,8 @@ func _process(delta: float) -> void:
 		_raid_label.text += ("   " if world.raid_on else "") + "FIRE!"
 	if world.strike > 0.0:
 		_raid_label.text += ("   " if _raid_label.text != "" else "") + "STRIKE"
+	if world.storm > 0.0:
+		_raid_label.text += ("   " if _raid_label.text != "" else "") + "Storm"
 	for i in _bar.get_child_count():
 		var b := _bar.get_child(i) as Button
 		var p: Node2D = world.peasants[i] if i < world.peasants.size() else null

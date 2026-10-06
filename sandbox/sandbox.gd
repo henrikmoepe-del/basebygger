@@ -96,6 +96,12 @@ var _price_at := -1.0
 ## A strike: seconds left (0 = none), and how long the mood has been low.
 var strike := 0.0
 var _low_mood_for := 0.0
+## A storm: seconds left (0 = none), when it comes today, the next lightning,
+## and a flash on screen.
+var storm := 0.0
+var _storm_at := -1.0
+var _lightning := 0.0
+var _flash := 0.0
 ## The traitor (secret), and what went missing last night (for the morning clue).
 var traitor: Node2D = null
 var stolen_last_night := {}
@@ -596,6 +602,53 @@ func start_raid(count := 4) -> void:
 		p.rethink()
 
 
+func start_storm() -> void:
+	storm = SbData.STORM_TIME
+	_lightning = SbData.LIGHTNING_EVERY * 0.5
+	announce("A storm rolls in: rain, wind and lightning.")
+
+
+func _update_storm(delta: float) -> void:
+	_flash = maxf(_flash - delta * 3.0, 0.0)
+	if _storm_at >= 0.0 and time >= _storm_at:
+		_storm_at = -1.0
+		start_storm()
+	if storm <= 0.0:
+		return
+	storm -= delta
+	if storm <= 0.0:
+		storm = 0.0
+		announce("The storm passes.")
+		return
+	_lightning -= delta
+	if _lightning <= 0.0:
+		_lightning = SbData.LIGHTNING_EVERY * randf_range(0.6, 1.4)
+		_strike_lightning()
+
+
+## A flash; maybe a fire on a building, or a tree knocked down.
+func _strike_lightning() -> void:
+	_flash = 1.0
+	sound("lost")
+	var roll := randf()
+	if roll < 0.25:
+		var hosts: Array = sites.filter(func(s): return s.placed > 0 and not fires.any(func(f): return f.host == s))
+		if not hosts.is_empty():
+			var host: Node2D = hosts.pick_random()
+			start_fire(host, "Lightning strikes %s: fire!" % host.label())
+	elif roll < 0.5:
+		var standing: Array = trees.filter(func(t): return t.wood > 0)
+		if not standing.is_empty():
+			var t: Node2D = standing.pick_random()
+			var logs: int = t.wood
+			for i in logs:
+				spawn_item("wood", t.position + Vector2(-10 + i * 7, randf_range(3, 9)))
+			t.wood = 0
+			t._regrow = t.REGROW_TIME
+			t.queue_redraw()
+			announce("Lightning brings down a tree: %d logs to collect." % logs)
+
+
 ## Low spirits for long enough make the village strike.
 func _check_strike(delta: float) -> void:
 	if strike > 0.0:
@@ -1023,6 +1076,7 @@ func _process(delta: float) -> void:
 	for l in _lanterns:
 		l.visible = darkness() > 0.05
 	_check_strike(delta)
+	_update_storm(delta)
 	if traitor != null and traitor.task.get("kind", "") == "steal" and traitor._goods():
 		for p in peasants:
 			if p != traitor and not p.downed and p.visible and (p.job == "guard" or p.drafted) and p.position.distance_to(traitor.position) < SbData.CATCH_RANGE:
@@ -1033,6 +1087,8 @@ func _process(delta: float) -> void:
 	if _last_hour < SbData.NIGHT_TO and h >= SbData.NIGHT_TO:
 		_maybe_birth()
 		_morning_clue()
+		if not calm and day() >= SbData.STORM_FIRST_DAY and randf() < SbData.STORM_CHANCE:
+			_storm_at = time + randf_range(0.1, 0.5) * SbData.DAY_LENGTH
 		if traitor == null and not calm and day() >= SbData.TRAITOR_DAY and randf() < 0.5:
 			var suspects: Array = peasants.filter(func(p): return not p.child and p.job != "guard")
 			if not suspects.is_empty():
@@ -1064,7 +1120,12 @@ func _process(delta: float) -> void:
 		if _herd_timer >= HERD_GROWS:
 			_herd_timer = 0.0
 			_add_deer(Vector2(SbData.EAST_EDGE - 10, randf_range(10, 70)))
-	_tint.color = Color.WHITE.lerp(SbData.NIGHT_TINT, darkness())
+	var tint := Color.WHITE.lerp(SbData.NIGHT_TINT, darkness())
+	if storm > 0.0:
+		tint *= SbData.STORM_TINT
+	if _flash > 0.0:
+		tint = tint.lerp(Color(1.6, 1.6, 1.8), _flash)
+	_tint.color = tint
 
 
 
@@ -1101,6 +1162,8 @@ func _draw_overlay() -> void:
 			overlay.draw_string(ThemeDB.fallback_font, qto + Vector2(2, -2), str(n), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, SbData.GOLD)
 			from = qto
 			n += 1
+	if storm > 0.0:
+		_draw_rain()
 	# Forbidden things: a red cross over them.
 	for list in [trees, rocks, bushes, items, sites]:
 		for t in list:
@@ -1122,6 +1185,17 @@ const ORDER_WORDS := {
 	"mine": "Mine %s", "forage": "Pick %s", "build": "Build %s", "rescue": "Rescue %s",
 	"craft": "Work at %s", "hunt": "Hunt %s",
 }
+
+
+## Rain over the visible part of the world: short slanted streaks.
+func _draw_rain() -> void:
+	var half := get_viewport_rect().size / 2.0 / camera.zoom
+	var t := Time.get_ticks_msec() / 1000.0
+	var c := Color(SbData.SKY3, 0.45)
+	for i in 140:
+		var x := camera.position.x - half.x + fmod(float(i) * 37.7 + t * 40.0, half.x * 2.0)
+		var y := camera.position.y - half.y + fmod(float(i) * 23.3 + t * 260.0, half.y * 2.0)
+		overlay.draw_line(Vector2(x, y), Vector2(x - 2, y + 6), c, 1.0)
 
 
 ## Under the mouse: with peasants selected, what a right-click would order;

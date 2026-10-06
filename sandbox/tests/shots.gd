@@ -54,6 +54,8 @@ const PLANS := {
 	"paused": {"steps": [[2.0, "paused"], [0.5, "shot"]]},
 	# A werewolf at night, coming out of the wood.
 	"wolf": {"steps": [[0.5, "wolf"], [6.0, "shot"]]},
+	# A storm: rain, a darker sky, a lightning flash.
+	"storm": {"steps": [[0.5, "storm"], [3.0, "shot"], [0.05, "bolt"], [0.05, "shot"]]},
 	# The hunter in the wood, aiming at a deer.
 	"hunt": {"steps": [[0.5, "hunt"], [5.5, "shot"], [3.0, "shot"]]},
 	"box": {"steps": [[2.0, "box"], [0.1, "goto"], [0.4, "shot"]]},
@@ -232,6 +234,10 @@ func _do(what: String) -> void:
 			w.start_werewolf()
 			w.camera.position = Vector2(420, -10)
 			w.camera.zoom = Vector2(2, 2)
+		"storm":
+			w.start_storm()
+		"bolt":
+			w._strike_lightning()
 		"hunt":
 			w.camera.position = Vector2(480, -20)
 			w.camera.zoom = Vector2(2, 2)

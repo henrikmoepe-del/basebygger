@@ -218,6 +218,16 @@ const TRAITOR_DAY := 3
 const TRAITOR_LOAD := 3
 const CATCH_RANGE := 40.0
 
+## Storms: from STORM_FIRST_DAY, each morning has STORM_CHANCE of a storm
+## at a random hour, lasting STORM_TIME. Work is STORM_PACE as fast; every
+## few seconds lightning may strike (a fire, or a tree knocked down).
+const STORM_FIRST_DAY := 2
+const STORM_CHANCE := 0.35
+const STORM_TIME := 90.0
+const STORM_PACE := 0.8
+const LIGHTNING_EVERY := 12.0
+const STORM_TINT := Color(0.62, 0.66, 0.78)
+
 ## Beds in a finished Hut; the hurt get better faster in one.
 const HUT_BEDS := 2
 const HEAL := 0.15
