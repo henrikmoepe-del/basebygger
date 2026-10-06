@@ -93,6 +93,9 @@ var question := {}
 var next_stranger := 0.0
 var stranger: Node2D = null
 var _price_at := -1.0
+## A strike: seconds left (0 = none), and how long the mood has been low.
+var strike := 0.0
+var _low_mood_for := 0.0
 
 var camera: Camera2D
 var things: Node2D
@@ -590,6 +593,43 @@ func start_raid(count := 4) -> void:
 		p.rethink()
 
 
+## Low spirits for long enough make the village strike.
+func _check_strike(delta: float) -> void:
+	if strike > 0.0:
+		strike -= delta
+		if strike <= 0.0:
+			strike = 0.0
+			announce("The strike is over; the village goes back to work.")
+		return
+	var adults: Array = peasants.filter(func(p): return not p.child)
+	if adults.is_empty() or calm:
+		return
+	var avg: float = adults.reduce(func(sum, p): return sum + p.mood, 0.0) / float(adults.size())
+	_low_mood_for = _low_mood_for + delta if avg < SbData.STRIKE_MOOD else 0.0
+	if _low_mood_for >= SbData.STRIKE_AFTER and question.is_empty():
+		_low_mood_for = 0.0
+		start_strike()
+
+
+## The villagers lay down their tools; the player may hold a feast.
+func start_strike() -> void:
+	strike = SbData.STRIKE_TIME
+	sound("lost")
+	announce("The villagers lay down their tools: a strike!")
+	for p in peasants:
+		p.rethink()
+	var can_feast: bool = stockyard.stock.food >= SbData.FEAST_FOOD
+	var options := ["Hold a feast (%d food)" % SbData.FEAST_FOOD if can_feast else "No food for a feast", "Wait it out"]
+	ask("The villagers lay down their tools. They are tired of this life.", options, func(i: int) -> void:
+		if i == 0 and stockyard.stock.food >= SbData.FEAST_FOOD:
+			stockyard.stock.food -= SbData.FEAST_FOOD
+			stockyard.queue_redraw()
+			for p in peasants:
+				p.remember("feast")
+			strike = 0.0
+			announce("A feast! Spirits lift and the work goes on."))
+
+
 ## A werewolf comes out of the wood (at night).
 func start_werewolf() -> Node2D:
 	var wolf: Node2D = _add(Raider, Vector2(SbData.EAST_EDGE - 5, 30))
@@ -943,6 +983,7 @@ func _process(delta: float) -> void:
 	time += delta
 	for l in _lanterns:
 		l.visible = darkness() > 0.05
+	_check_strike(delta)
 	# Dawn: maybe a birth. Children grow up.
 	var h := hour()
 	if _last_hour < SbData.NIGHT_TO and h >= SbData.NIGHT_TO:

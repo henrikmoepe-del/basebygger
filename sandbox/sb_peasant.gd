@@ -319,6 +319,8 @@ func grow_up() -> void:
 func set_order(o: Dictionary, add := false) -> void:
 	if trapped_at != null:
 		return
+	if world.strike > 0.0 and not child:
+		remember("made_work")
 	var t = o.get("target")
 	if t != null and is_instance_valid(t) and t.forbidden:
 		# Ordering someone to a forbidden thing allows it again.
@@ -403,6 +405,8 @@ func activity() -> String:
 		return "Dozing on the job! (click to wake)"
 	if sulking > 0.0 and task.get("kind", "") == "sulk":
 		return "Sulking (mood too low)"
+	if world.strike > 0.0 and task.get("kind", "") == "idle" and not child:
+		return "On strike"
 	if drafted and not task.get("forced", false):
 		return "Drafted: fighting a raider" if task.get("kind", "") == "fight" else "Drafted: holding"
 	var prefix := ("Drafted: " if drafted else "Ordered: ") if task.get("forced", false) else ""
@@ -673,6 +677,18 @@ func _task_valid() -> bool:
 ## within one kind of work, the best target (mostly the nearest).
 func _choose() -> void:
 	_end_task()
+	if world.strike > 0.0 and not child:
+		# On strike: no work by free will (emergencies still: fires, the hurt).
+		for w in ["firefight", "rescue"]:
+			if prio[w] > 0:
+				var e: Dictionary = world.find_work(self, w)
+				if not e.is_empty():
+					task = {"kind": e.kind, "target": e.target, "forced": false}
+					_claim_task()
+					return
+		task = {"kind": "idle"}
+		_idle_think = 2.0
+		return
 	if carrying == "person" and _patient != null and is_instance_valid(_patient):
 		# Still carrying someone hurt (after fleeing, say): finish that first.
 		task = {"kind": "rescue", "target": _patient, "forced": false}

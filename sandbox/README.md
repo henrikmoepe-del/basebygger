@@ -129,6 +129,11 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
      15, someone left to themselves has had enough and sulks for 30 seconds (a
      little dark cloud), then feels better; orders, drafting and the bell still
      come first.
+   - **Strikes** (from Henrik's list): when the grown-ups' average mood stays under
+     30 for a minute, they lay down their tools. Hold a feast (20 food; a big good
+     thought) to end it, or wait it out (90 seconds without work by free will;
+     fires and the hurt are still seen to). Orders still work, but being made to
+     work during a strike is a bad thought.
    - **Traits** (as in the main game): Quick and Slow walk faster or slower,
      Hard-working and Lazy work faster or slower. Shown on the card.
    - **Dozing** (one of the "small things to click"): by day, someone working while

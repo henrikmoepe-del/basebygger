@@ -150,6 +150,8 @@ const MEMORIES := {
 	"new_child": {"text": "A child was born", "value": 6.0, "time": 240.0},
 	"dreams": {"text": "Dark dreams", "value": -10.0, "time": 200.0},
 	"trapped": {"text": "Was trapped in a cave-in", "value": -10.0, "time": 240.0},
+	"feast": {"text": "A feast!", "value": 20.0, "time": 240.0},
+	"made_work": {"text": "Made to work during the strike", "value": -6.0, "time": 120.0},
 }
 
 ## Travellers who ask to join: the first on FIRST_TRAVELLER_DAY at
@@ -200,6 +202,14 @@ const WOLF_CHANCE := 0.25
 const WOLF_HP := 22.0
 const WOLF_SPEED := 40.0
 const WOLF_DAMAGE := 3.0
+
+## Strikes: when the grown-ups' average mood stays under STRIKE_MOOD for
+## STRIKE_AFTER seconds, they lay down their tools for STRIKE_TIME (no work
+## by free will) unless the player holds a feast for FEAST_FOOD food.
+const STRIKE_MOOD := 30.0
+const STRIKE_AFTER := 60.0
+const STRIKE_TIME := 90.0
+const FEAST_FOOD := 20
 
 ## Beds in a finished Hut; the hurt get better faster in one.
 const HUT_BEDS := 2

@@ -411,6 +411,16 @@ func _run() -> void:
 	var gone_wolf := await _wait(90.0, func(): return not is_instance_id_valid(beast_id))
 	_check(gone_wolf, "by day the werewolf is gone (slain or back into the wood)")
 
+	# 25. A strike: nobody works by free will; a feast ends it.
+	w.stockyard.put("food", 30)
+	w.start_strike()
+	await _wait(10.0)
+	var striking: Array = w.peasants.filter(func(p): return not p.child and not p.downed and p.order.is_empty() and not p.drafted and p.trapped_at == null)
+	var idle_n: int = striking.filter(func(p): return p.task.get("kind", "") in ["idle", "eat", "sleep", "firefight", "rescue", "flee", "deliver"]).size()
+	_check(idle_n == striking.size(), "on strike, nobody works by free will (%d of %d idle)" % [idle_n, striking.size()])
+	w.answer_question(0)
+	_check(w.strike <= 0.0 and w.peasants[0].memories.has("feast"), "a feast ends the strike and lifts spirits")
+
 	_check(_off_band == 0, "nobody leaves the ground band (%d frames off it)" % _off_band)
 	print("ALL PASSED" if _fails == 0 else "%d FAILED" % _fails)
 	quit(1 if _fails > 0 else 0)
