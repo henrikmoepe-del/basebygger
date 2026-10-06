@@ -171,6 +171,9 @@ func thoughts() -> Array:
 		list.append(["Night work", -5.0])
 	if world.child_labour and not child and world.peasants.any(func(o): return o.child):
 		list.append(["Children made to work", -4.0])
+	var flowers: int = mini(world.sites.filter(func(s): return s.done() and s.style == "flowers").size(), SbData.FLOWER_MAX)
+	if flowers > 0:
+		list.append(["A pretty village", SbData.FLOWER_MOOD * flowers])
 	for key in memories:
 		list.append([SbData.MEMORIES[key].text, SbData.MEMORIES[key].value])
 	list.sort_custom(func(a, b): return absf(a[1]) > absf(b[1]))
@@ -1139,7 +1142,8 @@ func _do_idle(delta: float) -> void:
 			_go(near, delta)
 		return
 	if job == "guard":
-		_go(world.guard_post + Vector2(float(hash(name) % 24) - 12.0, float(hash(name) % 14)), delta)
+		var spread := Vector2.ZERO if world.watchtower() != null else Vector2(float(hash(name) % 24) - 12.0, float(hash(name) % 14))
+		_go(world.guard_post + spread, delta)
 		return
 	if _wander_to == Vector2.INF or _go(_wander_to, delta, 0.5):
 		if _wander_to != Vector2.INF and randf() < 0.98:

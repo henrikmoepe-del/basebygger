@@ -57,7 +57,12 @@ var fires: Array = []
 var raiders: Array = []
 var stockyard: Node2D
 var well: Node2D
-var guard_post := Vector2(-300, 40)
+var _guard_post := Vector2(-300, 40)
+## Where guards wait: at the foot of a finished watchtower, else the west post.
+var guard_post: Vector2:
+	get:
+		var tower := watchtower()
+		return tower.position + Vector2(0, 8) if tower != null else _guard_post
 var selected: Array = []
 ## A building site picked with a left-click (its info shows in the HUD).
 var picked_site: Node2D = null
@@ -602,6 +607,42 @@ func start_raid(count := 4) -> void:
 		p.rethink()
 
 
+## A finished watchtower, or null.
+func watchtower() -> Node2D:
+	for s in sites:
+		if s.done() and s.style == "watch":
+			return s
+	return null
+
+
+## The guard keeping watch on the tower (standing at its foot), or null.
+func watchman() -> Node2D:
+	var tower := watchtower()
+	if tower == null:
+		return null
+	for p in peasants:
+		if p.job == "guard" and not p.downed and p.visible and p.position.distance_to(tower.position + Vector2(0, 8)) < 12.0:
+			return p
+	return null
+
+
+## Rings the bell when the watch sees raiders coming; the all clear after.
+var _bell_by_watch := false
+
+
+func _keep_watch() -> void:
+	var tower := watchtower()
+	if tower == null:
+		return
+	if not alarm and watchman() != null and nearest_raider(tower.position, SbData.WATCH_RANGE) != null:
+		_bell_by_watch = true
+		set_alarm(true)
+		announce("The watch on the tower rings the bell!")
+	elif alarm and _bell_by_watch and raiders.is_empty():
+		_bell_by_watch = false
+		set_alarm(false)
+
+
 func start_storm() -> void:
 	storm = SbData.STORM_TIME
 	_lightning = SbData.LIGHTNING_EVERY * 0.5
@@ -1079,6 +1120,7 @@ func _process(delta: float) -> void:
 		l.visible = darkness() > 0.05
 	_check_strike(delta)
 	_update_storm(delta)
+	_keep_watch()
 	if traitor != null and traitor.task.get("kind", "") == "steal" and traitor._goods():
 		for p in peasants:
 			if p != traitor and not p.downed and p.visible and (p.job == "guard" or p.drafted) and p.position.distance_to(traitor.position) < SbData.CATCH_RANGE:

@@ -56,6 +56,8 @@ const PLANS := {
 	"wolf": {"steps": [[0.5, "wolf"], [6.0, "shot"]]},
 	# A storm: rain, a darker sky, a lightning flash.
 	"storm": {"steps": [[0.5, "storm"], [3.0, "shot"], [0.05, "bolt"], [0.05, "shot"]]},
+	# A flowerbed and a watchtower with the guard on watch.
+	"watch": {"steps": [[0.5, "watch"], [25.0, "shot"]]},
 	# The hunter in the wood, aiming at a deer.
 	"hunt": {"steps": [[0.5, "hunt"], [5.5, "shot"], [3.0, "shot"]]},
 	"box": {"steps": [[2.0, "box"], [0.1, "goto"], [0.4, "shot"]]},
@@ -238,6 +240,16 @@ func _do(what: String) -> void:
 			w.start_storm()
 		"bolt":
 			w._strike_lightning()
+		"watch":
+			var x := 120.0
+			while not w.site_fits("watchtower", x) and x < 560.0:
+				x += 5.0
+			w.add_site("watchtower", Vector2(x, 4)).finish_now()
+			var fx := -340.0
+			while not w.site_fits("flowerbed", fx) and fx < 560.0:
+				fx += 5.0
+			w.add_site("flowerbed", Vector2(fx, 4)).finish_now()
+			w.camera.position = Vector2(x - 60.0, -20)
 		"hunt":
 			w.camera.position = Vector2(480, -20)
 			w.camera.zoom = Vector2(2, 2)

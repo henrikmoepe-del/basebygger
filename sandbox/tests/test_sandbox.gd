@@ -451,6 +451,22 @@ func _run() -> void:
 	_check(passed, "the storm passes")
 	await _wait(120.0, func(): return w.fires.is_empty())
 
+	# 28. A flowerbed lifts everyone; a watchtower's guard rings the bell.
+	var fx := _free_x("flowerbed")
+	var bed: Node2D = w.add_site("flowerbed", Vector2(fx, 4))
+	bed.finish_now()
+	_check(w.peasants[0].thoughts().any(func(t): return t[0] == "A pretty village"), "a flowerbed is a good thought for everyone")
+	var tx := _free_x("watchtower")
+	var lookout: Node2D = w.add_site("watchtower", Vector2(tx, 4))
+	lookout.finish_now()
+	var on_watch := await _wait(40.0, func(): return w.watchman() != null)
+	_check(on_watch, "a guard goes up the watchtower")
+	w.start_raid(2)
+	var rung := await _wait(30.0, func(): return w.alarm)
+	_check(rung, "the watch rings the bell when raiders come")
+	var cleared := await _wait(300.0, func(): return not w.raid_on and not w.alarm)
+	_check(cleared, "and gives the all clear when they are gone")
+
 	_check(_off_band == 0, "nobody leaves the ground band (%d frames off it)" % _off_band)
 	print("ALL PASSED" if _fails == 0 else "%d FAILED" % _fails)
 	quit(1 if _fails > 0 else 0)

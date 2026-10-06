@@ -67,9 +67,18 @@ const BUILDINGS := {
 	"tower": {"title": "Tower", "style": "spire", "cols": 4, "courses": ["stone", "stone", "stone", "stone", "stone", "planks", "planks"]},
 	"shed": {"title": "Shed", "style": "thatch", "cols": 4, "courses": ["wood", "wood"]},
 	"sawmill": {"title": "Sawmill", "style": "workshop", "cols": 6, "courses": ["stone", "wood", "wood"], "workshop": "sawmill"},
+	"flowerbed": {"title": "Flowerbed", "style": "flowers", "cols": 3, "courses": ["stone"]},
+	"watchtower": {"title": "Watchtower", "style": "watch", "cols": 2, "courses": ["wood", "wood", "wood", "wood", "wood", "planks"]},
 }
 
-const BUILD_ORDER := ["hut", "wall", "tower", "shed", "sawmill"]
+const BUILD_ORDER := ["hut", "wall", "tower", "shed", "sawmill", "flowerbed", "watchtower"]
+
+## Flowerbeds: each finished one is worth FLOWER_MOOD to everyone (up to
+## FLOWER_MAX of them). A watchtower with a guard on it rings the bell when
+## raiders come within WATCH_RANGE, and gives the all clear after.
+const FLOWER_MOOD := 2.0
+const FLOWER_MAX := 3
+const WATCH_RANGE := 260.0
 
 ## Workshops: what a crafter takes from the stockyard, makes, and how long
 ## one takes. A finished workshop has a bill: make until the stockyard holds

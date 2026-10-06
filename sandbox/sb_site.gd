@@ -251,6 +251,23 @@ func _draw() -> void:
 func _draw_finish(left: float, w: float) -> void:
 	var top := -height()
 	match style:
+		"flowers":
+			# Little flowers along the low stone edging.
+			for i in 7:
+				var fx := left + 2.0 + float(i) * (w - 4.0) / 6.0
+				draw_rect(Rect2(fx, top - 3.0, 1, 3), SbData.GRASS2)
+				var col: Color = [SbData.RED1, SbData.GOLD, SbData.WHITE, Color("#6a3a6a")][i % 4]
+				draw_rect(Rect2(fx - 1.0, top - 5.0, 3, 2), col)
+		"watch":
+			# A wooden lookout on long legs, with a roof.
+			draw_rect(Rect2(left - 3.0, top - 10.0, w + 6.0, 2), SbData.WOOD2)
+			draw_rect(Rect2(left - 3.0, top - 10.0, 1, 10), SbData.WOOD1)
+			draw_rect(Rect2(left + w + 2.0, top - 10.0, 1, 10), SbData.WOOD1)
+			draw_colored_polygon(PackedVector2Array([Vector2(left - 5, top - 10), Vector2(left + w / 2.0, top - 18), Vector2(left + w + 5, top - 10)]), SbData.THATCH)
+			if world.watchman() != null:
+				# The guard on watch, a small figure up top.
+				draw_rect(Rect2(left + w / 2.0 - 2.0, top - 8.0, 4, 6), SbData.JOBS.guard.tunic)
+				draw_rect(Rect2(left + w / 2.0 - 1.0, top - 11.0, 3, 3), SbData.SKIN1)
 		"workshop":
 			# An open timber shed: posts, a plank roof, the saw bench inside.
 			draw_rect(Rect2(left, top - 14, 2, 14), SbData.WOOD1)

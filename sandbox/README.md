@@ -88,6 +88,11 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
      **Crafter** (work type Craft) takes logs for up to 3 at once, saws them at the
      bench and carries the planks back. Right-click a workshop to order someone
      to work there (ordered, they keep on past the bill).
+   - **Flowerbeds and the watchtower** (Build menu): each finished flowerbed is a
+     good thought for everyone ("A pretty village", up to three). With a finished
+     watchtower, guards wait at its foot; while a guard keeps watch there, the bell
+     rings by itself when raiders (or a werewolf) come in sight, and the all clear
+     follows when they are gone.
    - **Raids:** they come by themselves: the first on day 2 at 17:00, then every 2
      days, one raider more each time (the top bar counts down the last day; T
      starts one at once). Raiders walk in from the west, fight anyone near, and head for the
