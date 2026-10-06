@@ -30,6 +30,8 @@ const PLANS := {
 	"hint": {"steps": [[1.0, "hint"], [0.5, "shot"]]},
 	# Night: the world darkens and the peasants sleep.
 	"night": {"steps": [[1.0, "night"], [10.0, "shot"]]},
+	# One peasant selected: the card with bars and skills.
+	"card": {"steps": [[2.0, "card"], [0.5, "shot"]]},
 	"box": {"steps": [[2.0, "box"], [0.1, "goto"], [0.4, "shot"]]},
 }
 
@@ -140,6 +142,11 @@ func _do(what: String) -> void:
 				hut.add_block(hut.next_material())
 			w.time = (21.5 - 8.0) / 24.0 * 240.0
 			w.camera.position = Vector2(-20, -20)
+		"card":
+			var p: Node2D = w.peasants[4]
+			p.hunger = 70.0
+			p.hp = 6.0
+			w.select([p])
 		"work":
 			w.peasants[3].cycle_prio("haul")
 			w.hud.toggle_work()

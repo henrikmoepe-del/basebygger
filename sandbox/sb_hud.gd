@@ -24,6 +24,8 @@ var _grid: HBoxContainer
 var _log: VBoxContainer
 var _work: PanelContainer
 var _draft_button: Button
+var _card: PanelContainer
+var _card_body: Control
 var _build: PanelContainer
 var _site_panel: PanelContainer
 var _site_label: Label
@@ -45,6 +47,7 @@ func _ready() -> void:
 	_make_work()
 	_make_build()
 	_make_site_panel()
+	_make_card()
 	var help := Label.new()
 	help.text = "Left-click: select (Shift adds)  Drag: box  Right-click: order  R: release  1-6: job  G: draft  W: work  B: build"
 	help.add_theme_font_size_override("font_size", 8)
@@ -240,6 +243,49 @@ func _make_site_panel() -> void:
 	row.add_child(cancel)
 
 
+## The card for one selected peasant: health, hunger and rest as bars, and
+## their skills. Drawn by hand on a small Control.
+func _make_card() -> void:
+	_card = PanelContainer.new()
+	_card.visible = false
+	_card.position = Vector2(4, 150)
+	_root.add_child(_card)
+	_card_body = Control.new()
+	_card_body.custom_minimum_size = Vector2(120, 92)
+	_card_body.draw.connect(_draw_card)
+	_card.add_child(_card_body)
+
+
+func _draw_card() -> void:
+	if world.selected.size() != 1:
+		return
+	var p: Node2D = world.selected[0]
+	if not is_instance_valid(p):
+		return
+	var font := ThemeDB.fallback_font
+	var c := _card_body
+	c.draw_string(font, Vector2(0, 9), "%s, %s" % [p.person_name, p.job_name()], HORIZONTAL_ALIGNMENT_LEFT, -1, 10, UiTheme.GOLD)
+	var bars := [["Health", p.hp / p.max_hp, SbData.GRASS3], ["Fed", 1.0 - p.hunger / 100.0, SbData.GOLD], ["Rested", 1.0 - p.tired / 100.0, SbData.SKY2]]
+	var y := 14.0
+	for bar in bars:
+		c.draw_string(font, Vector2(0, y + 7), bar[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 8, UiTheme.PARCHMENT)
+		c.draw_rect(Rect2(40, y + 1, 78, 6), SbData.INK)
+		c.draw_rect(Rect2(40, y + 1, 78.0 * clampf(bar[1], 0.0, 1.0), 6), bar[2])
+		y += 10.0
+	y += 3.0
+	for w in SbData.SKILLED:
+		var lvl: int = p.skill[w]
+		var need: float = SbData.SKILL_BASE + SbData.SKILL_PER_LEVEL * lvl
+		c.draw_string(font, Vector2(0, y + 7), SbData.WORK_NAMES[w], HORIZONTAL_ALIGNMENT_LEFT, -1, 8, UiTheme.PARCHMENT)
+		for i in SbData.SKILL_MAX:
+			var on := i < lvl
+			c.draw_rect(Rect2(40 + i * 7, y + 2, 6, 5), UiTheme.GOLD if on else SbData.STONE0)
+		# Practice towards the next level, as a thin line under it.
+		if lvl < SbData.SKILL_MAX:
+			c.draw_rect(Rect2(40 + lvl * 7, y + 7, 6.0 * p.practice[w] / need, 1), UiTheme.GOLD)
+		y += 9.0
+
+
 func _toggle_urgent() -> void:
 	var site: Node2D = world.picked_site
 	if site != null:
@@ -368,6 +414,9 @@ func _process(delta: float) -> void:
 		b.tooltip_text = "%s, %s: %s" % [p.person_name, p.job_name(), p.activity()]
 	_update_rows()
 	_update_site()
+	_card.visible = world.selected.size() == 1
+	if _card.visible:
+		_card_body.queue_redraw()
 
 
 func _update_site() -> void:
