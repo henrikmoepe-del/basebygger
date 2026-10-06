@@ -111,6 +111,7 @@ dotted line to what they are working on (gold for an order, white for free will)
 - `tests/shots.gd`: screenshots in a real window:
   `godot --path . -s sandbox/tests/shots.gd -- --plan=orders --out=<folder>`
   (plans: start, orders, raid, fire, box).
+- `DESIGN.md`: why the job system works this way, and open questions.
 - `HOOKUP.md`: what it would take to bring this into the main game.
 
 ## Kept simple on purpose
