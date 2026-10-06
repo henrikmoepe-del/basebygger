@@ -1,8 +1,10 @@
 ## About the game
 - Name: Game_1
-- Genre: Colony sim / castle builder with wave defence
-- Core idea in one sentence: A 2D colony sim where your peasants build and live in a castle, which turns into 3D for wave defence
-- Main mechanic: Colony sim (peasants with jobs, needs and lives) / wave defence
+- Genre: Colony sim / castle builder
+- Core idea in one sentence: A 2D colony sim where your peasants build and live in a castle
+- Main mechanic: Colony sim (peasants with jobs, needs and lives)
+- Raids and defence: undecided (Henrik, 2026-10-06). The 3D wave defence is no longer the plan;
+  how raids should work is still open.
 - Target platform: PC (Windows)
 
 ## Tech
@@ -117,9 +119,8 @@ What this means for the design now (Claude's notes):
   entries, and don't hard-code more x positions than needed.
 
 ## Current status
-- Stage: working on the 2D builder (make it better, more realistic, more fun) and on raids.
-  The 3D wave defence is a first prototype; it now starts by itself when raiders reach the castle.
-  Placeholder art.
+- Stage: working on the 2D colony sim (make it better, more realistic, more fun). How raids should
+  work is undecided. Placeholder art.
 - The player never clicks to gather. Peasants do all the work; the player hires them, gives
   them jobs, trains them, points at the world to build, and buys skills.
 - World layout: the castle's gate is at x = 0; its wall runs from -500 to 420
@@ -346,29 +347,27 @@ What this means for the design now (Claude's notes):
 - Next for the castle: rooms inside it (kitchen, smithy, stores) so more jobs happen within the walls;
   lit windows at night; the two towers as separate parts.
 - Design notes:
-  - Castle parts and soldiers are defences. `GameState.total_defence()` and the part levels are
-    what the later 3D wave defence will read; raids are the 2D stand-in for it.
+  - Castle parts and soldiers are defences (`GameState.total_defence()`, the part levels); what
+    they defend against, and how, is undecided.
   - Data lives in `scripts/*_data.gd` (castle parts and village buildings, jobs, skills); adding
     an entry there is usually all it takes to get new content on screen.
   - Everything built should have a benefit and, where it makes sense, a real drawback
     (see the drawback constants in `castle_data.gd`).
   - Henrik's design ideas are starting points: explore and expand on them, then explain the choices.
-- Raids (basics, `raiders.gd`, `soldier.gd`, `Workers.battle_post`; the "raid" event): every 3 days raiders walk in
+- Raids, as they work now (undecided whether they stay this way; `raiders.gd`, `soldier.gd`, `Workers.battle_post`; the "raid" event): every 3 days raiders walk in
   from the west, more and tougher each time. They are fought live in the 2D world. The palisade
   blocks them until they hack it down; spearmen behind it jab through the stakes; archers on the
   watchtower, towers and wall walk shoot from range (further from higher up). Soldiers take posts
   by themselves, an archer then a spearman in turn. A beaten spearman falls back to the garrison
-  for the rest of the raid. All raiders down = raid beaten. A raider reaching the castle starts the
-  3D gate fight with the share of raiders still standing (`siege_share`). Not balanced.
+  for the rest of the raid. All raiders down = raid beaten. A raider reaching the castle is simply gone
+  (the 3D siege is switched off). Not balanced.
   Ideas next: the player choosing posts, more outer works, raider kinds, damage that lasts.
-- 3D siege prototype (`scenes/siege.tscn`, `scripts/siege.gd`): SWITCHED OFF for now at Henrik's
-  request (`GameState.SIEGE_ENABLED`). Raiders who reach the castle are simply gone and nothing
+- 3D siege prototype (`scenes/siege.tscn`, `scripts/siege.gd`): no longer the plan (Henrik,
+  2026-10-06); the code is still there and SWITCHED OFF (`GameState.SIEGE_ENABLED`). Raiders who reach the castle are simply gone and nothing
   is taken. When on, it starts when raiders reach the castle. A 3D fight built from the castle's part levels (boxes for now).
   Archers on towers, walls and the watchtower shoot automatically; raiders break the palisade, then
   the gate. Survive 5 waves to win the raid. Without the button the raid resolves as before (number check).
   Dev key F7 starts a siege at any time.
-- Next for the siege: something for the player to do during it, enemy variety, real 3D models,
-  then tie it into passing the crown
 - Seeing the game: `tests/screenshot.gd` opens the game window, plays a build and saves real
   screenshots at steps through it (plans inside the file; `--plan=<name> --out=<folder>`), then
   closes the window. Henrik allows this window when it helps; always let it close. Use it after
