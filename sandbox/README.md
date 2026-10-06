@@ -56,7 +56,7 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
      near. The **Hunter** (work type Hunt) creeps within bow range, aims and shoots;
      the Hunt skill raises the chance to hit. A miss scares the deer off, a kill
      sends the herd running. A deer leaves 2 meat (food), which the hunter carries
-     home himself; the herd slowly grows back to 4.
+     home straight away; the herd slowly grows back to 4.
    - **Workshops and bills:** the Sawmill (standing at the start, or build more)
      turns logs into planks; the Tower's top needs planks. Click a finished
      workshop to set its bill: how many to keep in stock (0 stops it). The

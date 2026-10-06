@@ -91,7 +91,13 @@
   themselves, the player selects them (click, Shift, box, the bar of names) and gives orders
   by right-clicking (Shift queues); drafting (G); a Work overview (W); skills that grow by
   doing; haulers bringing material to sites; rescuing the hurt to Hut beds; needs (hunger,
-  sleep) with berry bushes and foragers; raids and fires as things peasants deal with.
+  sleep) with berry bushes and foragers; day and night with a Night work policy; a Sawmill
+  with a bill (keep N planks) and a Crafter; hunting deer in the wood to the east; an alarm
+  bell (everyone shelters inside the gate); forbidding things (X); raids on a timetable
+  whose raiders carry torches; fires peasants put out with buckets. `sandbox/DESIGN.md`
+  explains the choices and lists open questions for Henrik.
+- `sandbox/tests/soak.gd` runs the map for days and reports anything stuck; it found real
+  problems the short test missed (hauling never worked, items piling up, endless fires).
 - Tests: `godot --headless --fixed-fps 60 --path . -s sandbox/tests/test_sandbox.gd`;
   pictures: `sandbox/tests/shots.gd -- --plan=<name> --out=<folder>` (under xvfb-run in the
   cloud). Not balanced on purpose.
