@@ -4,6 +4,28 @@ A separate test map, kept apart from the main game: nothing in `scripts/` or
 `scenes/` is changed by it (it only borrows the UI look from `scripts/ui_theme.gd`).
 Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
 
+## Try this first (about five minutes)
+
+1. Press **Space** to pause. Drag a box around the three builders on the left.
+   Right-click the **Wall**: they go there (gold `!`). Space again to unpause.
+2. Click **Freya** in the bar of names, then right-click a **log** lying by the
+   trees: she hauls it. Shift + right-click a rock and then the ground: queued
+   orders (numbered lines).
+3. Press **W**: the Work overview. Click a cell to change a priority, or a job to
+   change the job. Close it with W.
+4. Press **T** for a raid. Select the builders, press **G** (draft) and
+   right-click near the raiders: they stand and fight. Or press **L** (the bell)
+   and everyone hides in the castle.
+5. Press **F** for a fire and watch the bucket line from the well.
+6. Click **Build**, pick a Hut, and place it with a left-click. Left-click the
+   site and make it **Urgent**.
+7. Click a single peasant and read their **card**: needs, mood and its reasons,
+   skills, trait.
+8. Click the **Sawmill** and change its bill (keep N planks).
+9. Leave it running at **Speed 4x**: night falls, people go to bed, a traveller
+   asks to join, a child is born, the hooded man comes on day 3...
+10. Point at anything with nobody selected to see what it is.
+
 ## What it tries out
 
 1. **A ground with depth** (after the Game_1 Art Direction page). The ground is a
