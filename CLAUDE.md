@@ -79,6 +79,27 @@
 - In a cloud container with no screen: `xvfb-run -a -s "-screen 0 1280x720x24" godot
   --rendering-driver opengl3 --path . -s tests/screenshot.gd -- ...` (there is no Vulkan there).
 
+## The sandbox (test map, 2026-10-06)
+- Henrik's local files were newer than the repo, so new systems were built on a separate test
+  map: `sandbox/` (open `sandbox/sandbox.tscn`, F6). It changes nothing in `scripts/` or
+  `scenes/`. Read `sandbox/README.md` (what it does, controls) and `sandbox/HOOKUP.md` (what it
+  would take to bring it into the main game). Screenshots are in `sandbox/shots/`.
+- What it tries out: a ground with depth (a band 80 deep, y-sorted, after the art direction);
+  several building sites at once, placed by the player (Build menu), urgent or cancelled;
+  a new job system like RimWorld with jobs: a job is a preset of work priorities (Fires,
+  Fight, Rescue, Build, Chop, Mine, Food, Haul; 1-3 or never), peasants choose work by
+  themselves, the player selects them (click, Shift, box, the bar of names) and gives orders
+  by right-clicking (Shift queues); drafting (G); a Work overview (W); skills that grow by
+  doing; haulers bringing material to sites; rescuing the hurt to Hut beds; needs (hunger,
+  sleep) with berry bushes and foragers; raids and fires as things peasants deal with.
+- Tests: `godot --headless --fixed-fps 60 --path . -s sandbox/tests/test_sandbox.gd`;
+  pictures: `sandbox/tests/shots.gd -- --plan=<name> --out=<folder>` (under xvfb-run in the
+  cloud). Not balanced on purpose.
+- Henrik has not tried it yet; nothing of it is in the main game.
+- Cloud containers have no Godot: download the official Linux build of the version in
+  `project.godot` (4.7.1) from github.com/godotengine/godot-builds releases, unzip it to
+  /usr/local/bin/godot, then run `godot --headless --path . --import` once.
+
 ## Git and the cloud
 - The repo is on GitHub: `henrikmoepe-del/basebygger` (private), remote `origin`. Push after
   every commit, so cloud sessions and the backup are up to date.
