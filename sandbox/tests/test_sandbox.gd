@@ -421,6 +421,22 @@ func _run() -> void:
 	w.answer_question(0)
 	_check(w.strike <= 0.0 and w.peasants[0].memories.has("feast"), "a feast ends the strike and lifts spirits")
 
+	# 26. The traitor steals at night; a guard nearby catches them.
+	var sneak: Node2D = w.peasants.filter(func(p): return p.job == "builder" and not p.downed)[0]
+	w.traitor = sneak
+	w.stockyard.put("planks", 20)
+	w.time = w.time_at(w.day() + 1, 22.5)
+	var stole := await _wait(60.0, func(): return sneak.task.get("kind", "") == "steal" and sneak._goods())
+	_check(stole, "at night the traitor takes goods from the stockyard")
+	var guard: Node2D = w.peasants.filter(func(p): return p.job == "guard")[0]
+	guard.position = sneak.position + Vector2(10, 0)
+	guard.set_drafted(true)
+	await _wait(1.0)
+	_check(w.traitor == null and not w.question.is_empty(), "a guard nearby catches them, and the player decides")
+	w.answer_question(1)
+	guard.set_drafted(false)
+	w.time = w.time_at(w.day() + 1, 9.0)
+
 	_check(_off_band == 0, "nobody leaves the ground band (%d frames off it)" % _off_band)
 	print("ALL PASSED" if _fails == 0 else "%d FAILED" % _fails)
 	quit(1 if _fails > 0 else 0)

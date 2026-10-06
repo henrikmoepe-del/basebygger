@@ -96,6 +96,9 @@ var _price_at := -1.0
 ## A strike: seconds left (0 = none), and how long the mood has been low.
 var strike := 0.0
 var _low_mood_for := 0.0
+## The traitor (secret), and what went missing last night (for the morning clue).
+var traitor: Node2D = null
+var stolen_last_night := {}
 
 var camera: Camera2D
 var things: Node2D
@@ -630,6 +633,42 @@ func start_strike() -> void:
 			announce("A feast! Spirits lift and the work goes on."))
 
 
+## In the morning, the stockyard shows what went missing in the night.
+func _morning_clue() -> void:
+	for res in stolen_last_night:
+		announce("Some %s is missing from the stockyard this morning (%d)." % [res, stolen_last_night[res]])
+	stolen_last_night.clear()
+
+
+## Called by the traitor when they get away with goods.
+func goods_stolen(res: String, n: int) -> void:
+	stolen_last_night[res] = stolen_last_night.get(res, 0) + n
+
+
+## Someone saw the traitor sneaking off with goods.
+func catch_traitor(by: Node2D) -> void:
+	var t := traitor
+	if t == null:
+		return
+	traitor = null
+	var what := "%d %s" % [t.carry_n, t.carrying]
+	t.release_order()
+	t._end_task()
+	t._put_back = true
+	announce("%s catches %s sneaking off with %s!" % [by.person_name, t.person_name, what])
+	ask("%s caught %s sneaking off with %s. The traitor hangs their head." % [by.person_name, t.person_name, what], ["Banish them", "Forgive them"], func(i: int) -> void:
+		if i == 0:
+			peasants.erase(t)
+			selected.erase(t)
+			t.guest = true
+			t.leaving = true
+			t.task = {"kind": "goto", "pos": Vector2(SbData.EAST_EDGE + 30, 40), "forced": true}
+			announce("%s is banished from the village." % t.person_name)
+			traveller_changed.emit()
+		else:
+			announce("%s is forgiven, and swears it will not happen again." % t.person_name))
+
+
 ## A werewolf comes out of the wood (at night).
 func start_werewolf() -> Node2D:
 	var wolf: Node2D = _add(Raider, Vector2(SbData.EAST_EDGE - 5, 30))
@@ -984,10 +1023,20 @@ func _process(delta: float) -> void:
 	for l in _lanterns:
 		l.visible = darkness() > 0.05
 	_check_strike(delta)
+	if traitor != null and traitor.task.get("kind", "") == "steal" and traitor._goods():
+		for p in peasants:
+			if p != traitor and not p.downed and p.visible and (p.job == "guard" or p.drafted) and p.position.distance_to(traitor.position) < SbData.CATCH_RANGE:
+				catch_traitor(p)
+				break
 	# Dawn: maybe a birth. Children grow up.
 	var h := hour()
 	if _last_hour < SbData.NIGHT_TO and h >= SbData.NIGHT_TO:
 		_maybe_birth()
+		_morning_clue()
+		if traitor == null and not calm and day() >= SbData.TRAITOR_DAY and randf() < 0.5:
+			var suspects: Array = peasants.filter(func(p): return not p.child and p.job != "guard")
+			if not suspects.is_empty():
+				traitor = suspects.pick_random()
 	if auto_raids and _last_hour < SbData.NIGHT_FROM + 1.0 and h >= SbData.NIGHT_FROM + 1.0 and day() >= SbData.WOLF_FIRST_DAY and randf() < SbData.WOLF_CHANCE:
 		start_werewolf()
 	_last_hour = h

@@ -68,6 +68,10 @@ var selected := false
 var child := false
 var born := 0.0
 var parents: Array = []
+## The traitor's night out: the day they last stole, and (when caught) that
+## they must put what they carry back in the stockyard.
+var _stole_day := 0
+var _put_back := false
 ## Trapped under the rubble of a cave-in at this rock (or null).
 var trapped_at: Node2D = null
 ## A traveller not yet taken in (does no work), and one sent on their way.
@@ -446,6 +450,8 @@ func activity() -> String:
 			return prefix + ("holding here" if _at(task.pos) else "going there")
 		"flee":
 			return "Fleeing from raiders!"
+		"steal":
+			return ("Sneaking off with %d %s..." % [carry_n, carrying]) if _goods() else "Up and about in the night..."
 		"shelter":
 			return "Sheltering in the castle (alarm)"
 		"eat":
@@ -564,6 +570,13 @@ func _process(delta: float) -> void:
 		_drafted_think()
 	elif world.alarm and not downed:
 		_shelter()
+	elif _put_back and _goods():
+		task = {"kind": "deliver", "forced": false}
+		_put_back = false
+	elif world.traitor == self and world.is_night() and _stole_day != world.day() and not child:
+		if task.get("kind", "") != "steal":
+			_end_task()
+			task = {"kind": "steal"}
 	else:
 		_check_flee()
 		_check_needs()
@@ -799,6 +812,8 @@ func _do_task(delta: float) -> void:
 			_go(Vector2(clampf(position.x + away * 60.0, SbData.WEST_EDGE + 10, SbData.EAST_EDGE - 10), position.y), delta, 1.25)
 		"idle":
 			_do_idle(delta)
+		"steal":
+			_do_steal(delta)
 		"eat":
 			_do_eat(delta)
 		"sleep":
@@ -844,6 +859,33 @@ func _do_build(site: Node2D, delta: float) -> void:
 			site.add_block(carrying)
 			carrying = ""
 			_finish_unit()
+
+
+## The traitor at night: take some of the biggest pile from the stockyard
+## and carry it off east, then go back to bed as if nothing happened.
+func _do_steal(delta: float) -> void:
+	var yard: Node2D = world.stockyard
+	if not _goods():
+		if _go(yard.work_spot(self), delta, 0.8):
+			var best := ""
+			for res in ["planks", "food", "wood", "stone"]:
+				if best == "" or yard.stock[res] > yard.stock[best]:
+					best = res
+			var n := 0
+			while n < SbData.TRAITOR_LOAD and yard.take(best):
+				n += 1
+			if n == 0:
+				_stole_day = world.day()
+				_end_task()
+				return
+			carrying = best
+			carry_n = n
+		return
+	if _go(Vector2(SbData.EAST_EDGE - 2, 70), delta, 0.8):
+		world.goods_stolen(carrying, carry_n)
+		carrying = ""
+		_stole_day = world.day()
+		_end_task()
 
 
 ## Digs at the rubble of a cave-in until the trapped one is free.

@@ -211,6 +211,13 @@ const STRIKE_AFTER := 60.0
 const STRIKE_TIME := 90.0
 const FEAST_FOOD := 20
 
+## The traitor: from TRAITOR_DAY one grown-up (not a guard) secretly steals
+## at night: up to TRAITOR_LOAD of the stockyard's biggest pile, carried off
+## east. A guard or someone drafted within CATCH_RANGE catches them.
+const TRAITOR_DAY := 3
+const TRAITOR_LOAD := 3
+const CATCH_RANGE := 40.0
+
 ## Beds in a finished Hut; the hurt get better faster in one.
 const HUT_BEDS := 2
 const HEAL := 0.15

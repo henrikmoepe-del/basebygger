@@ -129,6 +129,12 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
      15, someone left to themselves has had enough and sulks for 30 seconds (a
      little dark cloud), then feels better; orders, drafting and the bell still
      come first.
+   - **The traitor** (from Henrik's list): from day 3, one grown-up (not a guard)
+     may secretly start stealing at night: they get up, take some of the biggest
+     pile from the stockyard and carry it off east, then go back to bed. Clues: a
+     morning message about what went missing, and pointing at someone at night
+     may show "Sneaking off with 3 planks...". A guard or someone drafted within
+     reach catches them in the act; then banish or forgive.
    - **Strikes** (from Henrik's list): when the grown-ups' average mood stays under
      30 for a minute, they lay down their tools. Hold a feast (20 food; a big good
      thought) to end it, or wait it out (90 seconds without work by free will;
