@@ -15,6 +15,11 @@ const HIT_EVERY := 1.0
 const REACH := 9.0
 const FLEE_FROM := 70.0
 const MAX_LOAD := 3
+## Hunting: shooting range, time to aim, chance to hit at skill 0 and per level.
+const BOW_RANGE := 70.0
+const AIM_TIME := 2.5
+const HIT_BASE := 0.35
+const HIT_PER_LEVEL := 0.06
 ## Further than this along the ground, one keeps to the path.
 const PATH_FROM := 60.0
 ## Loose things this near the one picked up are taken along on the same trip.
@@ -257,6 +262,8 @@ func activity() -> String:
 	match task.get("kind", ""):
 		"supply":
 			return prefix + "bringing %s to %s" % [task.res, t.label()]
+		"hunt":
+			return prefix + "hunting " + t.label()
 		"craft":
 			if _short != "":
 				return prefix + "waiting for %s at %s" % [_short, t.label()]
@@ -314,6 +321,7 @@ func damage(n: float) -> void:
 func _process(delta: float) -> void:
 	_cool = maxf(_cool - delta, 0.0)
 	_hurt = maxf(_hurt - delta, 0.0)
+	_arrow = maxf(_arrow - delta, 0.0)
 	_walking = false
 	_anim = ""
 	hunger = minf(hunger + 100.0 / SbData.HUNGER_TIME * delta, 100.0)
@@ -523,6 +531,8 @@ func _do_task(delta: float) -> void:
 			_do_supply(t, delta)
 		"craft":
 			_do_craft(t, delta)
+		"hunt":
+			_do_hunt(t, delta)
 		"chop":
 			_do_gather(t, delta, "chop")
 		"mine":
@@ -676,6 +686,38 @@ func _do_craft(shop: Node2D, delta: float) -> void:
 				carrying = r.output
 				carry_n = _made
 				_made = 0
+
+
+## Creeps within bow range of the deer, aims, shoots. A miss scares it off;
+## the hunter follows.
+var _arrow := 0.0
+var _arrow_to := Vector2.ZERO
+
+
+func _do_hunt(prey: Node2D, delta: float) -> void:
+	if carrying != "":
+		_drop()
+	var d := position.distance_to(prey.position)
+	if d > BOW_RANGE * 0.85:
+		# Creep closer, slowly at the end.
+		_timer = 0.0
+		_go(prey.position, delta, 0.6 if d < BOW_RANGE * 1.3 else 1.0)
+		return
+	_anim = "aim"
+	scale.x = 1.0 if prey.position.x > position.x else -1.0
+	_timer += delta * skill_mult("hunt")
+	learn("hunt", delta)
+	if _timer >= AIM_TIME:
+		_timer = 0.0
+		_arrow = 0.25
+		_arrow_to = prey.position + Vector2(0, -6)
+		if randf() < HIT_BASE + HIT_PER_LEVEL * float(skill.hunt):
+			prey.shot()
+		else:
+			prey.scare(position)
+			if not task.get("forced", false) and randf() < 0.4:
+				# Gave up on this one for now.
+				_end_task()
 
 
 ## Brings one load of material from the stockyard to a building site.
@@ -925,6 +967,16 @@ func _draw() -> void:
 			draw_rect(Rect2(-3, bob - 18, 6, 1), SbData.GRASS2)
 		"crafter":
 			draw_rect(Rect2(-3, bob - 9, 6, 3), SbData.WOOD3)
+		"hunter":
+			# A hood and a bow.
+			draw_rect(Rect2(-3, bob - 18, 6, 2), SbData.GRASS1)
+			if carrying == "":
+				var bow_x := 4.0
+				draw_rect(Rect2(bow_x, bob - 15, 1, 10), SbData.WOOD1)
+				draw_rect(Rect2(bow_x + 1, bob - 16, 1, 1), SbData.WOOD1)
+				draw_rect(Rect2(bow_x + 1, bob - 5, 1, 1), SbData.WOOD1)
+				if _anim == "aim":
+					draw_rect(Rect2(bow_x - 3, bob - 11, 6, 1), SbData.WOOD3)
 		"hauler":
 			draw_rect(Rect2(-4, bob - 18, 8, 1), SbData.THATCH)
 			draw_rect(Rect2(-2, bob - 19, 4, 1), SbData.THATCH)
@@ -961,6 +1013,11 @@ func _draw() -> void:
 		draw_rect(Rect2(6, bob - 14, 3, 2), SbData.SKY3)
 		draw_rect(Rect2(9, bob - 12, 2, 2), SbData.SKY2)
 	_draw_marks(bob - 24.0)
+	if _arrow > 0.0:
+		# The arrow in flight, drawn from the bow towards the target.
+		var to := (_arrow_to - position) * Vector2(scale.x, 1.0)
+		var at := Vector2(4, -12).lerp(to, 1.0 - _arrow / 0.25)
+		draw_line(at, at - (to - Vector2(4, -12)).normalized() * 5.0, SbData.WOOD3, 1.0)
 
 
 ## A tool raised or swung while working.

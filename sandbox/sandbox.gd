@@ -19,6 +19,11 @@ const Peasant := preload("res://sandbox/sb_peasant.gd")
 const Site := preload("res://sandbox/sb_site.gd")
 const TreeThing := preload("res://sandbox/sb_tree.gd")
 const Bush := preload("res://sandbox/sb_bush.gd")
+const Deer := preload("res://sandbox/sb_deer.gd")
+## Where the wood begins; deer keep to it.
+const WOOD_FROM := 400.0
+const HERD := 4
+const HERD_GROWS := 60.0
 const Rock := preload("res://sandbox/sb_rock.gd")
 const Item := preload("res://sandbox/sb_item.gd")
 const Fire := preload("res://sandbox/sb_fire.gd")
@@ -38,6 +43,9 @@ var sites: Array = []
 var trees: Array = []
 var rocks: Array = []
 var bushes: Array = []
+var deer: Array = []
+var _herd_timer := 0.0
+var deer_shot := 0
 var items: Array = []
 var fires: Array = []
 var raiders: Array = []
@@ -133,7 +141,9 @@ func _build_map() -> void:
 		var b: Node2D = _add(Bush, spot)
 		b.setup(3)
 		bushes.append(b)
-	var crew := [["builder", 3], ["woodcutter", 1], ["miner", 1], ["hauler", 1], ["guard", 1], ["forager", 1], ["crafter", 1]]
+	for i in 3:
+		_add_deer(Vector2(470 + i * 40, 20 + i * 18))
+	var crew := [["builder", 3], ["woodcutter", 1], ["miner", 1], ["hauler", 1], ["guard", 1], ["forager", 1], ["crafter", 1], ["hunter", 1]]
 	var n := 0
 	for pair in crew:
 		for i in pair[1]:
@@ -206,6 +216,12 @@ func pick_site(site: Node2D) -> void:
 	selection_changed.emit()
 
 
+func _add_deer(at: Vector2) -> void:
+	var d: Node2D = _add(Deer, at)
+	d.setup()
+	deer.append(d)
+
+
 func spawn_item(res: String, at: Vector2) -> Node2D:
 	at.y = clampf(at.y, SbData.WALK_TOP, SbData.WALK_BOTTOM)
 	var it: Node2D = _add(Item, at)
@@ -215,7 +231,7 @@ func spawn_item(res: String, at: Vector2) -> Node2D:
 
 
 func remove_thing(t: Node2D) -> void:
-	for list in [items, fires, raiders, peasants, trees, rocks, bushes, sites]:
+	for list in [items, fires, raiders, peasants, trees, rocks, bushes, deer, sites]:
 		list.erase(t)
 	selected.erase(t)
 	for p in peasants:
@@ -257,6 +273,8 @@ func find_work(p: Node2D, work: String) -> Dictionary:
 			list = rocks
 		"forage":
 			list = bushes
+		"hunt":
+			list = deer
 		"craft":
 			# Workshops whose bill wants more, with input in the stockyard.
 			list = sites.filter(func(s): return s.is_workshop() and _bill_wants(s) and (stockyard.stock.get(s.recipe().input, 0) > 0 or p.carrying == s.recipe().input))
@@ -442,7 +460,7 @@ func order_at(at: Vector2) -> Dictionary:
 	for s in sites:
 		if s.is_workshop() and s.hit(at):
 			return {"kind": "craft", "target": s}
-	for list_kind in [[raiders, "fight"], [fires, "firefight"], [items, "haul"], [trees, "chop"], [rocks, "mine"], [bushes, "forage"], [sites, "build"]]:
+	for list_kind in [[deer, "hunt"], [raiders, "fight"], [fires, "firefight"], [items, "haul"], [trees, "chop"], [rocks, "mine"], [bushes, "forage"], [sites, "build"]]:
 		for t in list_kind[0]:
 			if t.is_open() and t.hit(at):
 				return {"kind": list_kind[1], "target": t}
@@ -591,7 +609,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				start_fire()
 			KEY_W:
 				hud.toggle_work()
-			KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7:
+			KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8:
 				set_job_selected(SbData.JOB_ORDER[(event as InputEventKey).keycode - KEY_1])
 
 
@@ -637,6 +655,12 @@ func darkness() -> float:
 
 func _process(delta: float) -> void:
 	time += delta
+	# The herd grows back slowly, from the east edge of the wood.
+	if deer.size() < HERD:
+		_herd_timer += delta
+		if _herd_timer >= HERD_GROWS:
+			_herd_timer = 0.0
+			_add_deer(Vector2(SbData.EAST_EDGE - 10, randf_range(10, 70)))
 	_tint.color = Color.WHITE.lerp(SbData.NIGHT_TINT, darkness())
 	var pan := Input.get_axis("ui_left", "ui_right")
 	if Input.is_key_pressed(KEY_A):
@@ -702,7 +726,7 @@ func _draw_overlay() -> void:
 const ORDER_WORDS := {
 	"fight": "Fight %s", "firefight": "Put out %s", "haul": "Haul %s", "chop": "Chop %s",
 	"mine": "Mine %s", "forage": "Pick %s", "build": "Build %s", "rescue": "Rescue %s",
-	"craft": "Work at %s",
+	"craft": "Work at %s", "hunt": "Hunt %s",
 }
 
 

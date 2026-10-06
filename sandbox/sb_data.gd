@@ -10,11 +10,11 @@ extends RefCounted
 ## the player comes before all of it, until it is done or released.
 
 ## Kinds of work, in the order they are shown in the priority grid.
-const WORK := ["firefight", "fight", "rescue", "build", "chop", "mine", "forage", "craft", "haul"]
+const WORK := ["firefight", "fight", "rescue", "build", "chop", "mine", "forage", "hunt", "craft", "haul"]
 
 const WORK_NAMES := {
 	"firefight": "Fires", "fight": "Fight", "rescue": "Rescue", "build": "Build",
-	"chop": "Chop", "mine": "Mine", "forage": "Food", "craft": "Craft", "haul": "Haul",
+	"chop": "Chop", "mine": "Mine", "forage": "Food", "hunt": "Hunt", "craft": "Craft", "haul": "Haul",
 }
 
 ## Each job: its name, tunic colour, and its preset of work priorities.
@@ -28,6 +28,8 @@ const JOBS := {
 		"work": {"firefight": 1, "rescue": 1, "mine": 1, "haul": 3}},
 	"forager": {"name": "Forager", "tunic": Color("#78a444"),
 		"work": {"firefight": 1, "rescue": 1, "forage": 1, "haul": 3}},
+	"hunter": {"name": "Hunter", "tunic": Color("#2e5230"),
+		"work": {"firefight": 1, "rescue": 1, "hunt": 1, "haul": 3}},
 	"crafter": {"name": "Crafter", "tunic": Color("#6a3a6a"),
 		"work": {"firefight": 1, "rescue": 1, "craft": 1, "haul": 3}},
 	"hauler": {"name": "Hauler", "tunic": Color("#b88a54"),
@@ -37,13 +39,13 @@ const JOBS := {
 }
 
 ## Work that has a skill: it grows by doing it (see sb_peasant.gd `learn`).
-const SKILLED := ["build", "chop", "mine", "forage", "craft", "fight"]
+const SKILLED := ["build", "chop", "mine", "forage", "hunt", "craft", "fight"]
 const SKILL_MAX := 10
 ## Seconds of practice for the next level: BASE + PER_LEVEL * level.
 const SKILL_BASE := 20.0
 const SKILL_PER_LEVEL := 12.0
 
-const JOB_ORDER := ["builder", "woodcutter", "miner", "forager", "crafter", "hauler", "guard"]
+const JOB_ORDER := ["builder", "woodcutter", "miner", "forager", "hunter", "crafter", "hauler", "guard"]
 
 const NAMES := ["Alda", "Bram", "Cedric", "Dagny", "Edwin", "Freya", "Gunnar",
 		"Hilde", "Ivo", "Jorun", "Kettil", "Liv", "Magnus", "Nora"]
@@ -106,7 +108,7 @@ const HEAL_IN_BED := 0.6
 
 ## How many peasants work one thing at a time when choosing for themselves.
 ## Orders from the player ignore these.
-const CAPACITY := {"tree": 1, "rock": 2, "item": 1, "site": 4, "fire": 3}
+const CAPACITY := {"deer": 1, "tree": 1, "rock": 2, "item": 1, "site": 4, "fire": 3}
 
 ## Palette (from the Game_1 Art Direction page).
 const INK := Color("#1a1622")

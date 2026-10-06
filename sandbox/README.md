@@ -16,11 +16,11 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
    fills in block by block. Builders spread out over the sites by themselves.
 3. **The new job system** (think RimWorld, with assigned jobs):
    - Every peasant has a **priority for each kind of work**: Fires, Fight, Rescue,
-     Build, Chop, Mine, Food, Craft, Haul. 1 = first, 2, 3 = last, - = never.
+     Build, Chop, Mine, Food, Hunt, Craft, Haul. 1 = first, 2, 3 = last, - = never.
    - A **job is a preset** of those priorities. Builder: Fires 1, Rescue 1, Build 1,
      Haul 3. Woodcutter: Fires 1, Rescue 1, Chop 1, Haul 3. Miner: Fires 1, Rescue 1,
      Mine 1, Haul 3. Forager: Fires 1, Rescue 1, Food 1, Haul 3. Crafter: Fires 1, Rescue 1, Craft 1,
-     Haul 3. Hauler: Fires 1, Rescue 1, Haul 1, Build 3. Guard: Fight 1,
+     Haul 3. Hunter: Fires 1, Rescue 1, Hunt 1, Haul 3. Hauler: Fires 1, Rescue 1, Haul 1, Build 3. Guard: Fight 1,
      Rescue 1, Fires 2. You can change
      single priorities per person in the panel (click a priority to cycle it).
    - **Free will:** left alone, a peasant does the most important work there is for
@@ -52,6 +52,11 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
      night, peasants left to themselves go to bed. The **Night work** policy (top
      bar) keeps them working through the night instead: 15% slower in the dark,
      and they tire 1.5 times as fast. Beds are reserved by whoever heads for them.
+   - **Hunting:** deer graze in the wood to the east and run from anyone who comes
+     near. The **Hunter** (work type Hunt) creeps within bow range, aims and shoots;
+     the Hunt skill raises the chance to hit. A miss scares the deer off, a kill
+     sends the herd running. A deer leaves 2 meat (food) to haul home; the herd
+     slowly grows back to 4.
    - **Workshops and bills:** the Sawmill (standing at the start, or build more)
      turns logs into planks; the Tower's top needs planks. Click a finished
      workshop to set its bill: how many to keep in stock (0 stops it). The
@@ -73,6 +78,7 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
 | Right-click a tree / rock / berry bush | Chop it / mine it / pick it, until it is used up |
 | Right-click a log or stone on the ground | Haul it to the stockyard (several selected take one each) |
 | Right-click a fire | Put it out (buckets from the well) |
+| Right-click a deer | Hunt it |
 | Right-click a raider | Fight it (guards hit 3, others 1.5, times their Fight skill) |
 | Right-click a hurt peasant | Carry them to a bed |
 | Right-click the ground | Go there and hold |
@@ -85,7 +91,7 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
 | X (pointing at a tree, rock, bush, item or site) | Forbid it: nobody touches it by themselves (red cross). X again allows it; ordering someone to it allows it too |
 | L (or Bell) | The alarm bell: everyone who is not a guard, drafted or under orders goes in through the castle gate and waits inside, out of the raiders' reach; guards go to their post or fight. Ring it again for the all clear |
 | R | Release the selected: back to free will (clears the queue too) |
-| 1-7 | Make the selected Builders, Woodcutters, Miners, Foragers, Crafters, Haulers or Guards |
+| 1-8 | Make the selected Builders, Woodcutters, Miners, Foragers, Hunters, Crafters, Haulers or Guards |
 | Esc | Deselect |
 | T / F | Start a raid / a fire (to test) |
 | A / D, middle-drag, wheel | Pan, zoom (whole steps: 0.5x, 1x, 2x, 3x) |
@@ -99,7 +105,7 @@ dotted line to what they are working on (gold for an order, white for free will)
 - `sb_data.gd`: work types, jobs (priority presets), palette, ground size.
 - `sb_peasant.gd`: a peasant: priorities, order, choosing work, doing it, drawing.
 - `sb_thing.gd`: the base for anything that can be worked on or ordered to.
-- `sb_site.gd`, `sb_tree.gd`, `sb_rock.gd`, `sb_bush.gd`, `sb_item.gd`, `sb_fire.gd`,
+- `sb_site.gd`, `sb_tree.gd`, `sb_rock.gd`, `sb_bush.gd`, `sb_deer.gd`, `sb_item.gd`, `sb_fire.gd`,
   `sb_raider.gd`, `sb_stockyard.gd`, `sb_well.gd`: the things in the world.
 - `sb_backdrop.gd`: sky, mountains, the castle wall, the ground band and path.
 - `sb_hud.gd`: top bar, the bar of peasants, the panel for the selected, messages.

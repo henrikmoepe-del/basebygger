@@ -36,6 +36,8 @@ const PLANS := {
 	"mill": {"steps": [[20.0, "mill"], [0.3, "shot"]]},
 	# The alarm bell during a raid: the guard at the post, the rest inside.
 	"bell": {"steps": [[2.0, "bell"], [8.0, "shot"]]},
+	# The hunter in the wood, aiming at a deer.
+	"hunt": {"steps": [[0.5, "hunt"], [5.5, "shot"], [3.0, "shot"]]},
 	"box": {"steps": [[2.0, "box"], [0.1, "goto"], [0.4, "shot"]]},
 }
 
@@ -159,6 +161,9 @@ func _do(what: String) -> void:
 			w.set_alarm(true)
 			w.start_raid(3)
 			w.camera.position = Vector2(-60, -20)
+		"hunt":
+			w.camera.position = Vector2(480, -20)
+			w.camera.zoom = Vector2(2, 2)
 		"work":
 			w.peasants[3].cycle_prio("haul")
 			w.hud.toggle_work()

@@ -52,7 +52,7 @@ func _ready() -> void:
 	_make_site_panel()
 	_make_card()
 	var help := Label.new()
-	help.text = "Left-click: select (Shift adds)  Drag: box  Right-click: order  R: release  1-7: job  G: draft  X: forbid  L: bell"
+	help.text = "Left-click: select (Shift adds)  Drag: box  Right-click: order  R: release  1-8: job  G: draft  X: forbid  L: bell"
 	help.add_theme_font_size_override("font_size", 8)
 	help.add_theme_color_override("font_color", UiTheme.PARCHMENT_DIM)
 	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)

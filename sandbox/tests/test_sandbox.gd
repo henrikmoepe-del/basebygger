@@ -244,6 +244,13 @@ func _run() -> void:
 	for t in w.trees:
 		t.forbidden = false
 
+	# 14. Hunting: the hunter shoots a deer, which leaves meat.
+	var shot_before: int = w.deer_shot
+	var hunted := await _wait(180.0, func(): return w.deer_shot > shot_before)
+	_check(hunted, "the hunter shoots a deer by themselves")
+	var meat: int = w.items.filter(func(it): return it.res == "food").size()
+	_check(meat >= 1 or w.stockyard.stock.food > 0, "the deer leaves meat")
+
 	_check(_off_band == 0, "nobody leaves the ground band (%d frames off it)" % _off_band)
 	print("ALL PASSED" if _fails == 0 else "%d FAILED" % _fails)
 	quit(1 if _fails > 0 else 0)
