@@ -30,6 +30,8 @@ var _build: PanelContainer
 var _site_panel: PanelContainer
 var _site_label: Label
 var _urgent_button: Button
+var _bill_row: HBoxContainer
+var _site_buttons: HBoxContainer
 var _work_grid: GridContainer
 var _refresh := 0.0
 
@@ -49,7 +51,7 @@ func _ready() -> void:
 	_make_site_panel()
 	_make_card()
 	var help := Label.new()
-	help.text = "Left-click: select (Shift adds)  Drag: box  Right-click: order  R: release  1-6: job  G: draft  W: work  B: build"
+	help.text = "Left-click: select (Shift adds)  Drag: box  Right-click: order  R: release  1-7: job  G: draft  W: work  B: build"
 	help.add_theme_font_size_override("font_size", 8)
 	help.add_theme_color_override("font_color", UiTheme.PARCHMENT_DIM)
 	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
@@ -232,7 +234,16 @@ func _make_site_panel() -> void:
 	_site_label.add_theme_font_size_override("font_size", 9)
 	box.add_child(_site_label)
 	var row := HBoxContainer.new()
+	_site_buttons = row
 	box.add_child(row)
+	# A workshop's bill: keep this many in stock.
+	_bill_row = HBoxContainer.new()
+	box.add_child(_bill_row)
+	for spec in [["-5", -5], ["-1", -1], ["+1", 1], ["+5", 5]]:
+		var b := _button(spec[0], func(): world.change_bill(world.picked_site, spec[1]))
+		_compact(b)
+		b.tooltip_text = "Change how many the workshop keeps in stock. 0 stops it."
+		_bill_row.add_child(b)
 	_urgent_button = _button("Urgent", _toggle_urgent)
 	_compact(_urgent_button)
 	_urgent_button.tooltip_text = "Builders choosing for themselves go to an urgent site first."
@@ -425,6 +436,8 @@ func _update_site() -> void:
 	if not _site_panel.visible:
 		return
 	_site_label.text = site.progress_text()
+	_bill_row.visible = site.is_workshop()
+	_site_buttons.visible = not site.done() or not site.is_workshop()
 	_urgent_button.text = "Urgent: yes" if site.urgent else "Urgent: no"
 	_urgent_button.add_theme_color_override("font_color", UiTheme.GOLD if site.urgent else UiTheme.PARCHMENT)
 

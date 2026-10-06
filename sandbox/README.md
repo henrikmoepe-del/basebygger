@@ -16,10 +16,11 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
    fills in block by block. Builders spread out over the sites by themselves.
 3. **The new job system** (think RimWorld, with assigned jobs):
    - Every peasant has a **priority for each kind of work**: Fires, Fight, Rescue,
-     Build, Chop, Mine, Haul. 1 = first, 2, 3 = last, - = never.
+     Build, Chop, Mine, Food, Craft, Haul. 1 = first, 2, 3 = last, - = never.
    - A **job is a preset** of those priorities. Builder: Fires 1, Rescue 1, Build 1,
      Haul 3. Woodcutter: Fires 1, Rescue 1, Chop 1, Haul 3. Miner: Fires 1, Rescue 1,
-     Mine 1, Haul 3. Forager: Fires 1, Rescue 1, Food 1, Haul 3. Hauler: Fires 1, Rescue 1, Haul 1, Build 3. Guard: Fight 1,
+     Mine 1, Haul 3. Forager: Fires 1, Rescue 1, Food 1, Haul 3. Crafter: Fires 1, Rescue 1, Craft 1,
+     Haul 3. Hauler: Fires 1, Rescue 1, Haul 1, Build 3. Guard: Fight 1,
      Rescue 1, Fires 2. You can change
      single priorities per person in the panel (click a priority to cycle it).
    - **Free will:** left alone, a peasant does the most important work there is for
@@ -51,6 +52,12 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
      night, peasants left to themselves go to bed. The **Night work** policy (top
      bar) keeps them working through the night instead: 15% slower in the dark,
      and they tire 1.5 times as fast. Beds are reserved by whoever heads for them.
+   - **Workshops and bills:** the Sawmill (standing at the start, or build more)
+     turns logs into planks; the Tower's top needs planks. Click a finished
+     workshop to set its bill: how many to keep in stock (0 stops it). The
+     **Crafter** (work type Craft) takes logs for up to 3 at once, saws them at the
+     bench and carries the planks back. Right-click a workshop to order someone
+     to work there (ordered, they keep on past the bill).
    - **Orders:** select peasants and right-click something. The order comes before
      everything else (even fleeing) until it is done, then they go back to free will.
      **R** (or Release) ends the order early.
@@ -70,12 +77,13 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
 | Right-click a hurt peasant | Carry them to a bed |
 | Right-click the ground | Go there and hold |
 | B (or Build) | Build menu: pick a building, left-click where it goes (Shift-click: several; right-click: stop). Red outline = does not fit |
-| Left-click a building site | Its progress; make it **Urgent** (builders go there first, red pennant) or **Cancel** it |
+| Left-click a building site | Its progress; make it **Urgent** (builders go there first, red pennant) or **Cancel** it. On a finished workshop: its bill |
+| Right-click a finished workshop | Work there |
 | W (or Work) | The Work overview: every peasant's job and priorities, click to change |
 | Shift + right-click | Queue the order after the ones already given (numbered dotted lines) |
 | G (or Draft) | Draft the selected: they drop their work, get a cudgel and a red shield mark, stand where you send them and fight any raider who comes near. G again to undraft |
 | R | Release the selected: back to free will (clears the queue too) |
-| 1-6 | Make the selected Builders, Woodcutters, Miners, Foragers, Haulers or Guards |
+| 1-7 | Make the selected Builders, Woodcutters, Miners, Foragers, Crafters, Haulers or Guards |
 | Esc | Deselect |
 | T / F | Start a raid / a fire (to test) |
 | A / D, middle-drag, wheel | Pan, zoom (whole steps: 0.5x, 1x, 2x, 3x) |

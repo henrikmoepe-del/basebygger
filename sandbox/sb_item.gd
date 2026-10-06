@@ -19,7 +19,7 @@ func work_spot(_peasant: Node2D) -> Vector2:
 
 
 func label() -> String:
-	return {"wood": "a log", "stone": "a stone", "food": "a basket of berries"}.get(res, "something")
+	return {"wood": "a log", "stone": "a stone", "food": "a basket of berries", "planks": "some planks"}.get(res, "something")
 
 
 func _draw() -> void:
@@ -29,6 +29,10 @@ func _draw() -> void:
 		draw_rect(Rect2(-3, -6, 2, 2), SbData.RED1)
 		draw_rect(Rect2(0, -6, 2, 2), SbData.RED1)
 		draw_rect(Rect2(2, -5, 1, 1), SbData.RED0)
+	elif res == "planks":
+		draw_rect(Rect2(-6, -3, 12, 1), SbData.PLANK)
+		draw_rect(Rect2(-5, -2, 12, 1), SbData.WOOD3)
+		draw_rect(Rect2(-6, -1, 12, 1), SbData.PLANK)
 	elif res == "wood":
 		draw_rect(Rect2(-6, -4, 12, 4), SbData.WOOD2)
 		draw_rect(Rect2(-6, -4, 12, 1), SbData.WOOD3)

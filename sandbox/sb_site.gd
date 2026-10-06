@@ -15,8 +15,11 @@ var mats: Array = []
 var placed := 0
 ## Material brought here by haulers, waiting to be laid, and what is on
 ## its way (so two haulers do not bring the same block).
-var stock := {"wood": 0, "stone": 0}
-var incoming := {"wood": 0, "stone": 0}
+var stock := {"wood": 0, "stone": 0, "planks": 0}
+var incoming := {"wood": 0, "stone": 0, "planks": 0}
+## For a workshop: its kind (a key of SbData.WORKSHOPS) and its bill.
+var workshop := ""
+var keep := 0
 ## Builders choosing for themselves prefer a site marked urgent.
 var urgent := false
 ## The hurt lying in this building's beds (a finished Hut).
@@ -40,7 +43,17 @@ func setup(title_: String, style_: String, cols_: int, courses: Array) -> void:
 
 
 func is_open() -> bool:
-	return not done()
+	return not done() or is_workshop()
+
+
+## A finished workshop (something to craft at).
+func is_workshop() -> bool:
+	return workshop != "" and done()
+
+
+## The workshop's recipe, or {}.
+func recipe() -> Dictionary:
+	return SbData.WORKSHOPS.get(workshop, {})
 
 
 func done() -> bool:
@@ -83,6 +96,14 @@ func add_block(material: String) -> void:
 	if done():
 		_flash = 1.0
 		world.announce("The %s is finished." % title)
+	queue_redraw()
+
+
+## Finished at once, without a word (for buildings standing when the map starts).
+func finish_now() -> void:
+	while placed < mats.size():
+		laid.append(mats[placed])
+		placed += 1
 	queue_redraw()
 
 
@@ -139,13 +160,22 @@ func label() -> String:
 	return "the " + title
 
 
+func work_spot_craft(peasant: Node2D) -> Vector2:
+	return position + Vector2(-6.0 + float(workers.find(peasant)) * 10.0, 5.0)
+
+
 func progress_text() -> String:
+	if is_workshop():
+		var r := recipe()
+		return "%s: %s, keep %d in stock (now %d)" % [title, r.bill, keep, world.stockyard.stock.get(r.output, 0)]
 	if done():
 		return "%s: finished" % title
 	return "%s: %d / %d blocks, next: %s, %d working" % [title, placed, mats.size(), next_material(), workers.size()]
 
 
 func _process(delta: float) -> void:
+	if is_workshop() and not workers.is_empty():
+		queue_redraw()
 	if _flash > 0.0:
 		_flash = maxf(_flash - delta, 0.0)
 		queue_redraw()
@@ -170,6 +200,10 @@ func _draw() -> void:
 			draw_rect(r, SbData.STONE3 if shade else SbData.STONE2)
 			draw_rect(Rect2(r.position, Vector2(BW, 1)), SbData.STONE4)
 			draw_rect(Rect2(r.position + Vector2(BW - 1, 0), Vector2(1, BH)), SbData.STONE1)
+		elif laid[i] == "planks":
+			draw_rect(r, SbData.PLANK if shade else SbData.WOOD3)
+			draw_rect(Rect2(r.position + Vector2(0, 2), Vector2(BW, 1)), SbData.WOOD2)
+			draw_rect(Rect2(r.position + Vector2(BW - 1, 0), Vector2(1, BH)), SbData.WOOD1)
 		else:
 			draw_rect(r, SbData.WOOD2 if shade else SbData.WOOD1)
 			draw_rect(Rect2(r.position, Vector2(BW, 1)), SbData.WOOD3)
@@ -181,9 +215,9 @@ func _draw() -> void:
 	# The pile of delivered material, beside the name board.
 	var pile := pile_spot() - position
 	var n := 0
-	for res in ["stone", "wood"]:
+	for res in ["stone", "wood", "planks"]:
 		for i in mini(stock[res], 6):
-			var c: Color = (SbData.STONE3 if i % 2 == 0 else SbData.STONE2) if res == "stone" else (SbData.WOOD2 if i % 2 == 0 else SbData.WOOD3)
+			var c: Color = (SbData.STONE3 if i % 2 == 0 else SbData.STONE2) if res == "stone" else ((SbData.WOOD2 if i % 2 == 0 else SbData.WOOD3) if res == "wood" else SbData.PLANK)
 			draw_rect(Rect2(pile.x - 6.0 + (n % 3) * 4.0, pile.y - 3.0 - (n / 3) * 3.0, 4, 3), c)
 			n += 1
 	if selected:
@@ -201,6 +235,20 @@ func _draw() -> void:
 func _draw_finish(left: float, w: float) -> void:
 	var top := -height()
 	match style:
+		"workshop":
+			# An open timber shed: posts, a plank roof, the saw bench inside.
+			draw_rect(Rect2(left, top - 14, 2, 14), SbData.WOOD1)
+			draw_rect(Rect2(left + w - 2, top - 14, 2, 14), SbData.WOOD1)
+			draw_colored_polygon(PackedVector2Array([Vector2(left - 4, top - 12), Vector2(left + w / 2.0, top - 22), Vector2(left + w + 4, top - 12)]), SbData.WOOD2)
+			draw_rect(Rect2(left - 4, top - 13, w + 8, 2), SbData.PLANK)
+			draw_rect(Rect2(left + 10, -8, w - 20, 2), SbData.WOOD3)
+			draw_rect(Rect2(left + 12, -6, 2, 6), SbData.WOOD0)
+			draw_rect(Rect2(left + w - 14, -6, 2, 6), SbData.WOOD0)
+			var t := Time.get_ticks_msec() / 80.0 if not workers.is_empty() else 0.0
+			draw_circle(Vector2(left + w / 2.0, -10), 4.0, SbData.STONE3)
+			draw_line(Vector2(left + w / 2.0, -10), Vector2(left + w / 2.0, -10) + Vector2(cos(t), sin(t)) * 4.0, SbData.STONE1, 1.0)
+			if keep > 0:
+				draw_string(ThemeDB.fallback_font, Vector2(left, top - 24), "keep %d" % keep, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, SbData.WHITE)
 		"thatch":
 			# A thatched roof and a door.
 			var roof := PackedVector2Array([Vector2(left - 4, top), Vector2(left + w / 2.0, top - 14), Vector2(left + w + 4, top)])

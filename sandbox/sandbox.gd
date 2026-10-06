@@ -43,7 +43,7 @@ var fires: Array = []
 var raiders: Array = []
 var stockyard: Node2D
 var well: Node2D
-var guard_post := Vector2(-250, 30)
+var guard_post := Vector2(-300, 40)
 var selected: Array = []
 ## A building site picked with a left-click (its info shows in the HUD).
 var picked_site: Node2D = null
@@ -100,13 +100,17 @@ func _build_map() -> void:
 	stockyard.put("wood", 14)
 	stockyard.put("stone", 18)
 	stockyard.put("food", 10)
+	stockyard.put("planks", 2)
 	well = _add(Well, Vector2(255, 8))
 	well.setup()
 	# Three building sites side by side, each its own job.
 	for pair in [["hut", -170.0], ["wall", -60.0], ["tower", 60.0]]:
 		add_site(pair[0], Vector2(pair[1], 4))
+	# A sawmill already stands east of the well.
+	var mill: Node2D = add_site("sawmill", Vector2(305, 4))
+	mill.finish_now()
 	# Rocks and a wood to the east, at different depths.
-	for spot in [Vector2(320, 14), Vector2(352, 46), Vector2(300, 66)]:
+	for spot in [Vector2(372, 18), Vector2(352, 48), Vector2(300, 66)]:
 		var r: Node2D = _add(Rock, spot)
 		r.setup(12)
 		rocks.append(r)
@@ -125,7 +129,7 @@ func _build_map() -> void:
 		var b: Node2D = _add(Bush, spot)
 		b.setup(3)
 		bushes.append(b)
-	var crew := [["builder", 3], ["woodcutter", 1], ["miner", 1], ["hauler", 1], ["guard", 1], ["forager", 1]]
+	var crew := [["builder", 3], ["woodcutter", 1], ["miner", 1], ["hauler", 1], ["guard", 1], ["forager", 1], ["crafter", 1]]
 	var n := 0
 	for pair in crew:
 		for i in pair[1]:
@@ -148,6 +152,9 @@ func add_site(building: String, at: Vector2) -> Node2D:
 	var b: Dictionary = SbData.BUILDINGS[building]
 	var site: Node2D = _add(Site, at)
 	site.setup(b.title, b.style, b.cols, b.courses)
+	site.workshop = b.get("workshop", "")
+	if site.workshop != "":
+		site.keep = SbData.WORKSHOPS[site.workshop].keep
 	sites.append(site)
 	return site
 
@@ -246,6 +253,9 @@ func find_work(p: Node2D, work: String) -> Dictionary:
 			list = rocks
 		"forage":
 			list = bushes
+		"craft":
+			# Workshops whose bill wants more, with input in the stockyard.
+			list = sites.filter(func(s): return s.is_workshop() and _bill_wants(s) and (stockyard.stock.get(s.recipe().input, 0) > 0 or p.carrying == s.recipe().input))
 		"haul":
 			list = items
 		"rescue":
@@ -259,6 +269,8 @@ func find_work(p: Node2D, work: String) -> Dictionary:
 			continue
 		var score := p.position.distance_to(t.position)
 		if work == "build":
+			if t.done():
+				continue
 			var need: String = t.next_material()
 			if p.carrying != need and stockyard.stock.get(need, 0) <= 0 and t.stock[need] <= 0:
 				continue
@@ -275,7 +287,7 @@ func find_work(p: Node2D, work: String) -> Dictionary:
 		for site in sites:
 			if site.done():
 				continue
-			for res in ["stone", "wood"]:
+			for res in ["stone", "wood", "planks"]:
 				if site.wanted(res) <= 0 or stockyard.stock[res] <= 0:
 					continue
 				var score := p.position.distance_to(stockyard.position) + stockyard.position.distance_to(site.position) * 0.5
@@ -293,6 +305,19 @@ func find_work(p: Node2D, work: String) -> Dictionary:
 
 
 const LOOSE_LIMIT := 4
+
+
+## True if the workshop's bill wants more made: fewer than `keep` in the
+## stockyard, counting what crafters are making right now.
+func _bill_wants(shop: Node2D) -> bool:
+	var r: Dictionary = shop.recipe()
+	return stockyard.stock.get(r.output, 0) + shop.workers.size() < shop.keep
+
+
+## Changes a workshop's bill by `by` (never below 0).
+func change_bill(shop: Node2D, by: int) -> void:
+	shop.keep = maxi(shop.keep + by, 0)
+	shop.queue_redraw()
 
 
 ## How many loose things lie within 40 of this point.
@@ -403,6 +428,9 @@ func order_at(at: Vector2) -> Dictionary:
 	for p in peasants:
 		if p.is_open() and p.hit(at):
 			return {"kind": "rescue", "target": p}
+	for s in sites:
+		if s.is_workshop() and s.hit(at):
+			return {"kind": "craft", "target": s}
 	for list_kind in [[raiders, "fight"], [fires, "firefight"], [items, "haul"], [trees, "chop"], [rocks, "mine"], [bushes, "forage"], [sites, "build"]]:
 		for t in list_kind[0]:
 			if t.is_open() and t.hit(at):
@@ -538,7 +566,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				start_fire()
 			KEY_W:
 				hud.toggle_work()
-			KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6:
+			KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7:
 				set_job_selected(SbData.JOB_ORDER[(event as InputEventKey).keycode - KEY_1])
 
 
@@ -635,6 +663,7 @@ func _draw_overlay() -> void:
 const ORDER_WORDS := {
 	"fight": "Fight %s", "firefight": "Put out %s", "haul": "Haul %s", "chop": "Chop %s",
 	"mine": "Mine %s", "forage": "Pick %s", "build": "Build %s", "rescue": "Rescue %s",
+	"craft": "Work at %s",
 }
 
 

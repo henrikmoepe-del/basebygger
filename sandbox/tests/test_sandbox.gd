@@ -59,11 +59,26 @@ func _run() -> void:
 
 	var supplied := await _wait(60.0, func(): return w.sites.any(func(s): return s.stock.stone + s.stock.wood > 0))
 	_check(supplied, "the hauler brings material to a building site")
+	if not supplied:
+		_dump()
+		print("  stock ", w.stockyard.stock, " wanted ", w.sites.map(func(s): return [s.title, s.wanted("stone"), s.wanted("wood"), s.wanted("planks"), s.stock, s.incoming]))
 
 	var stone_in: int = w.stockyard.stock.stone
 	var lying_id: int = w.spawn_item("stone", Vector2(150, 50)).get_instance_id()
 	var hauled := await _wait(60.0, func(): return not is_instance_id_valid(lying_id) or instance_from_id(lying_id).is_queued_for_deletion())
 	_check(hauled, "a loose stone is picked up by someone by themselves")
+
+	# 1b. The sawmill's bill: the crafter saws planks until there are `keep`.
+	var mill: Node2D = w.sites.filter(func(s): return s.is_workshop())[0]
+	mill.keep = 6
+	var sawn := await _wait(120.0, func(): return w.stockyard.stock.planks >= 6)
+	_check(sawn, "the crafter saws planks until the bill's 6 are in stock (%d)" % w.stockyard.stock.planks)
+	if not sawn:
+		_dump()
+		print("  stock ", w.stockyard.stock, " mill workers ", mill.workers.size(), " keep ", mill.keep, " find ", w.find_work(w.peasants[8], "craft"))
+	await _wait(15.0)
+	_check(w.stockyard.stock.planks <= 7, "and then stops (%d)" % w.stockyard.stock.planks)
+	mill.keep = 12
 
 	# 2. Order three builders to the Tower.
 	var builders: Array = w.peasants.filter(func(p): return p.job == "builder")
@@ -139,15 +154,18 @@ func _run() -> void:
 	# 7. Placing a building: not over another one; a new one gets built.
 	_check(not w.site_fits("hut", w.sites[0].position.x), "a building cannot be placed over another")
 	_check(not w.site_fits("hut", w.stockyard.position.x), "a building cannot be placed over the stockyard")
-	var x := -260.0
-	_check(w.site_fits("shed", x), "a shed fits west of the Hut")
+	var x := -340.0
+	while x < 560.0 and not w.site_fits("shed", x):
+		x += 5.0
+	_check(x < 560.0, "a free spot for a shed is found (x %d)" % x)
 	var shed: Node2D = w.add_site("shed", Vector2(x, 4))
 	shed.urgent = true
 	var built := await _wait(200.0, func(): return shed.done())
 	_check(built, "a newly placed urgent shed is built by the builders on their own")
+	var count: int = w.sites.size()
 	w.cancel_site(w.sites[1])
 	await _wait(1.0)
-	_check(w.sites.size() == 3, "a site can be cancelled")
+	_check(w.sites.size() == count - 1, "a site can be cancelled")
 
 	# 8. Skills grow by doing the work.
 	var miner: Node2D = w.peasants.filter(func(p): return p.job == "miner")[0]

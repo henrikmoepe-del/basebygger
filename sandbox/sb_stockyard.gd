@@ -2,7 +2,7 @@ extends "res://sandbox/sb_thing.gd"
 ## The stockyard: a shed with a pile per resource. Haulers bring things here,
 ## builders fetch from here, raiders steal from here.
 
-var stock := {"wood": 0, "stone": 0, "food": 0}
+var stock := {"wood": 0, "stone": 0, "food": 0, "planks": 0}
 
 
 func setup() -> void:
@@ -69,5 +69,12 @@ func _draw() -> void:
 		draw_rect(Rect2(38 + (i % 4) * 4 + (row % 2) * 2, -9 - row * 4, 4, 4), SbData.WOOD3)
 		draw_rect(Rect2(39 + (i % 4) * 4 + (row % 2) * 2, -10 - row * 4, 2, 1), SbData.RED1)
 	draw_string(ThemeDB.fallback_font, Vector2(42, -36), str(stock.food), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, SbData.WHITE)
+	# Planks leaning against the shed's back post.
+	for i in mini(stock.planks, 12):
+		draw_rect(Rect2(-37 + i % 2, -20 + (i / 2) * 3, 2, 3), SbData.PLANK)
+	for i in mini(stock.planks, 10):
+		draw_rect(Rect2(-31 + (i % 5) * 5, -14 - (i / 5) * 2, 5, 1), SbData.PLANK)
+	if stock.planks > 0:
+		draw_string(ThemeDB.fallback_font, Vector2(-30, -44), "%d planks" % stock.planks, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, SbData.PLANK)
 	draw_string(ThemeDB.fallback_font, Vector2(-30, -36), str(stock.wood), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, SbData.WHITE)
 	draw_string(ThemeDB.fallback_font, Vector2(10, -36), str(stock.stone), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, SbData.WHITE)

@@ -10,11 +10,11 @@ extends RefCounted
 ## the player comes before all of it, until it is done or released.
 
 ## Kinds of work, in the order they are shown in the priority grid.
-const WORK := ["firefight", "fight", "rescue", "build", "chop", "mine", "forage", "haul"]
+const WORK := ["firefight", "fight", "rescue", "build", "chop", "mine", "forage", "craft", "haul"]
 
 const WORK_NAMES := {
 	"firefight": "Fires", "fight": "Fight", "rescue": "Rescue", "build": "Build",
-	"chop": "Chop", "mine": "Mine", "forage": "Food", "haul": "Haul",
+	"chop": "Chop", "mine": "Mine", "forage": "Food", "craft": "Craft", "haul": "Haul",
 }
 
 ## Each job: its name, tunic colour, and its preset of work priorities.
@@ -28,6 +28,8 @@ const JOBS := {
 		"work": {"firefight": 1, "rescue": 1, "mine": 1, "haul": 3}},
 	"forager": {"name": "Forager", "tunic": Color("#78a444"),
 		"work": {"firefight": 1, "rescue": 1, "forage": 1, "haul": 3}},
+	"crafter": {"name": "Crafter", "tunic": Color("#6a3a6a"),
+		"work": {"firefight": 1, "rescue": 1, "craft": 1, "haul": 3}},
 	"hauler": {"name": "Hauler", "tunic": Color("#b88a54"),
 		"work": {"firefight": 1, "rescue": 1, "haul": 1, "build": 3}},
 	"guard": {"name": "Guard", "tunic": Color("#45558a"),
@@ -35,13 +37,13 @@ const JOBS := {
 }
 
 ## Work that has a skill: it grows by doing it (see sb_peasant.gd `learn`).
-const SKILLED := ["build", "chop", "mine", "forage", "fight"]
+const SKILLED := ["build", "chop", "mine", "forage", "craft", "fight"]
 const SKILL_MAX := 10
 ## Seconds of practice for the next level: BASE + PER_LEVEL * level.
 const SKILL_BASE := 20.0
 const SKILL_PER_LEVEL := 12.0
 
-const JOB_ORDER := ["builder", "woodcutter", "miner", "forager", "hauler", "guard"]
+const JOB_ORDER := ["builder", "woodcutter", "miner", "forager", "crafter", "hauler", "guard"]
 
 const NAMES := ["Alda", "Bram", "Cedric", "Dagny", "Edwin", "Freya", "Gunnar",
 		"Hilde", "Ivo", "Jorun", "Kettil", "Liv", "Magnus", "Nora"]
@@ -60,11 +62,19 @@ const EAST_EDGE := 620.0
 const BUILDINGS := {
 	"hut": {"title": "Hut", "style": "thatch", "cols": 5, "courses": ["stone", "wood", "wood", "wood"]},
 	"wall": {"title": "Wall", "style": "battlements", "cols": 7, "courses": ["stone", "stone", "stone", "stone", "stone"]},
-	"tower": {"title": "Tower", "style": "spire", "cols": 4, "courses": ["stone", "stone", "stone", "stone", "stone", "wood", "wood"]},
+	"tower": {"title": "Tower", "style": "spire", "cols": 4, "courses": ["stone", "stone", "stone", "stone", "stone", "planks", "planks"]},
 	"shed": {"title": "Shed", "style": "thatch", "cols": 4, "courses": ["wood", "wood"]},
+	"sawmill": {"title": "Sawmill", "style": "workshop", "cols": 6, "courses": ["stone", "wood", "wood"], "workshop": "sawmill"},
 }
 
-const BUILD_ORDER := ["hut", "wall", "tower", "shed"]
+const BUILD_ORDER := ["hut", "wall", "tower", "shed", "sawmill"]
+
+## Workshops: what a crafter takes from the stockyard, makes, and how long
+## one takes. A finished workshop has a bill: make until the stockyard holds
+## `keep` of the output (the player sets it; 0 stops it).
+const WORKSHOPS := {
+	"sawmill": {"bill": "Saw planks", "input": "wood", "output": "planks", "time": 4.0, "keep": 10},
+}
 
 ## Needs: hunger and tiredness grow from 0 to 100 over these many seconds.
 ## Past the "need" mark a peasant left to themselves stops work to eat or
@@ -114,6 +124,7 @@ const WOOD0 := Color("#3a2418")
 const WOOD1 := Color("#5c3a24")
 const WOOD2 := Color("#8a5a34")
 const WOOD3 := Color("#b88a54")
+const PLANK := Color("#d8b07a")
 const THATCH := Color("#d6b268")
 const GRASS0 := Color("#1d3222")
 const GRASS1 := Color("#2e5230")

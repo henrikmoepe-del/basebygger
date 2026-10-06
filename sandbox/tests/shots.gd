@@ -32,6 +32,8 @@ const PLANS := {
 	"night": {"steps": [[1.0, "night"], [10.0, "shot"]]},
 	# One peasant selected: the card with bars and skills.
 	"card": {"steps": [[2.0, "card"], [0.5, "shot"]]},
+	# The sawmill picked: its bill (keep N planks), the crafter at work.
+	"mill": {"steps": [[20.0, "mill"], [0.3, "shot"]]},
 	"box": {"steps": [[2.0, "box"], [0.1, "goto"], [0.4, "shot"]]},
 }
 
@@ -147,6 +149,10 @@ func _do(what: String) -> void:
 			p.hunger = 70.0
 			p.hp = 6.0
 			w.select([p])
+		"mill":
+			var mill: Node2D = w.sites.filter(func(s): return s.is_workshop())[0]
+			w.pick_site(mill)
+			w.camera.position = Vector2(250, -20)
 		"work":
 			w.peasants[3].cycle_prio("haul")
 			w.hud.toggle_work()

@@ -71,6 +71,8 @@ var _wander_to := Vector2.INF
 var _idle_think := 0.0
 var _hurt := 0.0
 var _short := ""
+## Made so far of the batch in hand at a workshop.
+var _made := 0
 
 
 func setup(name_: String, job_: String) -> void:
@@ -249,6 +251,10 @@ func activity() -> String:
 	match task.get("kind", ""):
 		"supply":
 			return prefix + "bringing %s to %s" % [task.res, t.label()]
+		"craft":
+			if _short != "":
+				return prefix + "waiting for %s at %s" % [_short, t.label()]
+			return prefix + "%s at %s" % [t.recipe().bill.to_lower(), t.label()]
 		"rescue":
 			return prefix + ("carrying %s to safety" % t.label() if _patient == t else "going to help %s" % t.label())
 		"build":
@@ -480,6 +486,8 @@ func _do_task(delta: float) -> void:
 			_do_build(t, delta)
 		"supply":
 			_do_supply(t, delta)
+		"craft":
+			_do_craft(t, delta)
 		"chop":
 			_do_gather(t, delta, "chop")
 		"mine":
@@ -514,6 +522,12 @@ func _do_task(delta: float) -> void:
 
 
 func _do_build(site: Node2D, delta: float) -> void:
+	if site.done():
+		if task.get("forced", false):
+			_order_done()
+		else:
+			_end_task()
+		return
 	var need: String = site.next_material()
 	if carrying != need and site.stock[need] > 0 and carrying == "":
 		# Material brought by a hauler lies at the site: take it from there.
@@ -582,6 +596,49 @@ func _do_rescue(patient: Node2D, delta: float) -> void:
 			_order_done()
 		else:
 			_end_task()
+
+
+## Works at a workshop: fetch the input from the stockyard, make one at the
+## bench, carry the output back. Ordered, one keeps on past the bill.
+func _do_craft(shop: Node2D, delta: float) -> void:
+	var r: Dictionary = shop.recipe()
+	var yard: Node2D = world.stockyard
+	if carrying == r.output:
+		if _go(yard.work_spot(self), delta):
+			yard.put(carrying, carry_n)
+			carrying = ""
+			_finish_unit()
+		return
+	if carrying != r.input:
+		if carrying != "":
+			_drop()
+		if _go(yard.work_spot(self), delta):
+			if yard.take(r.input):
+				# Take the input for a few at once (as many as the bill still wants).
+				var n := 1
+				var want: int = shop.keep - yard.stock.get(r.output, 0)
+				while n < MAX_LOAD and n < want and yard.take(r.input):
+					n += 1
+				carrying = r.input
+				carry_n = n
+				_made = 0
+				_short = ""
+			else:
+				_short = r.input
+				if not task.get("forced", false):
+					_end_task()
+		return
+	if _go(shop.work_spot_craft(self), delta):
+		_anim = "craft"
+		_timer += delta * skill_mult("craft")
+		learn("craft", delta)
+		if _timer >= r.time:
+			_timer = 0.0
+			_made += 1
+			if _made >= carry_n:
+				carrying = r.output
+				carry_n = _made
+				_made = 0
 
 
 ## Brings one load of material from the stockyard to a building site.
@@ -750,7 +807,7 @@ func _drop() -> void:
 			_patient.bed.sleepers.erase(_patient)
 		_patient.bed = null
 		_patient = null
-	if carrying == "wood" or carrying == "stone" or carrying == "food":
+	if carrying == "wood" or carrying == "stone" or carrying == "food" or carrying == "planks":
 		for i in carry_n:
 			world.spawn_item(carrying, position + Vector2(4 + i * 3, 1 + i))
 	carrying = ""
@@ -821,6 +878,8 @@ func _draw() -> void:
 				_draw_tool(bob, SbData.WOOD3)
 		"forager":
 			draw_rect(Rect2(-3, bob - 18, 6, 1), SbData.GRASS2)
+		"crafter":
+			draw_rect(Rect2(-3, bob - 9, 6, 3), SbData.WOOD3)
 		"hauler":
 			draw_rect(Rect2(-4, bob - 18, 8, 1), SbData.THATCH)
 			draw_rect(Rect2(-2, bob - 19, 4, 1), SbData.THATCH)
@@ -838,6 +897,10 @@ func _draw() -> void:
 			for i in carry_n:
 				draw_rect(Rect2(-4, bob - 21 - i * 5, 8, 5), SbData.STONE3)
 				draw_rect(Rect2(-4, bob - 21 - i * 5, 8, 1), SbData.STONE4)
+		"planks":
+			draw_rect(Rect2(-8, bob - 17, 15, 1), SbData.PLANK)
+			draw_rect(Rect2(-7, bob - 16, 15, 1), SbData.WOOD3)
+			draw_rect(Rect2(-8, bob - 15, 15, 1), SbData.PLANK)
 		"food":
 			draw_rect(Rect2(3, bob - 9, 5, 4), SbData.WOOD3)
 			draw_rect(Rect2(4, bob - 10, 3, 1), SbData.RED1)
