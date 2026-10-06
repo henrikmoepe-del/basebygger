@@ -1,8 +1,10 @@
 ## About the game
 - Name: Game_1
-- Genre: Incremental Builder Wave Defence
-- Core idea in one sentence: Incremental 2DCastle Builder that turns into 3D for wave defence
-- Main mechanic:Incremental Builder/wave defence
+- Genre: Colony sim / castle builder
+- Core idea in one sentence: A 2D colony sim where your peasants build and live in a castle
+- Main mechanic: Colony sim (peasants with jobs, needs and lives)
+- Raids and defence: undecided (Henrik, 2026-10-06). The 3D wave defence is no longer the plan;
+  how raids should work is still open.
 - Target platform: PC (Windows)
 
 ## Tech
@@ -77,6 +79,42 @@
 - In a cloud container with no screen: `xvfb-run -a -s "-screen 0 1280x720x24" godot
   --rendering-driver opengl3 --path . -s tests/screenshot.gd -- ...` (there is no Vulkan there).
 
+## The sandbox (test map, 2026-10-06)
+- Henrik's local files were newer than the repo, so new systems were built on a separate test
+  map: `sandbox/` (open `sandbox/sandbox.tscn`, F6). It changes nothing in `scripts/` or
+  `scenes/`. Read `sandbox/README.md` (what it does, controls) and `sandbox/HOOKUP.md` (what it
+  would take to bring it into the main game). Screenshots are in `sandbox/shots/`.
+- What it tries out: a ground with depth (a band 80 deep, y-sorted, after the art direction);
+  several building sites at once, placed by the player (Build menu), urgent or cancelled;
+  a new job system like RimWorld with jobs: a job is a preset of work priorities (Fires,
+  Fight, Rescue, Build, Chop, Mine, Food, Haul; 1-3 or never), peasants choose work by
+  themselves, the player selects them (click, Shift, box, the bar of names) and gives orders
+  by right-clicking (Shift queues); drafting (G); a Work overview (W); skills that grow by
+  doing; haulers bringing material to sites; rescuing the hurt to Hut beds; needs (hunger,
+  sleep) with berry bushes and foragers; day and night with a Night work policy; a Sawmill
+  with a bill (keep N planks) and a Crafter; hunting deer in the wood to the east; an alarm
+  bell (everyone shelters inside the gate); forbidding things (X); raids on a timetable
+  whose raiders carry torches; fires peasants put out with buckets; mood from thoughts
+  (sulking when very low); traits and dozing (click to wake); children and a Child labour
+  policy; travellers asking to join; the hooded man with dark gifts; cave-ins that trap
+  miners; werewolves at night (deep shadow and red); strikes (a feast ends them); a traitor
+  stealing at night; pause (Space) with orders while paused; warm light at night. Many of
+  these are from Henrik's lists. `sandbox/README.md` starts with a "try this first" list. `sandbox/DESIGN.md` explains the
+  choices and lists open questions for Henrik.
+- Sandbox tests: `sandbox/tests/run_tests.sh` (stops at script errors, runs the logic test
+  and, with xvfb, `test_input.gd` with real mouse and key events; exits non-zero on any
+  failed check; commit only when it passes). Tests set `world.calm` so random mishaps stay
+  out of checks that need things to go as planned.
+- `sandbox/tests/soak.gd` runs the map for days and reports anything stuck; it found real
+  problems the short test missed (hauling never worked, items piling up, endless fires).
+- Tests: `godot --headless --fixed-fps 60 --path . -s sandbox/tests/test_sandbox.gd`;
+  pictures: `sandbox/tests/shots.gd -- --plan=<name> --out=<folder>` (under xvfb-run in the
+  cloud). Not balanced on purpose.
+- Henrik has not tried it yet; nothing of it is in the main game.
+- Cloud containers have no Godot: download the official Linux build of the version in
+  `project.godot` (4.7.1) from github.com/godotengine/godot-builds releases, unzip it to
+  /usr/local/bin/godot, then run `godot --headless --path . --import` once.
+
 ## Git and the cloud
 - The repo is on GitHub: `henrikmoepe-del/basebygger` (private), remote `origin`. Push after
   every commit, so cloud sessions and the backup are up to date.
@@ -117,9 +155,8 @@ What this means for the design now (Claude's notes):
   entries, and don't hard-code more x positions than needed.
 
 ## Current status
-- Stage: working on the 2D builder (make it better, more realistic, more fun) and on raids.
-  The 3D wave defence is a first prototype; it now starts by itself when raiders reach the castle.
-  Placeholder art.
+- Stage: working on the 2D colony sim (make it better, more realistic, more fun). How raids should
+  work is undecided. Placeholder art.
 - The player never clicks to gather. Peasants do all the work; the player hires them, gives
   them jobs, trains them, points at the world to build, and buys skills.
 - World layout: the castle's gate is at x = 0; its wall runs from -500 to 420
@@ -346,29 +383,27 @@ What this means for the design now (Claude's notes):
 - Next for the castle: rooms inside it (kitchen, smithy, stores) so more jobs happen within the walls;
   lit windows at night; the two towers as separate parts.
 - Design notes:
-  - Castle parts and soldiers are defences. `GameState.total_defence()` and the part levels are
-    what the later 3D wave defence will read; raids are the 2D stand-in for it.
+  - Castle parts and soldiers are defences (`GameState.total_defence()`, the part levels); what
+    they defend against, and how, is undecided.
   - Data lives in `scripts/*_data.gd` (castle parts and village buildings, jobs, skills); adding
     an entry there is usually all it takes to get new content on screen.
   - Everything built should have a benefit and, where it makes sense, a real drawback
     (see the drawback constants in `castle_data.gd`).
   - Henrik's design ideas are starting points: explore and expand on them, then explain the choices.
-- Raids (basics, `raiders.gd`, `soldier.gd`, `Workers.battle_post`; the "raid" event): every 3 days raiders walk in
+- Raids, as they work now (undecided whether they stay this way; `raiders.gd`, `soldier.gd`, `Workers.battle_post`; the "raid" event): every 3 days raiders walk in
   from the west, more and tougher each time. They are fought live in the 2D world. The palisade
   blocks them until they hack it down; spearmen behind it jab through the stakes; archers on the
   watchtower, towers and wall walk shoot from range (further from higher up). Soldiers take posts
   by themselves, an archer then a spearman in turn. A beaten spearman falls back to the garrison
-  for the rest of the raid. All raiders down = raid beaten. A raider reaching the castle starts the
-  3D gate fight with the share of raiders still standing (`siege_share`). Not balanced.
+  for the rest of the raid. All raiders down = raid beaten. A raider reaching the castle is simply gone
+  (the 3D siege is switched off). Not balanced.
   Ideas next: the player choosing posts, more outer works, raider kinds, damage that lasts.
-- 3D siege prototype (`scenes/siege.tscn`, `scripts/siege.gd`): SWITCHED OFF for now at Henrik's
-  request (`GameState.SIEGE_ENABLED`). Raiders who reach the castle are simply gone and nothing
+- 3D siege prototype (`scenes/siege.tscn`, `scripts/siege.gd`): no longer the plan (Henrik,
+  2026-10-06); the code is still there and SWITCHED OFF (`GameState.SIEGE_ENABLED`). Raiders who reach the castle are simply gone and nothing
   is taken. When on, it starts when raiders reach the castle. A 3D fight built from the castle's part levels (boxes for now).
   Archers on towers, walls and the watchtower shoot automatically; raiders break the palisade, then
   the gate. Survive 5 waves to win the raid. Without the button the raid resolves as before (number check).
   Dev key F7 starts a siege at any time.
-- Next for the siege: something for the player to do during it, enemy variety, real 3D models,
-  then tie it into passing the crown
 - Seeing the game: `tests/screenshot.gd` opens the game window, plays a build and saves real
   screenshots at steps through it (plans inside the file; `--plan=<name> --out=<folder>`), then
   closes the window. Henrik allows this window when it helps; always let it close. Use it after

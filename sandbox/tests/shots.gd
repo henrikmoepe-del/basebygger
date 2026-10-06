@@ -1,0 +1,258 @@
+extends SceneTree
+## Takes real screenshots of the sandbox (opens a window; in a container with
+## no screen, run it under xvfb-run with --rendering-driver opengl3).
+##   godot --path . -s sandbox/tests/shots.gd -- --plan=<name> --out=<folder>
+## Each plan runs the map for a while, does what it says, and saves pictures.
+
+const PLANS := {
+	# The map as it starts, then after a minute of free will.
+	"start": {"steps": [[0.5, "shot"], [60.0, "shot"]]},
+	# Three builders ordered to the Tower while the rest choose for themselves.
+	"orders": {"steps": [[3.0, "select_builders"], [0.2, "order_tower"], [0.5, "shot"], [20.0, "shot"]]},
+	# A raid: the guard fights, the others flee; then two are ordered to help.
+	"raid": {"steps": [[5.0, "raid"], [9.0, "shot"], [0.1, "select_two"], [0.1, "order_raider"], [3.0, "shot"]]},
+	# A fire in the stockyard: peasants run buckets from the well.
+	"fire": {"steps": [[5.0, "fire"], [6.0, "shot"]]},
+	# Box selection and a hold-here order.
+	# The Work overview.
+	"work": {"steps": [[1.0, "work"], [0.3, "shot"]]},
+	# Placing a new building, and a picked site marked urgent.
+	"build": {"steps": [[1.0, "place"], [0.2, "shot"], [0.1, "placed"], [15.0, "shot"]]},
+	# Queued orders (Shift + right-click): numbered dotted lines.
+	"queue": {"steps": [[1.0, "queue"], [1.5, "shot"]]},
+	# Three builders drafted and sent to meet a raid.
+	"draft": {"steps": [[2.0, "draft"], [0.1, "raid"], [11.0, "shot"], [4.0, "shot"]]},
+	# Two peasants go down; others carry them to the beds of the finished Hut.
+	"rescue": {"steps": [[1.0, "hurt"], [5.0, "shot"], [10.0, "shot"]]},
+	# Needs: after a while some eat at the stockyard and sleep; berry bushes.
+	"needs": {"steps": [[1.0, "needs"], [12.0, "shot"]]},
+	# The hint under the mouse with builders selected, over a tree.
+	"hint": {"steps": [[1.0, "hint"], [0.5, "shot"]]},
+	# Night: the world darkens and the peasants sleep.
+	"night": {"steps": [[1.0, "night"], [10.0, "shot"]]},
+	# One peasant selected: the card with bars and skills.
+	"card": {"steps": [[2.0, "card"], [0.5, "shot"]]},
+	# The sawmill picked: its bill (keep N planks), the crafter at work.
+	"mill": {"steps": [[20.0, "mill"], [0.3, "shot"]]},
+	# The alarm bell during a raid: the guard at the post, the rest inside.
+	"bell": {"steps": [[2.0, "bell"], [8.0, "shot"]]},
+	# Raiders with torches: one sets the Hut alight on the way in.
+	"torch": {"steps": [[0.5, "torch"], [13.0, "shot"]]},
+	# Someone dozing on the job, and the card showing their trait.
+	"doze": {"steps": [[2.0, "doze"], [1.0, "shot"]]},
+	# Pointing at a rock with nobody selected.
+	"point": {"steps": [[1.0, "point"], [0.5, "shot"]]},
+	# A traveller asks to join.
+	"traveller": {"steps": [[0.5, "traveller"], [10.0, "shot"]]},
+	# A child born and following a parent; Child labour on for the second picture.
+	"child": {"steps": [[0.5, "child"], [6.0, "shot"], [0.1, "labour"], [8.0, "shot"]]},
+	# The hooded man offering his gift.
+	"stranger": {"steps": [[0.5, "stranger"], [1.0, "shot"]]},
+	# A cave-in at a rock, with others coming to dig.
+	"cavein": {"steps": [[3.0, "cavein"], [7.0, "shot"]]},
+	# Paused: builders selected and ordered while the world stands still.
+	"paused": {"steps": [[2.0, "paused"], [0.5, "shot"]]},
+	# A werewolf at night, coming out of the wood.
+	"wolf": {"steps": [[0.5, "wolf"], [6.0, "shot"]]},
+	# A storm: rain, a darker sky, a lightning flash.
+	"storm": {"steps": [[0.5, "storm"], [3.0, "shot"], [0.05, "bolt"], [0.05, "shot"]]},
+	# A flowerbed and a watchtower with the guard on watch.
+	"watch": {"steps": [[0.5, "watch"], [25.0, "shot"]]},
+	# The hunter in the wood, aiming at a deer.
+	"hunt": {"steps": [[0.5, "hunt"], [5.5, "shot"], [3.0, "shot"]]},
+	"box": {"steps": [[2.0, "box"], [0.1, "goto"], [0.4, "shot"]]},
+}
+
+var _world: Node2D
+var _out := "user://sandbox_shots"
+var _plan := "start"
+var _n := 0
+
+
+func _initialize() -> void:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--out="):
+			_out = arg.substr(6)
+		elif arg.begins_with("--plan="):
+			_plan = arg.substr(7)
+	DirAccess.make_dir_recursive_absolute(_out)
+	_world = load("res://sandbox/sandbox.tscn").instantiate()
+	_world.auto_raids = false
+	root.add_child(_world)
+	_run.call_deferred()
+
+
+func _run() -> void:
+	Engine.time_scale = 4.0
+	for step in PLANS[_plan].steps:
+		await create_timer(step[0] / 4.0, true, false, true).timeout
+		await _do(step[1])
+	paused = false
+	quit()
+
+
+func _do(what: String) -> void:
+	var w := _world
+	match what:
+		"shot":
+			await process_frame
+			await RenderingServer.frame_post_draw
+			var img := root.get_texture().get_image()
+			var path := "%s/%s_%d.png" % [_out, _plan, _n]
+			img.save_png(path)
+			print("saved ", path)
+			_n += 1
+		"select_builders":
+			w.select(w.peasants.filter(func(p): return p.job == "builder"))
+		"order_tower":
+			w.give_order(w.sites[2].position + Vector2(0, -10))
+		"raid":
+			w.start_raid()
+			w.camera.position = Vector2(-150, -20)
+		"select_two":
+			w.select([w.peasants[0], w.peasants[5]])
+		"order_raider":
+			if not w.raiders.is_empty():
+				w.give_order(w.raiders[0].position + Vector2(0, -8))
+		"fire":
+			w.start_fire(w.stockyard)
+			w.camera.position = Vector2(200, -20)
+		"box":
+			var inside: Array = []
+			for p in w.peasants:
+				if p.position.x < 200:
+					inside.append(p)
+			w.select(inside)
+		"goto":
+			w.give_order(Vector2(0, 40))
+		"place":
+			w.placing = "hut"
+			w.camera.position = Vector2(330, -20)
+			Input.warp_mouse(Vector2(520, 190) * 2.0)
+		"placed":
+			var site: Node2D = w.add_site("hut", Vector2(380, 4))
+			w.placing = ""
+			w.pick_site(site)
+			site.urgent = true
+		"queue":
+			w.camera.position = Vector2(330, -20)
+			var h: Node2D = w.peasants[5]
+			w.select([h])
+			w.give_order(w.trees[2].position + Vector2(0, -4))
+			w.give_order(w.rocks[1].position + Vector2(0, -4), true)
+			w.give_order(Vector2(260, 60), true)
+		"draft":
+			w.select(w.peasants.filter(func(p): return p.job == "builder"))
+			w.toggle_draft_selected()
+			w.give_order(Vector2(-220, 40))
+		"hurt":
+			var hut: Node2D = w.sites[0]
+			while not hut.done():
+				hut.add_block(hut.next_material())
+			w.peasants[3].position = Vector2(-120, 50)
+			w.peasants[4].position = Vector2(-100, 30)
+			w.peasants[3].damage(100.0)
+			w.peasants[4].damage(100.0)
+			w.camera.position = Vector2(-60, -20)
+		"needs":
+			w.camera.position = Vector2(200, -20)
+			w.peasants[0].hunger = 95.0
+			w.peasants[1].tired = 99.0
+			w.peasants[5].tired = 99.0
+			w.select([w.peasants[0], w.peasants[1], w.peasants[7]])
+		"hint":
+			w.camera.position = Vector2(330, -20)
+			w.select(w.peasants.filter(func(p): return p.job == "builder"))
+			var t: Node2D = w.trees[3]
+			var screen: Vector2 = (t.position + Vector2(0, -20) - w.camera.position) * w.camera.zoom + Vector2(320, 180)
+			Input.warp_mouse(screen * 2.0)
+		"night":
+			var hut: Node2D = w.sites[0]
+			hut.finish_now()
+			w.start_raid(3)
+			w.start_fire(w.sites[1] if w.sites[1].placed > 0 else w.stockyard)
+			w.time = (21.5 - 8.0) / 24.0 * 240.0
+			w.camera.position = Vector2(-20, -20)
+		"card":
+			var p: Node2D = w.peasants[4]
+			p.hunger = 70.0
+			p.hp = 6.0
+			p.remember("saw_down")
+			p.remember("ate")
+			p.mood = 40.0
+			w.select([p])
+		"mill":
+			var mill: Node2D = w.sites.filter(func(s): return s.is_workshop())[0]
+			w.pick_site(mill)
+			w.camera.position = Vector2(250, -20)
+		"bell":
+			w.set_alarm(true)
+			w.start_raid(3)
+			w.camera.position = Vector2(-60, -20)
+		"torch":
+			var hut: Node2D = w.sites[0]
+			hut.finish_now()
+			w.start_raid(4)
+			w.camera.position = Vector2(-150, -20)
+		"doze":
+			var p: Node2D = w.peasants[1]
+			p.trait_key = "lazy"
+			p.dozing = 30.0
+			w.select([w.peasants[1]])
+			w.camera.position = Vector2(p.position.x, -20)
+			w.camera.zoom = Vector2(2, 2)
+		"point":
+			w.camera.position = Vector2(330, -20)
+			var r: Node2D = w.rocks[0]
+			var screen: Vector2 = (r.position + Vector2(0, -6) - w.camera.position) * w.camera.zoom + Vector2(320, 180)
+			Input.warp_mouse(screen * 2.0)
+		"traveller":
+			w.arrive_traveller()
+			w.camera.position = Vector2(260, -20)
+		"child":
+			var kid: Node2D = w.birth()
+			w.camera.position = Vector2(kid.position.x, -10)
+			w.camera.zoom = Vector2(2, 2)
+			w.select([kid])
+		"labour":
+			w.set_child_labour(true)
+		"stranger":
+			w.arrive_stranger()
+			w.camera.position = Vector2(330, -20)
+		"cavein":
+			var r: Node2D = w.rocks[0]
+			var m: Node2D = w.peasants.filter(func(p): return p.job == "miner")[0]
+			m.position = r.position + Vector2(-8, 4)
+			r.claim(m)
+			r._cave_in()
+			w.camera.position = Vector2(r.position.x, -10)
+			w.camera.zoom = Vector2(2, 2)
+		"paused":
+			w.toggle_pause()
+			w.select(w.peasants.filter(func(p): return p.job == "builder"))
+			w.give_order(w.sites[0].position + Vector2(0, -8))
+		"wolf":
+			w.time = w.time_at(1, 22.5)
+			w.start_werewolf()
+			w.camera.position = Vector2(420, -10)
+			w.camera.zoom = Vector2(2, 2)
+		"storm":
+			w.start_storm()
+		"bolt":
+			w._strike_lightning()
+		"watch":
+			var x := 120.0
+			while not w.site_fits("watchtower", x) and x < 560.0:
+				x += 5.0
+			w.add_site("watchtower", Vector2(x, 4)).finish_now()
+			var fx := -340.0
+			while not w.site_fits("flowerbed", fx) and fx < 560.0:
+				fx += 5.0
+			w.add_site("flowerbed", Vector2(fx, 4)).finish_now()
+			w.camera.position = Vector2(x - 60.0, -20)
+		"hunt":
+			w.camera.position = Vector2(480, -20)
+			w.camera.zoom = Vector2(2, 2)
+		"work":
+			w.peasants[3].cycle_prio("haul")
+			w.hud.toggle_work()
