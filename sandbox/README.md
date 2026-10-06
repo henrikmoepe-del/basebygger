@@ -131,6 +131,7 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
 | Right-click a finished workshop | Work there |
 | W (or Work) | The Work overview: every peasant's job and priorities, click to change |
 | Shift + right-click | Queue the order after the ones already given (numbered dotted lines) |
+| Space | Pause. Everything stops, but you can still select, give and queue orders, draft and open panels; they are carried out when you unpause (the Speed button also unpauses) |
 | G (or Draft) | Draft the selected: they drop their work, get a cudgel and a red shield mark, stand where you send them and fight any raider who comes near. G again to undraft |
 | X (pointing at a tree, rock, bush, item or site) | Forbid it: nobody touches it by themselves (red cross). X again allows it; ordering someone to it allows it too |
 | L (or Bell) | The alarm bell: everyone who is not a guard, drafted or under orders goes in through the castle gate and waits inside, out of the raiders' reach; guards go to their post or fight. Ring it again for the all clear |

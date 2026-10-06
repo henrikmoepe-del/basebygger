@@ -41,6 +41,7 @@ var _refresh := 0.0
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_root = Control.new()
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -58,7 +59,7 @@ func _ready() -> void:
 	world.traveller_changed.connect(rebuild_bar)
 	world.question_changed.connect(_on_question)
 	var help := Label.new()
-	help.text = "Left-click: select (Shift adds)  Drag: box  Right-click: order  R: release  1-8: job  G: draft  X: forbid  L: bell"
+	help.text = "Left-click: select (Shift adds)  Drag: box  Right-click: order  R: release  1-8: job  Space: pause  G: draft  X: forbid  L: bell"
 	help.add_theme_font_size_override("font_size", 8)
 	help.add_theme_color_override("font_color", UiTheme.PARCHMENT_DIM)
 	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
@@ -464,6 +465,9 @@ func _cycle_prio(w: String) -> void:
 
 
 func _cycle_speed() -> void:
+	if world.get_tree().paused:
+		world.toggle_pause()
+		return
 	var i := SPEEDS.find(Engine.time_scale)
 	Engine.time_scale = SPEEDS[(i + 1) % SPEEDS.size()]
 	_speed_button.text = "Speed %dx" % int(Engine.time_scale)
@@ -475,6 +479,7 @@ func _process(delta: float) -> void:
 		return
 	_refresh = 0.2
 	var h: float = world.hour()
+	_speed_button.text = "Paused" if world.get_tree().paused else "Speed %dx" % int(Engine.time_scale)
 	_clock.text = "Day %d %02d:%02d%s" % [world.day(), int(h), int(fmod(h, 1.0) * 60.0), " night" if world.is_night() else ""]
 	_night_button.text = "Night: work" if world.night_work else "Night: sleep"
 	_child_button.text = "Children: work" if world.child_labour else "Children: play"

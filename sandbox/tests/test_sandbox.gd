@@ -371,6 +371,21 @@ func _run() -> void:
 		_dump()
 		print("  rock dug ", digger_rock.dug, " workers ", digger_rock.workers.map(func(p): return p.person_name), " hour ", w.hour(), " fires ", w.fires.size(), " raid ", w.raid_on)
 
+	# 23. Pause: the world stops; orders given while paused are carried out after.
+	var walker: Node2D = w.peasants.filter(func(p): return p.job == "builder" and not p.downed)[0]
+	w.toggle_pause()
+	var at_pause: Vector2 = walker.position
+	var clock: float = w.time
+	w.select([walker])
+	w.give_order(Vector2(walker.position.x + 60.0, 50))
+	await _wait(5.0)
+	_check(walker.position == at_pause and w.time == clock, "paused, nothing moves and the clock stops")
+	_check(walker.order.get("kind", "") == "goto", "an order can be given while paused")
+	w.toggle_pause()
+	await _wait(5.0)
+	_check(walker.position != at_pause, "unpaused, the order is carried out")
+	w.release_selected()
+
 	_check(_off_band == 0, "nobody leaves the ground band (%d frames off it)" % _off_band)
 	print("ALL PASSED" if _fails == 0 else "%d FAILED" % _fails)
 	quit(1 if _fails > 0 else 0)

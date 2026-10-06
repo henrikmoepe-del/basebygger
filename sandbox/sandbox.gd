@@ -106,6 +106,9 @@ var _pings: Array = []
 
 func _ready() -> void:
 	randomize()
+	# Pausing stops the world (`things` and the clock), but not the camera,
+	# the overlay, input or the HUD: orders can be given while paused.
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	var back := Node2D.new()
 	back.set_script(Backdrop)
 	back.z_index = -10
@@ -114,6 +117,7 @@ func _ready() -> void:
 	add_child(_tint)
 	things = Node2D.new()
 	things.y_sort_enabled = true
+	things.process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_child(things)
 	overlay = Node2D.new()
 	overlay.z_index = 10
@@ -611,7 +615,14 @@ func select(list: Array, add := false) -> void:
 			p.selected = true
 	if not list.is_empty() and picked_site != null:
 		pick_site(null)
+	_redraw_peasants()
 	selection_changed.emit()
+
+
+## Peasants draw their own marks; while paused they don't redraw by themselves.
+func _redraw_peasants() -> void:
+	for p in peasants:
+		p.queue_redraw()
 
 
 func _site_at(at: Vector2) -> Node2D:
@@ -680,6 +691,7 @@ func give_order(at: Vector2, add := false) -> void:
 		p.set_order(mine, add)
 		i += 1
 	_pings.append({"pos": at, "t": 0.6})
+	_redraw_peasants()
 	selection_changed.emit()
 
 
@@ -704,6 +716,7 @@ func _free_item_near(at: Vector2, p: Node2D) -> Node2D:
 func release_selected() -> void:
 	for p in selected:
 		p.release_order()
+	_redraw_peasants()
 	selection_changed.emit()
 
 
@@ -784,6 +797,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				release_selected()
 			KEY_G:
 				toggle_draft_selected()
+			KEY_SPACE:
+				toggle_pause()
 			KEY_L:
 				set_alarm(not alarm)
 			KEY_X:
@@ -884,7 +899,28 @@ func darkness() -> float:
 	return 0.0
 
 
+## Panning, the order pings and the overlay: these go on while paused.
+func _camera_and_overlay(delta: float) -> void:
+	var pan := Input.get_axis("ui_left", "ui_right")
+	if Input.is_key_pressed(KEY_A) and not Input.is_key_pressed(KEY_CTRL):
+		pan -= 1.0
+	if Input.is_key_pressed(KEY_D):
+		pan += 1.0
+	camera.position.x = clampf(camera.position.x + pan * 220.0 * delta / camera.zoom.x, SbData.WEST_EDGE, SbData.EAST_EDGE)
+	for ping in _pings:
+		ping.t -= delta
+	_pings = _pings.filter(func(pg): return pg.t > 0.0)
+	overlay.queue_redraw()
+
+
+func toggle_pause() -> void:
+	get_tree().paused = not get_tree().paused
+
+
 func _process(delta: float) -> void:
+	_camera_and_overlay(delta)
+	if get_tree().paused:
+		return
 	time += delta
 	# Dawn: maybe a birth. Children grow up.
 	var h := hour()
@@ -916,16 +952,7 @@ func _process(delta: float) -> void:
 			_herd_timer = 0.0
 			_add_deer(Vector2(SbData.EAST_EDGE - 10, randf_range(10, 70)))
 	_tint.color = Color.WHITE.lerp(SbData.NIGHT_TINT, darkness())
-	var pan := Input.get_axis("ui_left", "ui_right")
-	if Input.is_key_pressed(KEY_A) and not Input.is_key_pressed(KEY_CTRL):
-		pan -= 1.0
-	if Input.is_key_pressed(KEY_D):
-		pan += 1.0
-	camera.position.x = clampf(camera.position.x + pan * 220.0 * delta / camera.zoom.x, SbData.WEST_EDGE, SbData.EAST_EDGE)
-	for ping in _pings:
-		ping.t -= delta
-	_pings = _pings.filter(func(pg): return pg.t > 0.0)
-	overlay.queue_redraw()
+
 
 
 ## Drawn on top of the world: the selection box, lines from the selected to
