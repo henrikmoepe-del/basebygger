@@ -1,0 +1,19 @@
+Tripo AI for 3D	
+Pixellab AI er gratis for 2D
+
+Models: A-pose concept sheet (front + back) from OpenAI's image model > Tripo image-to-3D > Tripo auto-rig > Blender Python scripts for clean-up (toon material zones, glow maps, refitting each character to the game's skeleton)
+
+2D: icons, portraits, loading art and story stills from the same image model
+
+Voices: OpenAI text-to-speech
+
+Code, shaders, VFX and level generation: Claude Code
+
+Music and SFX: synthesised by Python scripts Claude wrote, not an AI music model
+
+Animation: mostly scripted keyframes, plus a few Tripo mocap presets
+
+Fonts: regular open-licence fonts
+
+
+Short version: Godot 4 + GDScript, with Claude Code running the whole pipeline. One lead agent hands work to specialist sub-agents (characters, animation, world, UI, audio, VFX, balance), each on its own branch, and automated tests plus bot playthroughs run on every merge. Art goes concept image > Tripo > Blender scripts > Godot; there's more detail in my reply to Tacotacito.
