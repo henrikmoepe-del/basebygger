@@ -251,6 +251,17 @@ func _run() -> void:
 	var meat: int = w.items.filter(func(it): return it.res == "food").size()
 	_check(meat >= 1 or w.stockyard.stock.food > 0, "the deer leaves meat")
 
+	# 15. A raider with a torch sets a building alight on the way.
+	var lit := false
+	for attempt in 3:
+		w.start_raid(4)
+		lit = await _wait(60.0, func(): return not w.fires.is_empty())
+		if lit:
+			break
+		await _wait(120.0, func(): return not w.raid_on)
+	_check(lit, "raiders set a building on fire as they pass")
+	await _wait(200.0, func(): return not w.raid_on and w.fires.is_empty())
+
 	_check(_off_band == 0, "nobody leaves the ground band (%d frames off it)" % _off_band)
 	print("ALL PASSED" if _fails == 0 else "%d FAILED" % _fails)
 	quit(1 if _fails > 0 else 0)

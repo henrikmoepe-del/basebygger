@@ -404,7 +404,7 @@ func start_raid(count := 4) -> void:
 		p.rethink()
 
 
-func start_fire(host: Node2D = null) -> void:
+func start_fire(host: Node2D = null, message := "") -> void:
 	if host == null:
 		var hosts: Array = [stockyard]
 		for s in sites:
@@ -414,7 +414,7 @@ func start_fire(host: Node2D = null) -> void:
 	var f: Node2D = _add(Fire, host.position + Vector2(randf_range(-8, 8), 3))
 	f.setup(host)
 	fires.append(f)
-	announce("Fire at %s!" % host.label())
+	announce(message if message != "" else "Fire at %s!" % host.label())
 	for p in peasants:
 		p.rethink()
 

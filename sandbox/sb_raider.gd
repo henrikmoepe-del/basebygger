@@ -8,12 +8,17 @@ const REACH := 9.0
 const HIT_EVERY := 1.1
 const DAMAGE := 2.0
 const NOTICE := 60.0
+## Each raider may set one building alight as they pass it.
+const TORCH_CHANCE := 0.4
+const TORCH_REACH := 20.0
 
 var hp := 8.0
 var loot := ""
 var _cool := 0.0
 var _hurt := 0.0
 var _walking := false
+var _torch := true
+var _tried: Array = []
 
 
 func setup() -> void:
@@ -65,6 +70,7 @@ func _process(delta: float) -> void:
 			_cool = HIT_EVERY
 			foe.damage(DAMAGE)
 	elif loot == "":
+		_try_torch()
 		var yard: Node2D = world.stockyard
 		var spot := yard.position + Vector2(0, 8)
 		if _step(spot, delta):
@@ -82,6 +88,22 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
+## Passing a building with something built, maybe set it alight (once).
+func _try_torch() -> void:
+	if not _torch:
+		return
+	for s in world.sites:
+		if s.placed == 0 or _tried.has(s) or absf(s.position.x - position.x) > TORCH_REACH:
+			continue
+		_tried.append(s)
+		if world.fires.any(func(f): return f.host == s):
+			continue
+		if randf() < TORCH_CHANCE:
+			_torch = false
+			world.start_fire(s, "A raider sets fire to %s!" % s.label())
+		return
+
+
 func _step(to: Vector2, delta: float) -> bool:
 	_walking = true
 	position = position.move_toward(to, SPEED * delta)
@@ -97,9 +119,14 @@ func _draw() -> void:
 	draw_rect(Rect2(-3, -13, 6, 10), body)
 	draw_rect(Rect2(-2, -17, 4, 4), SbData.SKIN0)
 	draw_rect(Rect2(-3, -18, 6, 2), SbData.STONE1)
-	# An axe.
+	# An axe, and a torch while it still has one to throw.
 	draw_rect(Rect2(3, -14, 1, 9), SbData.WOOD1)
 	draw_rect(Rect2(4, -14, 2, 3), SbData.STONE3)
+	if _torch:
+		draw_rect(Rect2(-5, -14, 1, 6), SbData.WOOD1)
+		var flick := 1.0 if int(Time.get_ticks_msec() / 90) % 2 == 0 else 0.0
+		draw_rect(Rect2(-6, -17 - flick, 3, 3), SbData.FIRE)
+		draw_rect(Rect2(-5, -16 - flick, 1, 1), SbData.LIGHT)
 	if loot != "" and loot != "none":
 		draw_rect(Rect2(-6, -16, 5, 6), SbData.DIRT)
 	# Health bar while hurt.

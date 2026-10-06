@@ -63,6 +63,10 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
      **Crafter** (work type Craft) takes logs for up to 3 at once, saws them at the
      bench and carries the planks back. Right-click a workshop to order someone
      to work there (ordered, they keep on past the bill).
+   - **Raids:** raiders walk in from the west, fight anyone near, and head for the
+     stockyard to steal (dropped loot can be hauled back). Each carries a torch and
+     may set one building alight as they pass it: fires knock blocks off until put
+     out (a fire with nothing left to burn dies down).
    - **Orders:** select peasants and right-click something. The order comes before
      everything else (even fleeing) until it is done, then they go back to free will.
      **R** (or Release) ends the order early.
