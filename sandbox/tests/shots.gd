@@ -162,8 +162,9 @@ func _do(what: String) -> void:
 			Input.warp_mouse(screen * 2.0)
 		"night":
 			var hut: Node2D = w.sites[0]
-			while not hut.done():
-				hut.add_block(hut.next_material())
+			hut.finish_now()
+			w.start_raid(3)
+			w.start_fire(w.sites[1] if w.sites[1].placed > 0 else w.stockyard)
 			w.time = (21.5 - 8.0) / 24.0 * 240.0
 			w.camera.position = Vector2(-20, -20)
 		"card":

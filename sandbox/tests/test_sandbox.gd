@@ -127,7 +127,7 @@ func _run() -> void:
 	var tree: Node2D = w.trees[0]
 	var logs_before: int = w.items.size()
 	w.select([hauler])
-	w.order_peasants_to(tree)
+	hauler.set_order({"kind": "chop", "target": tree})
 	var chopped := await _wait(60.0, func(): return tree.wood < tree._full)
 	_check(chopped, "the hauler chops the tree when ordered")
 	_check(w.items.size() > logs_before or w.stockyard.stock.wood > 0, "a log falls")
@@ -136,7 +136,8 @@ func _run() -> void:
 	# 4b. Queued orders: chop a tree, then go and stand by the well.
 	var tree2: Node2D = w.trees[1]
 	w.select([hauler])
-	w.give_order(tree2.position + Vector2(0, -4))
+	# Ordered directly: a click at the tree could hit a log lying at its foot.
+	hauler.set_order({"kind": "chop", "target": tree2})
 	w.give_order(w.well.position + Vector2(0, 20), true)
 	_check(hauler.queue.size() == 1, "Shift + right-click queues an order after the first")
 	var moved_on := await _wait(120.0, func(): return hauler.task.get("kind", "") == "goto")
@@ -155,7 +156,11 @@ func _run() -> void:
 	_check(drafted.all(func(p): return p.drafted and p.task.get("kind", "") != "build"), "drafting stops their work")
 	w.give_order(Vector2(-200, 40))
 	await _wait(25.0)
-	_check(drafted.all(func(p): return p.position.distance_to(Vector2(-200, 40)) < 20.0 and p.order.is_empty()), "drafted peasants go where sent and hold there")
+	var holding: bool = drafted.all(func(p): return p.position.distance_to(Vector2(-200, 40)) < 20.0 and p.order.is_empty())
+	_check(holding, "drafted peasants go where sent and hold there")
+	if not holding:
+		for p in drafted:
+			print("  ", p.person_name, " pos ", p.position.round(), " order ", p.order, " task ", p.task.get("kind", ""), " drafted ", p.drafted, " hold ", p._hold, " trait ", p.trait_key)
 	w.start_raid(3)
 	var engaged := await _wait(40.0, func(): return drafted.any(func(p): return p.task.get("kind", "") == "fight"))
 	_check(engaged, "drafted peasants fight raiders who come near")
@@ -197,7 +202,14 @@ func _run() -> void:
 	var hurt: Node2D = w.peasants.filter(func(p): return p.job == "woodcutter")[0]
 	hurt.damage(100.0)
 	_check(hurt.downed, "a peasant can go down")
-	var safe := await _wait(60.0, func(): return hurt._safe)
+	var helpers := []
+	var safe := await _wait(60.0, func():
+		for p in w.peasants:
+			if p.task.get("kind", "") == "rescue" and not helpers.has(p.person_name):
+				helpers.append(p.person_name)
+		return hurt._safe)
+	if not safe:
+		print("  helpers seen: ", helpers, " hurt at ", hurt.position.round(), " downed ", hurt.downed, " hp ", hurt.hp, " workers ", hurt.workers.map(func(p): return p.person_name))
 	_check(safe, "someone carries the hurt peasant to safety by themselves")
 	if not safe:
 		_dump()

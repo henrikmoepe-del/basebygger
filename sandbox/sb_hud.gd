@@ -98,15 +98,19 @@ func _make_top() -> void:
 	row.add_child(_raid_label)
 	for spec in [["Build", toggle_build], ["Work", toggle_work]]:
 		var b := _button(spec[0], spec[1])
+		_compact(b)
 		row.add_child(b)
-	_night_button = _button("Night: sleep", func(): world.set_night_work(not world.night_work))
+	_night_button = _button("Nights: sleep", func(): world.set_night_work(not world.night_work))
 	_night_button.tooltip_text = "A policy. Off: everyone sleeps at night. On: they work through the night, 15% slower in the dark, and tire faster."
+	_compact(_night_button)
 	row.add_child(_night_button)
-	_child_button = _button("Children: play", func(): world.set_child_labour(not world.child_labour))
+	_child_button = _button("Kids: play", func(): world.set_child_labour(not world.child_labour))
 	_child_button.tooltip_text = "A policy. Child labour: children haul and pick berries at half pace; every grown-up minds it (-4 mood)."
+	_compact(_child_button)
 	row.add_child(_child_button)
-	_alarm_button = _button("Bell (L)", func(): world.set_alarm(not world.alarm))
+	_alarm_button = _button("Bell", func(): world.set_alarm(not world.alarm))
 	_alarm_button.tooltip_text = "The alarm bell: everyone who is not a guard, drafted or under orders shelters inside the castle gate until you ring it off."
+	_compact(_alarm_button)
 	row.add_child(_alarm_button)
 	# Test tools, small, on the right under the top bar.
 	var tools := HBoxContainer.new()
@@ -481,10 +485,10 @@ func _process(delta: float) -> void:
 	var h: float = world.hour()
 	_speed_button.text = "Paused" if world.get_tree().paused else "Speed %dx" % int(Engine.time_scale)
 	_clock.text = "Day %d %02d:%02d%s" % [world.day(), int(h), int(fmod(h, 1.0) * 60.0), " night" if world.is_night() else ""]
-	_night_button.text = "Night: work" if world.night_work else "Night: sleep"
-	_child_button.text = "Children: work" if world.child_labour else "Children: play"
+	_night_button.text = "Nights: work" if world.night_work else "Nights: sleep"
+	_child_button.text = "Kids: work" if world.child_labour else "Kids: play"
 	_alarm_button.add_theme_color_override("font_color", UiTheme.BAD if world.alarm else UiTheme.PARCHMENT)
-	_alarm_button.text = "Bell: ringing" if world.alarm else "Bell (L)"
+	_alarm_button.text = "Bell: ringing" if world.alarm else "Bell"
 	_res_label.text = "Wood %d   Stone %d   Food %d" % [world.stockyard.stock.wood, world.stockyard.stock.stone, world.stockyard.stock.food]
 	if world.raid_on:
 		_raid_label.text = "RAID! %d raiders" % world.raiders.size()

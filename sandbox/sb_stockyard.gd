@@ -48,6 +48,8 @@ func label() -> String:
 
 
 func _draw() -> void:
+	# A lantern on the front post.
+	draw_rect(Rect2(-21, -24, 3, 4), SbData.LIGHT if world != null and world.darkness() > 0.05 else SbData.STONE1)
 	# Shed: posts and a plank roof.
 	draw_rect(Rect2(-34, -26, 2, 26), SbData.WOOD1)
 	draw_rect(Rect2(-6, -26, 2, 26), SbData.WOOD1)

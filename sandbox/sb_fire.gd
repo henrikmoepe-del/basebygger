@@ -8,14 +8,18 @@ const DOUSE := 0.3
 ## How fast a fire with nothing left to burn dies down.
 const STARVE := 0.08
 
+const Light := preload("res://sandbox/sb_light.gd")
+
 var host: Node2D
 var strength := 0.4
 var _burn_timer := 0.0
+var _light: PointLight2D
 
 
 func setup(host_: Node2D) -> void:
 	kind = "fire"
 	host = host_
+	_light = Light.add(self, Vector2(0, -10), 90.0)
 
 
 func is_open() -> bool:
@@ -58,6 +62,8 @@ func _process(delta: float) -> void:
 			return
 	else:
 		strength = minf(strength + GROW * delta, 1.0)
+	if _light != null:
+		_light.energy = (0.6 + strength) * (0.9 + 0.1 * sin(Time.get_ticks_msec() / 70.0))
 	_burn_timer += delta * strength
 	if _burn_timer >= 2.0:
 		_burn_timer = 0.0

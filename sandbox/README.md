@@ -48,6 +48,9 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
      stockyard, or to sleep (in a free Hut bed, faster, else on the ground).
      Orders and drafting come first, as in RimWorld, but at 100 they work slower.
      Food comes from berry bushes, picked by the **Forager**.
+   - **Light at night** (art direction): only warm light shows in the dark: fires,
+     raiders' torches, lanterns at the stockyard and the well, the lit window of a
+     finished Hut and the Sawmill's lamp (`sb_light.gd`).
    - **Day and night:** a day lasts 4 minutes (the clock is in the top bar). At
      night, peasants left to themselves go to bed. The **Night work** policy (top
      bar) keeps them working through the night instead: 15% slower in the dark,
@@ -155,6 +158,7 @@ dotted line to what they are working on (gold for an order, white for free will)
 - `sb_site.gd`, `sb_tree.gd`, `sb_rock.gd`, `sb_bush.gd`, `sb_deer.gd`, `sb_item.gd`, `sb_fire.gd`,
   `sb_raider.gd`, `sb_stockyard.gd`, `sb_well.gd`: the things in the world.
 - `sb_stranger.gd`: the hooded man (looks only).
+- `sb_light.gd`: warm lights for the night.
 - `sb_backdrop.gd`: sky, mountains, the castle wall, the ground band and path.
 - `sb_hud.gd`: top bar, the bar of peasants, the panel for the selected, messages.
 - `tests/run_tests.sh`: loads the map once to catch script errors, then runs

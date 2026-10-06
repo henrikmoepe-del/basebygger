@@ -24,6 +24,7 @@ var keep := 0
 var urgent := false
 ## The hurt lying in this building's beds (a finished Hut).
 var sleepers: Array = []
+var _window_light: PointLight2D
 var selected := false
 ## The material actually laid in each place so far (a builder may bring the
 ## material of the course below when two arrive at once).
@@ -97,6 +98,7 @@ func add_block(material: String) -> void:
 	if done():
 		_flash = 1.0
 		world.sound("built", position)
+		_light_window()
 		world.announce("The %s is finished." % title)
 	queue_redraw()
 
@@ -106,7 +108,14 @@ func finish_now() -> void:
 	while placed < mats.size():
 		laid.append(mats[placed])
 		placed += 1
+	_light_window()
 	queue_redraw()
+
+
+## A finished Hut has a lit window at night (and a workshop a lamp).
+func _light_window() -> void:
+	if _window_light == null and (title == "Hut" or workshop != ""):
+		_window_light = preload("res://sandbox/sb_light.gd").add(self, Vector2(0, -height() * 0.6), 50.0, 0.7)
 
 
 ## Fire knocks blocks off the top.
@@ -114,6 +123,9 @@ func lose_block() -> void:
 	if placed > 0:
 		placed -= 1
 		laid.pop_back()
+	if _window_light != null:
+		_window_light.queue_free()
+		_window_light = null
 	queue_redraw()
 
 
@@ -176,8 +188,10 @@ func progress_text() -> String:
 
 
 func _process(delta: float) -> void:
-	if is_workshop() and not workers.is_empty():
+	if (is_workshop() and not workers.is_empty()) or (done() and title == "Hut"):
 		queue_redraw()
+	if _window_light != null:
+		_window_light.visible = world.darkness() > 0.05
 	if _flash > 0.0:
 		_flash = maxf(_flash - delta, 0.0)
 		queue_redraw()
@@ -260,6 +274,10 @@ func _draw_finish(left: float, w: float) -> void:
 				var half := (w / 2.0 + 4.0) * (1.0 - (row * 4.0 + 3.0) / 14.0)
 				draw_line(Vector2(left + w / 2.0 - half, y), Vector2(left + w / 2.0 + half, y), SbData.WOOD3, 1.0)
 			draw_rect(Rect2(left + w / 2.0 - 3.0, -9.0, 6, 9), SbData.WOOD0)
+			# A small window, glowing at night.
+			var lit: bool = world.darkness() > 0.3
+			draw_rect(Rect2(left + 4.0, top + 5.0, 6, 5), SbData.LIGHT if lit else SbData.INK)
+			draw_rect(Rect2(left + 6.0, top + 5.0, 1, 5), SbData.WOOD0)
 		"battlements":
 			var i := 0
 			var x := left

@@ -99,6 +99,7 @@ var things: Node2D
 var overlay: Node2D
 var hud: CanvasLayer
 
+var _lanterns: Array = []
 var _drag_from := Vector2.INF
 var _panning := false
 var _pings: Array = []
@@ -153,6 +154,9 @@ func _build_map() -> void:
 	stockyard.put("planks", 2)
 	well = _add(Well, Vector2(255, 8))
 	well.setup()
+	# Lanterns at the stockyard and the well, lit at dusk.
+	_lanterns.append(preload("res://sandbox/sb_light.gd").add(stockyard, Vector2(-20, -24), 60.0, 0.8))
+	_lanterns.append(preload("res://sandbox/sb_light.gd").add(well, Vector2(0, -18), 40.0, 0.6))
 	# Three building sites side by side, each its own job.
 	for pair in [["hut", -170.0], ["wall", -60.0], ["tower", 60.0]]:
 		add_site(pair[0], Vector2(pair[1], 4))
@@ -922,6 +926,8 @@ func _process(delta: float) -> void:
 	if get_tree().paused:
 		return
 	time += delta
+	for l in _lanterns:
+		l.visible = darkness() > 0.05
 	# Dawn: maybe a birth. Children grow up.
 	var h := hour()
 	if _last_hour < SbData.NIGHT_TO and h >= SbData.NIGHT_TO:

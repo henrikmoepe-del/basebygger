@@ -21,8 +21,12 @@ var _torch := true
 var _tried: Array = []
 
 
+var _light: PointLight2D
+
+
 func setup() -> void:
 	kind = "raider"
+	_light = preload("res://sandbox/sb_light.gd").add(self, Vector2(-5, -16), 40.0, 0.8)
 
 
 func is_open() -> bool:
@@ -100,6 +104,9 @@ func _try_torch() -> void:
 			continue
 		if randf() < TORCH_CHANCE:
 			_torch = false
+			if _light != null:
+				_light.queue_free()
+				_light = null
 			world.start_fire(s, "A raider sets fire to %s!" % s.label())
 		return
 
