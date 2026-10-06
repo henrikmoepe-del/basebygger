@@ -101,6 +101,13 @@ const NIGHT_PACE := 0.85
 const NIGHT_TIRING := 1.5
 const NIGHT_TINT := Color(0.42, 0.46, 0.72)
 
+## Raids come by themselves: the first on FIRST_RAID_DAY at RAID_HOUR,
+## then every RAID_EVERY days, with RAID_BASE raiders plus one more each time.
+const FIRST_RAID_DAY := 2
+const RAID_HOUR := 17.0
+const RAID_EVERY := 2
+const RAID_BASE := 3
+
 ## Beds in a finished Hut; the hurt get better faster in one.
 const HUT_BEDS := 2
 const HEAL := 0.15

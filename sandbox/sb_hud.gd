@@ -418,7 +418,13 @@ func _process(delta: float) -> void:
 	_alarm_button.add_theme_color_override("font_color", UiTheme.BAD if world.alarm else UiTheme.PARCHMENT)
 	_alarm_button.text = "Bell: ringing" if world.alarm else "Bell (L)"
 	_res_label.text = "Wood %d   Stone %d   Food %d" % [world.stockyard.stock.wood, world.stockyard.stock.stone, world.stockyard.stock.food]
-	_raid_label.text = "RAID! %d raiders" % world.raiders.size() if world.raid_on else ""
+	if world.raid_on:
+		_raid_label.text = "RAID! %d raiders" % world.raiders.size()
+	elif world.auto_raids:
+		var hours: float = (world.next_raid - world.time) / SbData.DAY_LENGTH * 24.0
+		_raid_label.text = ("Raid in %d h" % ceili(hours)) if hours < 24.0 else ""
+	else:
+		_raid_label.text = ""
 	if world.fires.size() > 0:
 		_raid_label.text += ("   " if world.raid_on else "") + "FIRE!"
 	for i in _bar.get_child_count():

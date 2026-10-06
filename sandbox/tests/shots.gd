@@ -57,6 +57,7 @@ func _initialize() -> void:
 			_plan = arg.substr(7)
 	DirAccess.make_dir_recursive_absolute(_out)
 	_world = load("res://sandbox/sandbox.tscn").instantiate()
+	_world.auto_raids = false
 	root.add_child(_world)
 	_run.call_deferred()
 

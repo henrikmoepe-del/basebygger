@@ -33,9 +33,8 @@ func _run() -> void:
 		var dt := SPEED / 60.0
 		t += dt
 		if is_equal_approx(fmod(t, 300.0), 0.0) or (fmod(t, 300.0) < dt and t > 1.0):
+			# Raids come on their timetable; now and then a fire as well.
 			if randf() < 0.5:
-				w.start_raid(3)
-			else:
 				w.start_fire()
 		for p in w.peasants:
 			var k: String = p.task.get("kind", "")
@@ -53,6 +52,7 @@ func _run() -> void:
 			for p in w.peasants:
 				line += " %s:%s%s" % [p.person_name.substr(0, 3), p.task.get("kind", "-"), "(down)" if p.downed else ""]
 			print(line)
+	print("raids: %d, deer shot: %d" % [w.raids, w.deer_shot])
 	if not w.fires.is_empty():
 		print("WARN fires still burning: ", w.fires.size())
 	var counts := {}

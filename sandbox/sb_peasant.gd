@@ -712,7 +712,16 @@ func _do_hunt(prey: Node2D, delta: float) -> void:
 		_arrow = 0.25
 		_arrow_to = prey.position + Vector2(0, -6)
 		if randf() < HIT_BASE + HIT_PER_LEVEL * float(skill.hunt):
+			var where: Vector2 = prey.position
 			prey.shot()
+			if not prey.is_open() and order.is_empty():
+				# A kill: carry the meat home oneself.
+				for it in world.items:
+					if it.res == "food" and it.workers.is_empty() and it.position.distance_to(where) < 14.0:
+						_end_task()
+						task = {"kind": "haul", "target": it, "forced": false}
+						_claim_task()
+						break
 		else:
 			prey.scare(position)
 			if not task.get("forced", false) and randf() < 0.4:

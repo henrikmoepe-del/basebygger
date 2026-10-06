@@ -16,6 +16,7 @@ var _off_band := 0
 
 func _initialize() -> void:
 	_world = load("res://sandbox/sandbox.tscn").instantiate()
+	_world.auto_raids = false
 	root.add_child(_world)
 	_run.call_deferred()
 

@@ -55,15 +55,17 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
    - **Hunting:** deer graze in the wood to the east and run from anyone who comes
      near. The **Hunter** (work type Hunt) creeps within bow range, aims and shoots;
      the Hunt skill raises the chance to hit. A miss scares the deer off, a kill
-     sends the herd running. A deer leaves 2 meat (food) to haul home; the herd
-     slowly grows back to 4.
+     sends the herd running. A deer leaves 2 meat (food), which the hunter carries
+     home himself; the herd slowly grows back to 4.
    - **Workshops and bills:** the Sawmill (standing at the start, or build more)
      turns logs into planks; the Tower's top needs planks. Click a finished
      workshop to set its bill: how many to keep in stock (0 stops it). The
      **Crafter** (work type Craft) takes logs for up to 3 at once, saws them at the
      bench and carries the planks back. Right-click a workshop to order someone
      to work there (ordered, they keep on past the bill).
-   - **Raids:** raiders walk in from the west, fight anyone near, and head for the
+   - **Raids:** they come by themselves: the first on day 2 at 17:00, then every 2
+     days, one raider more each time (the top bar counts down the last day; T
+     starts one at once). Raiders walk in from the west, fight anyone near, and head for the
      stockyard to steal (dropped loot can be hauled back). Each carries a torch and
      may set one building alight as they pass it: fires knock blocks off until put
      out (a fire with nothing left to burn dies down).

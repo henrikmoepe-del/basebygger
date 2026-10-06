@@ -68,6 +68,9 @@ var alarm := false
 var shelter := Vector2(89, 6)
 var _tint: CanvasModulate
 var raids := 0
+## Raids on a timetable (tests turn it off), and when the next one comes.
+var auto_raids := true
+var next_raid := 0.0
 
 var camera: Camera2D
 var things: Node2D
@@ -98,12 +101,18 @@ func _ready() -> void:
 	camera.position = Vector2(60, -20)
 	add_child(camera)
 	camera.make_current()
+	next_raid = time_at(SbData.FIRST_RAID_DAY, SbData.RAID_HOUR)
 	_build_map()
 	hud = CanvasLayer.new()
 	hud.set_script(Hud)
 	hud.world = self
 	add_child(hud)
 	announce("Welcome to the sandbox. Select peasants and right-click to give orders.")
+
+
+## Seconds since the first morning at which a day and hour come.
+func time_at(day_: int, hour_: float) -> float:
+	return ((float(day_ - 1) * 24.0 + hour_ - 8.0) / 24.0) * SbData.DAY_LENGTH
 
 
 func _build_map() -> void:
@@ -288,6 +297,9 @@ func find_work(p: Node2D, work: String) -> Dictionary:
 			continue
 		if (work == "chop" or work == "mine" or work == "forage") and loose_near(t.position) >= LOOSE_LIMIT:
 			# Enough lies here already: haul it first.
+			continue
+		if work == "hunt" and items.filter(func(it): return it.res == "food" and it.position.x > WOOD_FROM - 40.0).size() >= LOOSE_LIMIT:
+			# Bring the meat home before shooting more.
 			continue
 		var score := p.position.distance_to(t.position)
 		if work == "build":
@@ -655,6 +667,9 @@ func darkness() -> float:
 
 func _process(delta: float) -> void:
 	time += delta
+	if auto_raids and time >= next_raid:
+		next_raid += SbData.RAID_EVERY * SbData.DAY_LENGTH
+		start_raid(SbData.RAID_BASE + raids)
 	# The herd grows back slowly, from the east edge of the wood.
 	if deer.size() < HERD:
 		_herd_timer += delta
