@@ -137,6 +137,13 @@ func _run() -> void:
 	await _wait(1.0)
 	_check(w.sites.size() == 3, "a site can be cancelled")
 
+	# 8. Skills grow by doing the work.
+	var miner: Node2D = w.peasants.filter(func(p): return p.job == "miner")[0]
+	var before: int = miner.skill.mine
+	miner.learn("mine", 1000.0)
+	_check(miner.skill.mine == before + 1, "practice raises a skill a level")
+	_check(miner.skill_mult("mine") > miner.skill_mult("build") or miner.skill.mine <= miner.skill.build, "a higher skill works faster")
+
 	_check(_off_band == 0, "nobody leaves the ground band (%d frames off it)" % _off_band)
 	print("ALL PASSED" if _fails == 0 else "%d FAILED" % _fails)
 	quit(1 if _fails > 0 else 0)

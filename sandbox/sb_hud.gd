@@ -157,7 +157,7 @@ func _make_work() -> void:
 	var box := VBoxContainer.new()
 	_work.add_child(box)
 	var title := Label.new()
-	title.text = "Work: 1 first, 3 last, - never"
+	title.text = "Work: priority 1 first, 3 last, - never.  ·n = skill (grows by doing)"
 	title.add_theme_color_override("font_color", UiTheme.GOLD)
 	box.add_child(title)
 	_work_grid = GridContainer.new()
@@ -252,9 +252,13 @@ func _rebuild_work() -> void:
 		_work_grid.add_child(job_button)
 		for w in SbData.WORK:
 			var v: int = p.prio[w]
-			var cell := _button(str(v) if v > 0 else "-", _cycle_one.bind(p, w))
+			var text := str(v) if v > 0 else "-"
+			if p.skill.has(w):
+				text += " ·%d" % p.skill[w]
+			var cell := _button(text, _cycle_one.bind(p, w))
 			_compact(cell)
-			cell.custom_minimum_size = Vector2(30, 0)
+			cell.custom_minimum_size = Vector2(34, 0)
+			cell.tooltip_text = "Priority %s%s. Click to change the priority." % [str(v) if v > 0 else "never", (", skill %d (works at %d%%)" % [p.skill[w], roundi(p.skill_mult(w) * 100.0)]) if p.skill.has(w) else ""]
 			cell.add_theme_color_override("font_color", UiTheme.GOLD if v == 1 else (UiTheme.PARCHMENT if v > 0 else UiTheme.PARCHMENT_DIM))
 			_work_grid.add_child(cell)
 
@@ -388,6 +392,8 @@ func _rebuild_panel() -> void:
 		var w: String = b.get_meta("work")
 		var v: int = first.prio[w]
 		b.text = "%s %s" % [SbData.WORK_NAMES[w], str(v) if v > 0 else "-"]
+		if first.skill.has(w) and world.selected.size() == 1:
+			b.text += " ·%d" % first.skill[w]
 		b.add_theme_color_override("font_color", UiTheme.GOLD if v == 1 else (UiTheme.PARCHMENT if v > 0 else UiTheme.PARCHMENT_DIM))
 	_update_rows()
 

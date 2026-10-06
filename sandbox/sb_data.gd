@@ -32,6 +32,13 @@ const JOBS := {
 		"work": {"fight": 1, "firefight": 2}},
 }
 
+## Work that has a skill: it grows by doing it (see sb_peasant.gd `learn`).
+const SKILLED := ["build", "chop", "mine", "fight"]
+const SKILL_MAX := 10
+## Seconds of practice for the next level: BASE + PER_LEVEL * level.
+const SKILL_BASE := 20.0
+const SKILL_PER_LEVEL := 12.0
+
 const JOB_ORDER := ["builder", "woodcutter", "miner", "hauler", "guard"]
 
 const NAMES := ["Alda", "Bram", "Cedric", "Dagny", "Edwin", "Freya", "Gunnar",

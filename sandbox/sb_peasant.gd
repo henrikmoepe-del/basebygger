@@ -21,6 +21,10 @@ var person_name := ""
 var job := "builder"
 ## Work type -> priority (1 first, 3 last, 0 never).
 var prio := {}
+## Skill per kind of work (SbData.SKILLED): level 0-10, and practice
+## towards the next level in seconds.
+var skill := {}
+var practice := {}
 var hp := 10.0
 var max_hp := 10.0
 var downed := false
@@ -51,8 +55,32 @@ func setup(name_: String, job_: String) -> void:
 	kind = "peasant"
 	person_name = name_
 	name = name_
+	# A start in their own trade, a little in the others.
+	for w in SbData.SKILLED:
+		skill[w] = randi_range(0, 2)
+		practice[w] = 0.0
 	set_job(job_)
+	for w in SbData.SKILLED:
+		if SbData.JOBS[job_].work.get(w, 0) == 1:
+			skill[w] = randi_range(3, 5)
 	hp = max_hp
+
+
+## How fast the peasant does this work: 0.6 at level 0, 1.0 at 5, 1.4 at 10.
+func skill_mult(work: String) -> float:
+	return 0.6 + 0.08 * float(skill.get(work, 5))
+
+
+## Practice: seconds spent on skilled work raise the skill.
+func learn(work: String, seconds: float) -> void:
+	if not skill.has(work) or skill[work] >= SbData.SKILL_MAX:
+		return
+	practice[work] += seconds
+	var need: float = SbData.SKILL_BASE + SbData.SKILL_PER_LEVEL * skill[work]
+	if practice[work] >= need:
+		practice[work] -= need
+		skill[work] += 1
+		world.announce("%s got better at %s (level %d)." % [person_name, SbData.WORK_NAMES[work].to_lower(), skill[work]])
 
 
 func set_job(job_: String) -> void:
@@ -408,7 +436,8 @@ func _do_build(site: Node2D, delta: float) -> void:
 		return
 	if _go(site.work_spot(self), delta):
 		_anim = "build"
-		_timer += delta
+		_timer += delta * skill_mult("build")
+		learn("build", delta)
 		if _timer >= PLACE_TIME:
 			_timer = 0.0
 			site.add_block(carrying)
@@ -441,7 +470,9 @@ func _do_gather(thing: Node2D, delta: float, how: String) -> void:
 		_drop()
 	if _go(thing.work_spot(self), delta):
 		_anim = how
-		var fell: bool = thing.chop(delta) if how == "chop" else thing.mine(delta)
+		var amount := delta * skill_mult(how)
+		learn(how, delta)
+		var fell: bool = thing.chop(amount) if how == "chop" else thing.mine(amount)
 		if fell:
 			_finish_unit()
 
@@ -485,9 +516,11 @@ func _do_fight(raider: Node2D, delta: float) -> void:
 		_go(raider.work_spot(self), delta, 1.1)
 		return
 	_anim = "fight"
+	learn("fight", delta)
 	if _cool <= 0.0:
 		_cool = HIT_EVERY
-		raider.damage(3.0 if job == "guard" else (2.0 if drafted else 1.5))
+		var base := 3.0 if job == "guard" else (2.0 if drafted else 1.5)
+		raider.damage(base * skill_mult("fight"))
 
 
 func _do_idle(delta: float) -> void:
