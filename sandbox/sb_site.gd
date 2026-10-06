@@ -19,6 +19,8 @@ var stock := {"wood": 0, "stone": 0}
 var incoming := {"wood": 0, "stone": 0}
 ## Builders choosing for themselves prefer a site marked urgent.
 var urgent := false
+## The hurt lying in this building's beds (a finished Hut).
+var sleepers: Array = []
 var selected := false
 ## The material actually laid in each place so far (a builder may bring the
 ## material of the course below when two arrive at once).
@@ -61,6 +63,14 @@ func wanted(res: String) -> int:
 
 
 ## Where delivered material lies: a pile at the front left of the site.
+func has_beds() -> bool:
+	return done() and title == "Hut"
+
+
+func bed_spot(i: int) -> Vector2:
+	return position + Vector2(-8.0 + 14.0 * float(i), 3.0)
+
+
 func pile_spot() -> Vector2:
 	return position + Vector2(-width() / 2.0 - 8.0, 8.0)
 

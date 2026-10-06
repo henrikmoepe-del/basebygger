@@ -10,10 +10,10 @@ extends RefCounted
 ## the player comes before all of it, until it is done or released.
 
 ## Kinds of work, in the order they are shown in the priority grid.
-const WORK := ["firefight", "fight", "build", "chop", "mine", "haul"]
+const WORK := ["firefight", "fight", "rescue", "build", "chop", "mine", "haul"]
 
 const WORK_NAMES := {
-	"firefight": "Fires", "fight": "Fight", "build": "Build",
+	"firefight": "Fires", "fight": "Fight", "rescue": "Rescue", "build": "Build",
 	"chop": "Chop", "mine": "Mine", "haul": "Haul",
 }
 
@@ -21,15 +21,15 @@ const WORK_NAMES := {
 ## Anything missing from "work" is 0 (never).
 const JOBS := {
 	"builder": {"name": "Builder", "tunic": Color("#8a5a34"),
-		"work": {"firefight": 1, "build": 1, "haul": 3}},
+		"work": {"firefight": 1, "rescue": 1, "build": 1, "haul": 3}},
 	"woodcutter": {"name": "Woodcutter", "tunic": Color("#3f7a78"),
-		"work": {"firefight": 1, "chop": 1, "haul": 3}},
+		"work": {"firefight": 1, "rescue": 1, "chop": 1, "haul": 3}},
 	"miner": {"name": "Miner", "tunic": Color("#575160"),
-		"work": {"firefight": 1, "mine": 1, "haul": 3}},
+		"work": {"firefight": 1, "rescue": 1, "mine": 1, "haul": 3}},
 	"hauler": {"name": "Hauler", "tunic": Color("#b88a54"),
-		"work": {"firefight": 1, "haul": 1, "build": 3}},
+		"work": {"firefight": 1, "rescue": 1, "haul": 1, "build": 3}},
 	"guard": {"name": "Guard", "tunic": Color("#45558a"),
-		"work": {"fight": 1, "firefight": 2}},
+		"work": {"fight": 1, "firefight": 2, "rescue": 1}},
 }
 
 ## Work that has a skill: it grows by doing it (see sb_peasant.gd `learn`).
@@ -63,6 +63,11 @@ const BUILDINGS := {
 }
 
 const BUILD_ORDER := ["hut", "wall", "tower", "shed"]
+
+## Beds in a finished Hut; the hurt get better faster in one.
+const HUT_BEDS := 2
+const HEAL := 0.15
+const HEAL_IN_BED := 0.6
 
 ## How many peasants work one thing at a time when choosing for themselves.
 ## Orders from the player ignore these.

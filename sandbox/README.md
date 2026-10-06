@@ -15,11 +15,12 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
    their own job. A planned building shows as a faint outline (a blueprint) and
    fills in block by block. Builders spread out over the sites by themselves.
 3. **The new job system** (think RimWorld, with assigned jobs):
-   - Every peasant has a **priority for each kind of work**: Fires, Fight, Build,
-     Chop, Mine, Haul. 1 = first, 2, 3 = last, - = never.
-   - A **job is a preset** of those priorities. Builder: Fires 1, Build 1, Haul 3.
-     Woodcutter: Fires 1, Chop 1, Haul 3. Miner: Fires 1, Mine 1, Haul 3.
-     Hauler: Fires 1, Haul 1, Build 3. Guard: Fight 1, Fires 2. You can change
+   - Every peasant has a **priority for each kind of work**: Fires, Fight, Rescue,
+     Build, Chop, Mine, Haul. 1 = first, 2, 3 = last, - = never.
+   - A **job is a preset** of those priorities. Builder: Fires 1, Rescue 1, Build 1,
+     Haul 3. Woodcutter: Fires 1, Rescue 1, Chop 1, Haul 3. Miner: Fires 1, Rescue 1,
+     Mine 1, Haul 3. Hauler: Fires 1, Rescue 1, Haul 1, Build 3. Guard: Fight 1,
+     Rescue 1, Fires 2. You can change
      single priorities per person in the panel (click a priority to cycle it).
    - **Free will:** left alone, a peasant does the most important work there is for
      them, nearest first (builders also prefer a site with fewer builders on it).
@@ -27,6 +28,14 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
    - **Emergencies come by themselves:** a fire gets up to 3 peasants per fire
      running buckets from the well; guards fight raiders; anyone with Fight "-"
      runs away from raiders that come near.
+   - **Hauling** means taking loose logs and stones to the stockyard, and bringing
+     building material from the stockyard to the sites (it lies in a pile there,
+     and builders take from it before walking to the stockyard themselves).
+   - **Skills** (Build, Chop, Mine, Fight) grow by doing the work: level 0 works at
+     60% speed, 5 at 100%, 10 at 140%. Shown as "·n" in the Work overview.
+   - **The hurt:** a peasant beaten in a fight goes down. Anyone with Rescue carries
+     them to a bed in a finished Hut (2 beds each), or to the well if all beds are
+     taken. They get better on the ground, faster in a bed.
    - **Orders:** select peasants and right-click something. The order comes before
      everything else (even fleeing) until it is done, then they go back to free will.
      **R** (or Release) ends the order early.
@@ -42,7 +51,8 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
 | Right-click a tree / rock | Chop it / mine it, until it is used up |
 | Right-click a log or stone on the ground | Haul it to the stockyard (several selected take one each) |
 | Right-click a fire | Put it out (buckets from the well) |
-| Right-click a raider | Fight it (guards hit 3, others 1.5) |
+| Right-click a raider | Fight it (guards hit 3, others 1.5, times their Fight skill) |
+| Right-click a hurt peasant | Carry them to a bed |
 | Right-click the ground | Go there and hold |
 | B (or Build) | Build menu: pick a building, left-click where it goes (Shift-click: several; right-click: stop). Red outline = does not fit |
 | Left-click a building site | Its progress; make it **Urgent** (builders go there first, red pennant) or **Cancel** it |

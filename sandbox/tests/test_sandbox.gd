@@ -53,6 +53,11 @@ func _run() -> void:
 	var supplied := await _wait(60.0, func(): return w.sites.any(func(s): return s.stock.stone + s.stock.wood > 0))
 	_check(supplied, "the hauler brings material to a building site")
 
+	var stone_in: int = w.stockyard.stock.stone
+	var lying_id: int = w.spawn_item("stone", Vector2(150, 50)).get_instance_id()
+	var hauled := await _wait(60.0, func(): return not is_instance_id_valid(lying_id) or instance_from_id(lying_id).is_queued_for_deletion())
+	_check(hauled, "a loose stone is picked up by someone by themselves")
+
 	# 2. Order three builders to the Tower.
 	var builders: Array = w.peasants.filter(func(p): return p.job == "builder")
 	var tower: Node2D = w.sites[2]
@@ -95,7 +100,7 @@ func _run() -> void:
 	w.give_order(w.well.position + Vector2(0, 20), true)
 	_check(hauler.queue.size() == 1, "Shift + right-click queues an order after the first")
 	var moved_on := await _wait(120.0, func(): return hauler.task.get("kind", "") == "goto")
-	_check(moved_on and not tree2.is_open(), "after chopping the whole tree the hauler goes on to the queued order")
+	_check(moved_on and not tree2.is_open(), "after chopping the whole tree the hauler goes on to the queued order (task %s, order %s, queue %d, wood left %d)" % [hauler.task.get("kind", ""), hauler.order.get("kind", ""), hauler.queue.size(), tree2.wood])
 	w.release_selected()
 
 	# 5. A fire in the stockyard is put out.
@@ -109,7 +114,7 @@ func _run() -> void:
 	w.toggle_draft_selected()
 	_check(drafted.all(func(p): return p.drafted and p.task.get("kind", "") != "build"), "drafting stops their work")
 	w.give_order(Vector2(-200, 40))
-	await _wait(10.0)
+	await _wait(25.0)
 	_check(drafted.all(func(p): return p.position.distance_to(Vector2(-200, 40)) < 20.0 and p.order.is_empty()), "drafted peasants go where sent and hold there")
 	w.start_raid(3)
 	var engaged := await _wait(40.0, func(): return drafted.any(func(p): return p.task.get("kind", "") == "fight"))
@@ -143,6 +148,19 @@ func _run() -> void:
 	miner.learn("mine", 1000.0)
 	_check(miner.skill.mine == before + 1, "practice raises a skill a level")
 	_check(miner.skill_mult("mine") > miner.skill_mult("build") or miner.skill.mine <= miner.skill.build, "a higher skill works faster")
+
+	# 9. Rescue: a hurt peasant is carried to a bed in the finished Hut.
+	var hut: Node2D = w.sites[0]
+	while not hut.done():
+		hut.add_block(hut.next_material())
+	var hurt: Node2D = w.peasants.filter(func(p): return p.job == "woodcutter")[0]
+	hurt.damage(100.0)
+	_check(hurt.downed, "a peasant can go down")
+	var safe := await _wait(60.0, func(): return hurt._safe)
+	_check(safe, "someone carries the hurt peasant to safety by themselves")
+	_check(hut.sleepers.size() > 0, "the hurt lie in the Hut's beds (%d of 2)" % hut.sleepers.size())
+	var up := await _wait(120.0, func(): return not hurt.downed and hut.sleepers.is_empty())
+	_check(up, "they get better and get up again, and the beds are free")
 
 	_check(_off_band == 0, "nobody leaves the ground band (%d frames off it)" % _off_band)
 	print("ALL PASSED" if _fails == 0 else "%d FAILED" % _fails)

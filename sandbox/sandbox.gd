@@ -232,6 +232,9 @@ func find_work(p: Node2D, work: String) -> Dictionary:
 			list = rocks
 		"haul":
 			list = items
+		"rescue":
+			# The hurt, not yet carried and with no raider standing over them.
+			list = peasants.filter(func(o): return o != p and o.is_open() and o.carried_by == null and nearest_raider(o.position, 50.0) == null)
 	for t in list:
 		if not t.is_open() or t.workers.size() >= t.capacity():
 			continue
@@ -245,8 +248,6 @@ func find_work(p: Node2D, work: String) -> Dictionary:
 			score += 80.0 * t.workers.size()
 			if t.urgent:
 				score -= 1000.0
-		if work == "haul" and t.carried_by != null:
-			continue
 		if score < best_score:
 			best_score = score
 			best = t
@@ -270,6 +271,14 @@ func find_work(p: Node2D, work: String) -> Dictionary:
 	if supply != "":
 		return {"kind": "supply", "target": best, "score": best_score, "res": supply}
 	return {"kind": work, "target": best, "score": best_score}
+
+
+## A finished Hut with a free bed, or null.
+func free_bed() -> Node2D:
+	for s in sites:
+		if s.has_beds() and s.sleepers.size() < SbData.HUT_BEDS:
+			return s
+	return null
 
 
 func nearest_peasant(at: Vector2, within: float) -> Node2D:
@@ -360,6 +369,9 @@ func peasant_at(at: Vector2) -> Node2D:
 
 ## What a right-click at this point means: an order for the selected.
 func order_at(at: Vector2) -> Dictionary:
+	for p in peasants:
+		if p.is_open() and p.hit(at):
+			return {"kind": "rescue", "target": p}
 	for list_kind in [[raiders, "fight"], [fires, "firefight"], [items, "haul"], [trees, "chop"], [rocks, "mine"], [sites, "build"]]:
 		for t in list_kind[0]:
 			if t.is_open() and t.hit(at):
@@ -401,7 +413,7 @@ func _free_item_near(at: Vector2, p: Node2D) -> Node2D:
 	var best: Node2D = null
 	var d := 60.0
 	for it in items:
-		if it.carried_by != null and it.carried_by != p:
+		if not it.workers.is_empty() and not it.workers.has(p):
 			continue
 		var id: float = at.distance_to(it.position)
 		if id < d:

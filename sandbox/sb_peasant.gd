@@ -28,6 +28,13 @@ var practice := {}
 var hp := 10.0
 var max_hp := 10.0
 var downed := false
+## While down: who carries them, and the Hut whose bed they lie in.
+var carried_by: Node2D = null
+var bed: Node2D = null
+## Down and already brought somewhere safe (a bed, or by the well).
+var _safe := false
+## The hurt peasant this one is carrying.
+var _patient: Node2D = null
 var selected := false
 ## The player's order, or empty. Same shape as a task.
 var order := {}
@@ -101,10 +108,18 @@ func cycle_prio(work: String) -> void:
 
 
 func capacity() -> int:
-	return 99
+	return 1
+
+
+## As a target: a peasant can be worked on (rescued) while down and not
+## yet somewhere safe.
+func is_open() -> bool:
+	return downed and not _safe
 
 
 func hit(p: Vector2) -> bool:
+	if not visible:
+		return false
 	if downed:
 		return Rect2(position + Vector2(-9, -6), Vector2(18, 8)).has_point(p)
 	return Rect2(position + Vector2(-5, -18), Vector2(10, 20)).has_point(p)
@@ -199,6 +214,8 @@ func activity() -> String:
 	match task.get("kind", ""):
 		"supply":
 			return prefix + "bringing %s to %s" % [task.res, t.label()]
+		"rescue":
+			return prefix + ("carrying %s to safety" % t.label() if _patient == t else "going to help %s" % t.label())
 		"build":
 			if _short != "":
 				return prefix + "waiting for %s for %s" % [_short, t.label()]
@@ -245,11 +262,24 @@ func _process(delta: float) -> void:
 	_walking = false
 	_anim = ""
 	if downed:
-		# Lying hurt; gets up again once no raider is near.
+		if carried_by != null:
+			if not is_instance_valid(carried_by) or carried_by.downed:
+				carried_by = null
+			else:
+				# On someone's shoulders: they draw us.
+				position = carried_by.position
+				visible = false
+				return
+		visible = true
+		# Lying hurt; gets better once no raider is near, faster in a bed.
 		if world.nearest_raider(position, 80.0) == null:
-			hp += 0.6 * delta
-			if hp >= max_hp * 0.5:
+			hp += (SbData.HEAL_IN_BED if bed != null else SbData.HEAL) * delta
+			if hp >= max_hp * (0.9 if bed != null else 0.5):
 				downed = false
+				_safe = false
+				if bed != null and is_instance_valid(bed):
+					bed.sleepers.erase(self)
+				bed = null
 				world.announce("%s is back on their feet." % person_name)
 		queue_redraw()
 		return
@@ -336,8 +366,6 @@ func _claim_task() -> void:
 		# Bringing material to a site is not building there.
 		if task.get("kind", "") != "supply":
 			t.claim(self)
-		if t.kind == "item":
-			t.carried_by = self
 		if task.get("kind", "") == "supply":
 			t.incoming[task.res] += 1
 
@@ -346,8 +374,6 @@ func _end_task() -> void:
 	var t = task.get("target")
 	if t != null and is_instance_valid(t):
 		t.release(self)
-		if t.kind == "item" and t.carried_by == self:
-			t.carried_by = null
 		if task.get("kind", "") == "supply":
 			t.incoming[task.res] = maxi(t.incoming[task.res] - 1, 0)
 	task = {}
@@ -379,6 +405,8 @@ func _do_task(delta: float) -> void:
 			_end_task()
 		return
 	match task.get("kind", ""):
+		"rescue":
+			_do_rescue(t, delta)
 		"build":
 			_do_build(t, delta)
 		"supply":
@@ -443,6 +471,38 @@ func _do_build(site: Node2D, delta: float) -> void:
 			site.add_block(carrying)
 			carrying = ""
 			_finish_unit()
+
+
+## Picks up a hurt peasant and carries them to a free bed in a Hut, or to
+## the well if there is none.
+func _do_rescue(patient: Node2D, delta: float) -> void:
+	if _patient != patient:
+		if carrying != "":
+			_drop()
+		if patient.carried_by != null and patient.carried_by != self:
+			_end_task()
+			return
+		if _go(patient.position + Vector2(-6, 0), delta):
+			patient.carried_by = self
+			_patient = patient
+			carrying = "person"
+		return
+	var hut: Node2D = world.free_bed()
+	var spot: Vector2 = hut.bed_spot(hut.sleepers.size()) if hut != null else world.well.position + Vector2(-16, 6)
+	if _go(spot + Vector2(-6, 0), delta):
+		patient.carried_by = null
+		patient.position = spot
+		patient._safe = true
+		if hut != null:
+			patient.bed = hut
+			hut.sleepers.append(patient)
+			world.announce("%s brought %s to a bed." % [person_name, patient.person_name])
+		_patient = null
+		carrying = ""
+		if task.get("forced", false):
+			_order_done()
+		else:
+			_end_task()
 
 
 ## Brings one load of material from the stockyard to a building site.
@@ -552,6 +612,10 @@ func _process_deliver(delta: float) -> void:
 
 ## Puts what one carries down on the ground, for someone to haul later.
 func _drop() -> void:
+	if carrying == "person" and _patient != null and is_instance_valid(_patient):
+		_patient.carried_by = null
+		_patient.position = position + Vector2(4, 1)
+		_patient = null
 	if carrying == "wood" or carrying == "stone":
 		world.spawn_item(carrying, position + Vector2(4, 1))
 	carrying = ""
@@ -578,9 +642,14 @@ func _draw() -> void:
 	if _hurt > 0.0:
 		tunic = SbData.WHITE
 	if downed:
+		if bed != null:
+			# In bed: a straw mattress and a blanket.
+			draw_rect(Rect2(-8, -2, 16, 2), SbData.THATCH)
 		draw_rect(Rect2(-6, -4, 10, 4), tunic)
 		draw_rect(Rect2(4, -4, 4, 4), SbData.SKIN1)
 		draw_rect(Rect2(-9, -3, 3, 2), SbData.INK)
+		if bed != null:
+			draw_rect(Rect2(-7, -4, 10, 3), SbData.TEAL)
 		_draw_marks(-8.0)
 		return
 	var t := Time.get_ticks_msec() / 1000.0
@@ -624,6 +693,11 @@ func _draw() -> void:
 		"stone":
 			draw_rect(Rect2(-4, bob - 21, 8, 5), SbData.STONE3)
 			draw_rect(Rect2(-4, bob - 21, 8, 1), SbData.STONE4)
+		"person":
+			if _patient != null and is_instance_valid(_patient):
+				draw_rect(Rect2(-6, bob - 17, 10, 3), SbData.JOBS[_patient.job].tunic)
+				draw_rect(Rect2(4, bob - 18, 3, 3), SbData.SKIN1)
+				draw_rect(Rect2(-8, bob - 16, 2, 2), SbData.INK)
 		"water":
 			draw_rect(Rect2(3, bob - 9, 4, 4), SbData.WOOD1)
 			draw_rect(Rect2(3, bob - 9, 4, 1), SbData.SKY2)

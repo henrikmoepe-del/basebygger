@@ -3,7 +3,6 @@ extends "res://sandbox/sb_thing.gd"
 ## hauled to the stockyard.
 
 var res := "wood"
-var carried_by: Node2D = null
 
 
 func setup(res_: String) -> void:
@@ -11,12 +10,8 @@ func setup(res_: String) -> void:
 	res = res_
 
 
-func is_open() -> bool:
-	return carried_by == null
-
-
 func hit(p: Vector2) -> bool:
-	return carried_by == null and Rect2(position + Vector2(-7, -7), Vector2(14, 10)).has_point(p)
+	return Rect2(position + Vector2(-7, -7), Vector2(14, 10)).has_point(p)
 
 
 func work_spot(_peasant: Node2D) -> Vector2:
