@@ -1,0 +1,43 @@
+GIMP Palette
+Name: Game_1
+Columns: 8
+#
+ 26  22  34	ink
+ 35  42  69	night1
+ 47  63 102	night2
+ 62 106 160	sky1
+106 152 200	sky2
+166 200 224	sky3
+216 228 224	haze
+244 241 230	white
+ 58  53  64	stone0
+ 87  81  96	stone1
+124 118 128	stone2
+163 156 152	stone3
+201 192 176	stone4
+ 58  36  24	wood0
+ 92  58  36	wood1
+138  90  52	wood2
+184 138  84	wood3
+214 178 104	thatch
+ 29  50  34	grass0
+ 46  82  48	grass1
+ 74 122  56	grass2
+120 164  68	grass3
+180 200  96	grass4
+156 122  82	dirt
+ 44  53  88	slate0
+ 69  85 138	slate1
+106 124 184	slate2
+ 90  30  36	red0
+154  48  40	red1
+208  88  44	fire
+242 182  64	gold
+255 233 160	light
+168 106  76	skin0
+230 176 138	skin1
+ 63 122 120	teal
+106  58 106	purple
+108 122 160	mtn0
+154 168 200	mtn1
+226 212 176	daub
