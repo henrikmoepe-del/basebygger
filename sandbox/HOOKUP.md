@@ -36,5 +36,25 @@ which is why it is tried out on the test map first.
    out by work instead of a click. Raiders that steal and drop loot, and loose
    logs and stones that are hauled, are new.
 
+8. **Things added later in the sandbox, and where they meet the main game:**
+   - *Needs (hunger, sleep) and day/night:* the main game already has food, hunger,
+     nights and beds in the keep (`Workers.bed_spot`). The sandbox's per-person
+     hunger and tiredness, and "Night work" as a policy, would go into
+     `GameState.people` and `policy_data.gd` (Henrik's list has "work during the
+     night" as a policy idea).
+   - *Workshops and bills:* the main game's workshops (`workshop_data.gd`,
+     `crafter.gd`) work like this already; a bill ("keep N in stock") would be a
+     number per workshop in `GameState`, shown when the workshop is clicked.
+   - *Skills:* would sit beside the main game's trades: a trade unlocks a job, a
+     skill makes a person good at it (see DESIGN.md, open question 3).
+   - *Traits and dozing:* the traits are the main game's (`people_data.gd`);
+     dozing is one of Henrik's "small things to click".
+   - *Hunting:* the main game has a hunter job and a badger event at the wilds;
+     deer would be a new kind of thing there.
+   - *Raids:* the alarm bell, drafting and torches are new; the main game's raids
+     (`raiders.gd`, `soldier.gd`) have posts, a palisade and archers instead.
+     Which way raids go is undecided (CLAUDE.md).
+   - *Forbidding, hover info, the character card, the Work overview:* HUD only.
+
 A smaller first step for the main game: keep the line of ground, and bring in
 only people-with-priorities, free will and orders (1, 2, 4, 5).
