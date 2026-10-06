@@ -88,6 +88,16 @@ func _run() -> void:
 	_check(w.items.size() > logs_before or w.stockyard.stock.wood > 0, "a log falls")
 	w.release_selected()
 
+	# 4b. Queued orders: chop a tree, then go and stand by the well.
+	var tree2: Node2D = w.trees[1]
+	w.select([hauler])
+	w.give_order(tree2.position + Vector2(0, -4))
+	w.give_order(w.well.position + Vector2(0, 20), true)
+	_check(hauler.queue.size() == 1, "Shift + right-click queues an order after the first")
+	var moved_on := await _wait(120.0, func(): return hauler.task.get("kind", "") == "goto")
+	_check(moved_on and not tree2.is_open(), "after chopping the whole tree the hauler goes on to the queued order")
+	w.release_selected()
+
 	# 5. A fire in the stockyard is put out.
 	w.start_fire(w.stockyard)
 	var out := await _wait(90.0, func(): return w.fires.is_empty())

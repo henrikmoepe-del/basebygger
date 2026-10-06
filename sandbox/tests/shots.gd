@@ -18,6 +18,8 @@ const PLANS := {
 	"work": {"steps": [[1.0, "work"], [0.3, "shot"]]},
 	# Placing a new building, and a picked site marked urgent.
 	"build": {"steps": [[1.0, "place"], [0.2, "shot"], [0.1, "placed"], [15.0, "shot"]]},
+	# Queued orders (Shift + right-click): numbered dotted lines.
+	"queue": {"steps": [[1.0, "queue"], [1.5, "shot"]]},
 	"box": {"steps": [[2.0, "box"], [0.1, "goto"], [0.4, "shot"]]},
 }
 
@@ -90,6 +92,13 @@ func _do(what: String) -> void:
 			w.placing = ""
 			w.pick_site(site)
 			site.urgent = true
+		"queue":
+			w.camera.position = Vector2(330, -20)
+			var h: Node2D = w.peasants[5]
+			w.select([h])
+			w.give_order(w.trees[2].position + Vector2(0, -4))
+			w.give_order(w.rocks[1].position + Vector2(0, -4), true)
+			w.give_order(Vector2(260, 60), true)
 		"work":
 			w.peasants[3].cycle_prio("haul")
 			w.hud.toggle_work()

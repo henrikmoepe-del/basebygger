@@ -368,7 +368,7 @@ func order_at(at: Vector2) -> Dictionary:
 	return {"kind": "goto", "target": null, "pos": at}
 
 
-func give_order(at: Vector2) -> void:
+func give_order(at: Vector2, add := false) -> void:
 	if selected.is_empty():
 		return
 	var o := order_at(at)
@@ -386,7 +386,7 @@ func give_order(at: Vector2) -> void:
 			if other == null:
 				continue
 			mine.target = other
-		p.set_order(mine)
+		p.set_order(mine, add)
 		i += 1
 	_pings.append({"pos": at, "t": 0.6})
 	selection_changed.emit()
@@ -458,7 +458,7 @@ func _unhandled_input(event: InputEvent) -> void:
 					select(inside, mb.shift_pressed)
 				_drag_from = Vector2.INF
 		elif mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
-			give_order(at)
+			give_order(at, mb.shift_pressed)
 		elif mb.button_index == MOUSE_BUTTON_MIDDLE:
 			_panning = mb.pressed
 		elif mb.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN] and mb.pressed:
@@ -522,6 +522,18 @@ func _draw_overlay() -> void:
 			var c := SbData.GOLD if p.task.get("forced", false) else Color(SbData.WHITE, 0.5)
 			_dotted(p.position + Vector2(0, -6), to, c)
 			overlay.draw_rect(Rect2(to - Vector2(1, 1), Vector2(3, 3)), c)
+		# Queued orders: a dotted line on to each, with its number.
+		var from: Vector2 = to if to != Vector2.INF else p.position
+		var n := 2
+		for o in p.queue:
+			var qt = o.get("target")
+			var qto: Vector2 = o.pos if o.kind == "goto" else (qt.position if qt != null and is_instance_valid(qt) else Vector2.INF)
+			if qto == Vector2.INF:
+				continue
+			_dotted(from, qto, Color(SbData.GOLD, 0.7))
+			overlay.draw_string(ThemeDB.fallback_font, qto + Vector2(2, -2), str(n), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, SbData.GOLD)
+			from = qto
+			n += 1
 	if placing != "":
 		_draw_ghost(get_global_mouse_position())
 	for ping in _pings:

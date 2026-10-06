@@ -25,6 +25,8 @@ var downed := false
 var selected := false
 ## The player's order, or empty. Same shape as a task.
 var order := {}
+## Orders queued after this one (Shift + right-click), done in turn.
+var queue: Array = []
 var task := {}
 ## What is on the shoulder: "", "wood", "stone" or "water".
 var carrying := ""
@@ -82,8 +84,13 @@ func job_name() -> String:
 	return SbData.JOBS[job].name
 
 
-## Give an order from the player. It comes before anything else.
-func set_order(o: Dictionary) -> void:
+## Give an order from the player. It comes before anything else. With
+## `add`, it is queued after the orders already given instead.
+func set_order(o: Dictionary, add := false) -> void:
+	if add and not order.is_empty():
+		queue.append(o)
+		return
+	queue.clear()
 	_end_task()
 	order = o
 	order.forced = true
@@ -94,10 +101,26 @@ func set_order(o: Dictionary) -> void:
 
 ## Drop the order and go back to choosing work by oneself.
 func release_order() -> void:
+	queue.clear()
 	if order.is_empty():
 		return
 	order = {}
 	_end_task()
+
+
+## Starts the next queued order, if any. Returns true if one was started.
+func _next_order() -> bool:
+	while not queue.is_empty():
+		var o: Dictionary = queue.pop_front()
+		var t = o.get("target")
+		if t != null and (not is_instance_valid(t) or not t.is_open()):
+			continue
+		order = o
+		order.forced = true
+		task = order
+		_claim_task()
+		return true
+	return false
 
 
 ## Stop what one is doing now and choose again (an emergency, a new job).
@@ -110,6 +133,7 @@ func rethink() -> void:
 func forget(t: Node2D) -> void:
 	if order.get("target") == t:
 		order = {}
+	queue = queue.filter(func(o): return o.get("target") != t)
 	if task.get("target") == t:
 		task = {}
 		_timer = 0.0
@@ -177,6 +201,8 @@ func _process(delta: float) -> void:
 				world.announce("%s is back on their feet." % person_name)
 		queue_redraw()
 		return
+	if order.is_empty() and not queue.is_empty() and task.get("kind", "") != "deliver":
+		_next_order()
 	if not order.is_empty():
 		task = order
 	else:
@@ -298,7 +324,9 @@ func _do_task(delta: float) -> void:
 		"fight":
 			_do_fight(t, delta)
 		"goto":
-			_go(task.pos, delta)
+			if _go(task.pos, delta) and not queue.is_empty():
+				# Holding a spot ends when there is more to do after it.
+				_order_done()
 		"deliver":
 			_process_deliver(delta)
 		"flee":
@@ -547,7 +575,7 @@ func _draw_marks(top: float) -> void:
 		draw_rect(Rect2(r + 1, top + 4, 1, 2), c)
 		draw_rect(Rect2(l, b - 1, 1, 2), c)
 		draw_rect(Rect2(r + 1, b - 1, 1, 2), c)
-	if not order.is_empty():
+	if not order.is_empty() or not queue.is_empty():
 		draw_rect(Rect2(-1, top - 4, 2, 4), SbData.GOLD)
 		draw_rect(Rect2(-1, top + 1, 2, 1), SbData.GOLD)
 	if hp < max_hp:
