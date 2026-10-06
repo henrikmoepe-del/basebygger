@@ -24,6 +24,8 @@ const PLANS := {
 	"draft": {"steps": [[2.0, "draft"], [0.1, "raid"], [11.0, "shot"], [4.0, "shot"]]},
 	# Two peasants go down; others carry them to the beds of the finished Hut.
 	"rescue": {"steps": [[1.0, "hurt"], [5.0, "shot"], [10.0, "shot"]]},
+	# Needs: after a while some eat at the stockyard and sleep; berry bushes.
+	"needs": {"steps": [[1.0, "needs"], [12.0, "shot"]]},
 	"box": {"steps": [[2.0, "box"], [0.1, "goto"], [0.4, "shot"]]},
 }
 
@@ -116,6 +118,12 @@ func _do(what: String) -> void:
 			w.peasants[3].damage(100.0)
 			w.peasants[4].damage(100.0)
 			w.camera.position = Vector2(-60, -20)
+		"needs":
+			w.camera.position = Vector2(200, -20)
+			w.peasants[0].hunger = 95.0
+			w.peasants[1].tired = 99.0
+			w.peasants[5].tired = 99.0
+			w.select([w.peasants[0], w.peasants[1], w.peasants[7]])
 		"work":
 			w.peasants[3].cycle_prio("haul")
 			w.hud.toggle_work()

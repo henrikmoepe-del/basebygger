@@ -44,7 +44,7 @@ func _ready() -> void:
 	_make_build()
 	_make_site_panel()
 	var help := Label.new()
-	help.text = "Left-click: select (Shift adds)  Drag: box  Right-click: order  R: release  1-5: job  G: draft  W: work  B: build"
+	help.text = "Left-click: select (Shift adds)  Drag: box  Right-click: order  R: release  1-6: job  G: draft  W: work  B: build"
 	help.add_theme_font_size_override("font_size", 8)
 	help.add_theme_color_override("font_color", UiTheme.PARCHMENT_DIM)
 	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
@@ -333,7 +333,7 @@ func _process(delta: float) -> void:
 	if _refresh > 0.0:
 		return
 	_refresh = 0.2
-	_res_label.text = "Wood %d   Stone %d" % [world.stockyard.stock.wood, world.stockyard.stock.stone]
+	_res_label.text = "Wood %d   Stone %d   Food %d" % [world.stockyard.stock.wood, world.stockyard.stock.stone, world.stockyard.stock.food]
 	_raid_label.text = "RAID! %d raiders" % world.raiders.size() if world.raid_on else ""
 	if world.fires.size() > 0:
 		_raid_label.text += ("   " if world.raid_on else "") + "FIRE!"
@@ -407,7 +407,7 @@ func _update_rows() -> void:
 		var l := labels[i] as Label
 		if l == null or not is_instance_valid(p) or (i == 5):
 			continue
-		l.text = "%s (%s): %s" % [p.person_name, p.job_name(), p.activity()]
+		l.text = "%s (%s): %s%s" % [p.person_name, p.job_name(), p.activity(), p.needs_text()]
 		l.add_theme_color_override("font_color", UiTheme.GOLD if not p.order.is_empty() else UiTheme.PARCHMENT)
 
 

@@ -2,7 +2,7 @@ extends "res://sandbox/sb_thing.gd"
 ## The stockyard: a shed with a pile per resource. Haulers bring things here,
 ## builders fetch from here, raiders steal from here.
 
-var stock := {"wood": 0, "stone": 0}
+var stock := {"wood": 0, "stone": 0, "food": 0}
 
 
 func setup() -> void:
@@ -30,7 +30,7 @@ func burn() -> void:
 
 
 func hit(p: Vector2) -> bool:
-	return Rect2(position + Vector2(-34, -30), Vector2(68, 34)).has_point(p)
+	return Rect2(position + Vector2(-34, -30), Vector2(92, 34)).has_point(p)
 
 
 func work_spot(peasant: Node2D) -> Vector2:
@@ -56,5 +56,14 @@ func _draw() -> void:
 	for i in stones:
 		var row := i / 6
 		draw_rect(Rect2(6 + (i % 6) * 5 + (row % 2) * 2, -4 - row * 4, 5, 4), SbData.STONE3 if i % 2 == 0 else SbData.STONE2)
+	# Baskets of food on a bench at the east end.
+	draw_rect(Rect2(38, -5, 18, 2), SbData.WOOD1)
+	draw_rect(Rect2(39, -3, 1, 3), SbData.WOOD0)
+	draw_rect(Rect2(54, -3, 1, 3), SbData.WOOD0)
+	for i in mini(stock.food, 12):
+		var row := i / 4
+		draw_rect(Rect2(38 + (i % 4) * 4 + (row % 2) * 2, -9 - row * 4, 4, 4), SbData.WOOD3)
+		draw_rect(Rect2(39 + (i % 4) * 4 + (row % 2) * 2, -10 - row * 4, 2, 1), SbData.RED1)
+	draw_string(ThemeDB.fallback_font, Vector2(42, -36), str(stock.food), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, SbData.WHITE)
 	draw_string(ThemeDB.fallback_font, Vector2(-30, -36), str(stock.wood), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, SbData.WHITE)
 	draw_string(ThemeDB.fallback_font, Vector2(10, -36), str(stock.stone), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, SbData.WHITE)

@@ -18,6 +18,7 @@ const SbData := preload("res://sandbox/sb_data.gd")
 const Peasant := preload("res://sandbox/sb_peasant.gd")
 const Site := preload("res://sandbox/sb_site.gd")
 const TreeThing := preload("res://sandbox/sb_tree.gd")
+const Bush := preload("res://sandbox/sb_bush.gd")
 const Rock := preload("res://sandbox/sb_rock.gd")
 const Item := preload("res://sandbox/sb_item.gd")
 const Fire := preload("res://sandbox/sb_fire.gd")
@@ -36,6 +37,7 @@ var peasants: Array = []
 var sites: Array = []
 var trees: Array = []
 var rocks: Array = []
+var bushes: Array = []
 var items: Array = []
 var fires: Array = []
 var raiders: Array = []
@@ -91,6 +93,7 @@ func _build_map() -> void:
 	stockyard.setup()
 	stockyard.put("wood", 14)
 	stockyard.put("stone", 18)
+	stockyard.put("food", 10)
 	well = _add(Well, Vector2(255, 8))
 	well.setup()
 	# Three building sites side by side, each its own job.
@@ -111,7 +114,12 @@ func _build_map() -> void:
 		var t: Node2D = _add(TreeThing, spot)
 		t.setup(4, 1.0)
 		trees.append(t)
-	var crew := [["builder", 3], ["woodcutter", 1], ["miner", 1], ["hauler", 1], ["guard", 1]]
+	# Berry bushes in the meadow in front of the village.
+	for spot in [Vector2(230, 60), Vector2(262, 72), Vector2(150, 74), Vector2(110, 62), Vector2(296, 58)]:
+		var b: Node2D = _add(Bush, spot)
+		b.setup(3)
+		bushes.append(b)
+	var crew := [["builder", 3], ["woodcutter", 1], ["miner", 1], ["hauler", 1], ["guard", 1], ["forager", 1]]
 	var n := 0
 	for pair in crew:
 		for i in pair[1]:
@@ -190,7 +198,7 @@ func spawn_item(res: String, at: Vector2) -> Node2D:
 
 
 func remove_thing(t: Node2D) -> void:
-	for list in [items, fires, raiders, peasants, trees, rocks, sites]:
+	for list in [items, fires, raiders, peasants, trees, rocks, bushes, sites]:
 		list.erase(t)
 	selected.erase(t)
 	for p in peasants:
@@ -230,6 +238,8 @@ func find_work(p: Node2D, work: String) -> Dictionary:
 			list = trees
 		"mine":
 			list = rocks
+		"forage":
+			list = bushes
 		"haul":
 			list = items
 		"rescue":
@@ -372,7 +382,7 @@ func order_at(at: Vector2) -> Dictionary:
 	for p in peasants:
 		if p.is_open() and p.hit(at):
 			return {"kind": "rescue", "target": p}
-	for list_kind in [[raiders, "fight"], [fires, "firefight"], [items, "haul"], [trees, "chop"], [rocks, "mine"], [sites, "build"]]:
+	for list_kind in [[raiders, "fight"], [fires, "firefight"], [items, "haul"], [trees, "chop"], [rocks, "mine"], [bushes, "forage"], [sites, "build"]]:
 		for t in list_kind[0]:
 			if t.is_open() and t.hit(at):
 				return {"kind": list_kind[1], "target": t}
@@ -507,7 +517,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				start_fire()
 			KEY_W:
 				hud.toggle_work()
-			KEY_1, KEY_2, KEY_3, KEY_4, KEY_5:
+			KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6:
 				set_job_selected(SbData.JOB_ORDER[(event as InputEventKey).keycode - KEY_1])
 
 

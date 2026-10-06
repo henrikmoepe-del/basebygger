@@ -25,6 +25,12 @@ var prio := {}
 ## towards the next level in seconds.
 var skill := {}
 var practice := {}
+## Needs, 0-100 (see SbData.HUNGER_TIME and TIRED_TIME).
+var hunger := 0.0
+var tired := 0.0
+## The Hut whose bed one sleeps in, and true while lying asleep.
+var _sleep_bed: Node2D = null
+var _asleep := false
 var hp := 10.0
 var max_hp := 10.0
 var downed := false
@@ -66,6 +72,8 @@ func setup(name_: String, job_: String) -> void:
 	for w in SbData.SKILLED:
 		skill[w] = randi_range(0, 2)
 		practice[w] = 0.0
+	hunger = randf_range(0.0, 45.0)
+	tired = randf_range(0.0, 50.0)
 	set_job(job_)
 	for w in SbData.SKILLED:
 		if SbData.JOBS[job_].work.get(w, 0) == 1:
@@ -73,9 +81,25 @@ func setup(name_: String, job_: String) -> void:
 	hp = max_hp
 
 
-## How fast the peasant does this work: 0.6 at level 0, 1.0 at 5, 1.4 at 10.
+## How fast the peasant does this work: 0.6 at level 0, 1.0 at 5, 1.4 at 10,
+## and slower when starving or worn out.
 func skill_mult(work: String) -> float:
-	return 0.6 + 0.08 * float(skill.get(work, 5))
+	var pace := SbData.STARVED_PACE if hunger >= 100.0 or tired >= 100.0 else 1.0
+	return (0.6 + 0.08 * float(skill.get(work, 5))) * pace
+
+
+## " · hungry", " · tired" and so on, for the HUD.
+func needs_text() -> String:
+	var parts := ""
+	if hunger >= 100.0:
+		parts += " · starving"
+	elif hunger >= SbData.HUNGER_NEED:
+		parts += " · hungry"
+	if tired >= 100.0:
+		parts += " · worn out"
+	elif tired >= SbData.TIRED_NEED:
+		parts += " · tired"
+	return parts
 
 
 ## Practice: seconds spent on skilled work raise the skill.
@@ -224,6 +248,8 @@ func activity() -> String:
 			return prefix + "chopping " + t.label()
 		"mine":
 			return prefix + "mining " + t.label()
+		"forage":
+			return prefix + "picking " + t.label()
 		"haul":
 			return prefix + "hauling " + t.label()
 		"firefight":
@@ -236,6 +262,10 @@ func activity() -> String:
 			return prefix + ("holding here" if _at(task.pos) else "going there")
 		"flee":
 			return "Fleeing from raiders!"
+		"eat":
+			return "Eating"
+		"sleep":
+			return "Sleeping" + (" in a bed" if _sleep_bed != null else "") if _asleep else "Going to sleep"
 	return "Idle"
 
 
@@ -261,6 +291,9 @@ func _process(delta: float) -> void:
 	_hurt = maxf(_hurt - delta, 0.0)
 	_walking = false
 	_anim = ""
+	hunger = minf(hunger + 100.0 / SbData.HUNGER_TIME * delta, 100.0)
+	if not _asleep:
+		tired = minf(tired + 100.0 / SbData.TIRED_TIME * delta, 100.0)
 	if downed:
 		if carried_by != null:
 			if not is_instance_valid(carried_by) or carried_by.downed:
@@ -291,6 +324,7 @@ func _process(delta: float) -> void:
 		_drafted_think()
 	else:
 		_check_flee()
+		_check_needs()
 		if not _task_valid():
 			_choose()
 	_do_task(delta)
@@ -314,6 +348,19 @@ func _drafted_think() -> void:
 		task = {"kind": "goto", "pos": _hold, "forced": false}
 
 
+## Hungry or tired: stop working to eat or sleep (but not while fleeing).
+func _check_needs() -> void:
+	var k: String = task.get("kind", "")
+	if k == "flee" or k == "eat" or k == "sleep" or carrying == "person":
+		return
+	if hunger >= SbData.HUNGER_NEED and world.stockyard.stock.food > 0:
+		_end_task()
+		task = {"kind": "eat"}
+	elif tired >= SbData.TIRED_NEED:
+		_end_task()
+		task = {"kind": "sleep"}
+
+
 func _check_flee() -> void:
 	if prio.get("fight", 0) > 0 or task.get("kind", "") == "flee":
 		return
@@ -331,6 +378,10 @@ func _task_valid() -> bool:
 		return _idle_think > 0.0
 	if k == "flee":
 		return world.nearest_raider(position, FLEE_FROM * 1.6) != null
+	if k == "eat":
+		return hunger > 5.0 and (world.stockyard.stock.food > 0 or _timer > 0.0)
+	if k == "sleep":
+		return tired > 0.0
 	var t = task.get("target")
 	if t != null and (not is_instance_valid(t) or not t.is_open()):
 		return false
@@ -376,6 +427,10 @@ func _end_task() -> void:
 		t.release(self)
 		if task.get("kind", "") == "supply":
 			t.incoming[task.res] = maxi(t.incoming[task.res] - 1, 0)
+	if _sleep_bed != null and is_instance_valid(_sleep_bed):
+		_sleep_bed.sleepers.erase(self)
+	_sleep_bed = null
+	_asleep = false
 	task = {}
 	_timer = 0.0
 	_short = ""
@@ -415,6 +470,8 @@ func _do_task(delta: float) -> void:
 			_do_gather(t, delta, "chop")
 		"mine":
 			_do_gather(t, delta, "mine")
+		"forage":
+			_do_gather(t, delta, "forage")
 		"haul":
 			_do_haul(t, delta)
 		"firefight":
@@ -436,6 +493,10 @@ func _do_task(delta: float) -> void:
 			_go(Vector2(clampf(position.x + away * 60.0, SbData.WEST_EDGE + 10, SbData.EAST_EDGE - 10), position.y), delta, 1.25)
 		"idle":
 			_do_idle(delta)
+		"eat":
+			_do_eat(delta)
+		"sleep":
+			_do_sleep(delta)
 
 
 func _do_build(site: Node2D, delta: float) -> void:
@@ -532,7 +593,7 @@ func _do_gather(thing: Node2D, delta: float, how: String) -> void:
 		_anim = how
 		var amount := delta * skill_mult(how)
 		learn(how, delta)
-		var fell: bool = thing.chop(amount) if how == "chop" else thing.mine(amount)
+		var fell: bool = thing.call(how, amount)
 		if fell:
 			_finish_unit()
 
@@ -610,6 +671,45 @@ func _process_deliver(delta: float) -> void:
 		_end_task()
 
 
+func _do_eat(delta: float) -> void:
+	var yard: Node2D = world.stockyard
+	if carrying == "water":
+		carrying = ""
+	if carrying != "":
+		if _go(yard.work_spot(self), delta):
+			yard.put(carrying)
+			carrying = ""
+		return
+	if _go(yard.position + Vector2(46 + float(hash(name) % 10), 8), delta):
+		_anim = "eat"
+		_timer += delta
+		if _timer >= SbData.EAT_TIME:
+			_timer = 0.0
+			if yard.take("food"):
+				hunger = maxf(hunger - 70.0, 0.0)
+			_end_task()
+
+
+## Sleeps in a free bed in a Hut, or on the ground where one stands.
+func _do_sleep(delta: float) -> void:
+	if not _asleep:
+		if carrying != "":
+			_drop()
+		var hut: Node2D = world.free_bed()
+		if hut != null:
+			if _go(hut.bed_spot(hut.sleepers.size()), delta):
+				hut.sleepers.append(self)
+				_sleep_bed = hut
+				_asleep = true
+		else:
+			_asleep = true
+		return
+	var time := SbData.SLEEP_TIME_BED if _sleep_bed != null else SbData.SLEEP_TIME
+	tired = maxf(tired - 100.0 / time * delta, 0.0)
+	if tired <= 0.0:
+		_end_task()
+
+
 ## Puts what one carries down on the ground, for someone to haul later.
 func _drop() -> void:
 	if carrying == "person" and _patient != null and is_instance_valid(_patient):
@@ -641,15 +741,21 @@ func _draw() -> void:
 	var tunic: Color = SbData.JOBS[job].tunic
 	if _hurt > 0.0:
 		tunic = SbData.WHITE
-	if downed:
-		if bed != null:
+	if downed or _asleep:
+		if bed != null or _sleep_bed != null:
 			# In bed: a straw mattress and a blanket.
 			draw_rect(Rect2(-8, -2, 16, 2), SbData.THATCH)
 		draw_rect(Rect2(-6, -4, 10, 4), tunic)
 		draw_rect(Rect2(4, -4, 4, 4), SbData.SKIN1)
 		draw_rect(Rect2(-9, -3, 3, 2), SbData.INK)
-		if bed != null:
+		if bed != null or _sleep_bed != null:
 			draw_rect(Rect2(-7, -4, 10, 3), SbData.TEAL)
+		if _asleep:
+			# Little z's drifting up.
+			var zt := fmod(Time.get_ticks_msec() / 1000.0, 2.0)
+			draw_rect(Rect2(6 + zt * 2.0, -9 - zt * 4.0, 3, 1), SbData.WHITE)
+			draw_rect(Rect2(7 + zt * 2.0, -8 - zt * 4.0, 1, 1), SbData.WHITE)
+			draw_rect(Rect2(6 + zt * 2.0, -7 - zt * 4.0, 3, 1), SbData.WHITE)
 		_draw_marks(-8.0)
 		return
 	var t := Time.get_ticks_msec() / 1000.0
@@ -678,6 +784,8 @@ func _draw() -> void:
 			draw_rect(Rect2(-3, bob - 7, 6, 1), SbData.WOOD3)
 			if carrying == "":
 				_draw_tool(bob, SbData.WOOD3)
+		"forager":
+			draw_rect(Rect2(-3, bob - 18, 6, 1), SbData.GRASS2)
 		"hauler":
 			draw_rect(Rect2(-4, bob - 18, 8, 1), SbData.THATCH)
 			draw_rect(Rect2(-2, bob - 19, 4, 1), SbData.THATCH)
@@ -693,6 +801,9 @@ func _draw() -> void:
 		"stone":
 			draw_rect(Rect2(-4, bob - 21, 8, 5), SbData.STONE3)
 			draw_rect(Rect2(-4, bob - 21, 8, 1), SbData.STONE4)
+		"food":
+			draw_rect(Rect2(3, bob - 9, 5, 4), SbData.WOOD3)
+			draw_rect(Rect2(4, bob - 10, 3, 1), SbData.RED1)
 		"person":
 			if _patient != null and is_instance_valid(_patient):
 				draw_rect(Rect2(-6, bob - 17, 10, 3), SbData.JOBS[_patient.job].tunic)

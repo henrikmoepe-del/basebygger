@@ -68,7 +68,7 @@ func _process(delta: float) -> void:
 		var yard: Node2D = world.stockyard
 		var spot := yard.position + Vector2(0, 8)
 		if _step(spot, delta):
-			for res in ["wood", "stone"]:
+			for res in ["food", "wood", "stone"]:
 				if yard.take(res):
 					loot = res
 					break

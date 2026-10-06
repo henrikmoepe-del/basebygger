@@ -10,11 +10,11 @@ extends RefCounted
 ## the player comes before all of it, until it is done or released.
 
 ## Kinds of work, in the order they are shown in the priority grid.
-const WORK := ["firefight", "fight", "rescue", "build", "chop", "mine", "haul"]
+const WORK := ["firefight", "fight", "rescue", "build", "chop", "mine", "forage", "haul"]
 
 const WORK_NAMES := {
 	"firefight": "Fires", "fight": "Fight", "rescue": "Rescue", "build": "Build",
-	"chop": "Chop", "mine": "Mine", "haul": "Haul",
+	"chop": "Chop", "mine": "Mine", "forage": "Food", "haul": "Haul",
 }
 
 ## Each job: its name, tunic colour, and its preset of work priorities.
@@ -26,6 +26,8 @@ const JOBS := {
 		"work": {"firefight": 1, "rescue": 1, "chop": 1, "haul": 3}},
 	"miner": {"name": "Miner", "tunic": Color("#575160"),
 		"work": {"firefight": 1, "rescue": 1, "mine": 1, "haul": 3}},
+	"forager": {"name": "Forager", "tunic": Color("#78a444"),
+		"work": {"firefight": 1, "rescue": 1, "forage": 1, "haul": 3}},
 	"hauler": {"name": "Hauler", "tunic": Color("#b88a54"),
 		"work": {"firefight": 1, "rescue": 1, "haul": 1, "build": 3}},
 	"guard": {"name": "Guard", "tunic": Color("#45558a"),
@@ -33,13 +35,13 @@ const JOBS := {
 }
 
 ## Work that has a skill: it grows by doing it (see sb_peasant.gd `learn`).
-const SKILLED := ["build", "chop", "mine", "fight"]
+const SKILLED := ["build", "chop", "mine", "forage", "fight"]
 const SKILL_MAX := 10
 ## Seconds of practice for the next level: BASE + PER_LEVEL * level.
 const SKILL_BASE := 20.0
 const SKILL_PER_LEVEL := 12.0
 
-const JOB_ORDER := ["builder", "woodcutter", "miner", "hauler", "guard"]
+const JOB_ORDER := ["builder", "woodcutter", "miner", "forager", "hauler", "guard"]
 
 const NAMES := ["Alda", "Bram", "Cedric", "Dagny", "Edwin", "Freya", "Gunnar",
 		"Hilde", "Ivo", "Jorun", "Kettil", "Liv", "Magnus", "Nora"]
@@ -63,6 +65,18 @@ const BUILDINGS := {
 }
 
 const BUILD_ORDER := ["hut", "wall", "tower", "shed"]
+
+## Needs: hunger and tiredness grow from 0 to 100 over these many seconds.
+## Past the "need" mark a peasant left to themselves stops work to eat or
+## sleep; at 100 they work at STARVED_PACE (also when an order keeps them going).
+const HUNGER_TIME := 180.0
+const TIRED_TIME := 260.0
+const HUNGER_NEED := 60.0
+const TIRED_NEED := 80.0
+const EAT_TIME := 3.0
+const SLEEP_TIME := 22.0
+const SLEEP_TIME_BED := 12.0
+const STARVED_PACE := 0.6
 
 ## Beds in a finished Hut; the hurt get better faster in one.
 const HUT_BEDS := 2

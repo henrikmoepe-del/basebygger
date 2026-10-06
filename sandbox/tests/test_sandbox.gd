@@ -162,6 +162,21 @@ func _run() -> void:
 	var up := await _wait(120.0, func(): return not hurt.downed and hut.sleepers.is_empty())
 	_check(up, "they get better and get up again, and the beds are free")
 
+	# 10. Needs: a hungry peasant eats, a tired one sleeps, then back to work.
+	var eater: Node2D = w.peasants.filter(func(p): return p.job == "miner")[0]
+	w.stockyard.put("food", 5)
+	eater.hunger = 90.0
+	var ate := await _wait(40.0, func(): return eater.hunger < 40.0)
+	_check(ate, "a hungry peasant goes and eats")
+	var sleeper: Node2D = w.peasants.filter(func(p): return p.job == "forager")[0]
+	sleeper.tired = 95.0
+	var slept := await _wait(30.0, func(): return sleeper._asleep)
+	_check(slept, "a tired peasant goes to sleep")
+	var rested := await _wait(60.0, func(): return sleeper.tired <= 0.0 and not sleeper._asleep)
+	_check(rested, "and wakes up rested")
+	var foraged := await _wait(60.0, func(): return w.bushes.any(func(b): return b.berries < b._full))
+	_check(foraged, "the forager picks berries")
+
 	_check(_off_band == 0, "nobody leaves the ground band (%d frames off it)" % _off_band)
 	print("ALL PASSED" if _fails == 0 else "%d FAILED" % _fails)
 	quit(1 if _fails > 0 else 0)

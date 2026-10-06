@@ -19,7 +19,7 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
      Build, Chop, Mine, Haul. 1 = first, 2, 3 = last, - = never.
    - A **job is a preset** of those priorities. Builder: Fires 1, Rescue 1, Build 1,
      Haul 3. Woodcutter: Fires 1, Rescue 1, Chop 1, Haul 3. Miner: Fires 1, Rescue 1,
-     Mine 1, Haul 3. Hauler: Fires 1, Rescue 1, Haul 1, Build 3. Guard: Fight 1,
+     Mine 1, Haul 3. Forager: Fires 1, Rescue 1, Food 1, Haul 3. Hauler: Fires 1, Rescue 1, Haul 1, Build 3. Guard: Fight 1,
      Rescue 1, Fires 2. You can change
      single priorities per person in the panel (click a priority to cycle it).
    - **Free will:** left alone, a peasant does the most important work there is for
@@ -36,6 +36,11 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
    - **The hurt:** a peasant beaten in a fight goes down. Anyone with Rescue carries
      them to a bed in a finished Hut (2 beds each), or to the well if all beds are
      taken. They get better on the ground, faster in a bed.
+   - **Needs:** hunger and tiredness grow over time. Past 60 hunger (80 tired) a
+     peasant left to themselves stops work to eat a basket of food at the
+     stockyard, or to sleep (in a free Hut bed, faster, else on the ground).
+     Orders and drafting come first, as in RimWorld, but at 100 they work slower.
+     Food comes from berry bushes, picked by the **Forager**.
    - **Orders:** select peasants and right-click something. The order comes before
      everything else (even fleeing) until it is done, then they go back to free will.
      **R** (or Release) ends the order early.
@@ -48,7 +53,7 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
 | Drag with the left button | Select everyone in the box |
 | Click a name in the bar at the top | Select that peasant |
 | Right-click a site | Build there |
-| Right-click a tree / rock | Chop it / mine it, until it is used up |
+| Right-click a tree / rock / berry bush | Chop it / mine it / pick it, until it is used up |
 | Right-click a log or stone on the ground | Haul it to the stockyard (several selected take one each) |
 | Right-click a fire | Put it out (buckets from the well) |
 | Right-click a raider | Fight it (guards hit 3, others 1.5, times their Fight skill) |
@@ -60,7 +65,7 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
 | Shift + right-click | Queue the order after the ones already given (numbered dotted lines) |
 | G (or Draft) | Draft the selected: they drop their work, get a cudgel and a red shield mark, stand where you send them and fight any raider who comes near. G again to undraft |
 | R | Release the selected: back to free will (clears the queue too) |
-| 1-5 | Make the selected Builders, Woodcutters, Miners, Haulers or Guards |
+| 1-6 | Make the selected Builders, Woodcutters, Miners, Foragers, Haulers or Guards |
 | Esc | Deselect |
 | T / F | Start a raid / a fire (to test) |
 | A / D, middle-drag, wheel | Pan, zoom (whole steps: 0.5x, 1x, 2x, 3x) |
@@ -74,7 +79,7 @@ dotted line to what they are working on (gold for an order, white for free will)
 - `sb_data.gd`: work types, jobs (priority presets), palette, ground size.
 - `sb_peasant.gd`: a peasant: priorities, order, choosing work, doing it, drawing.
 - `sb_thing.gd`: the base for anything that can be worked on or ordered to.
-- `sb_site.gd`, `sb_tree.gd`, `sb_rock.gd`, `sb_item.gd`, `sb_fire.gd`,
+- `sb_site.gd`, `sb_tree.gd`, `sb_rock.gd`, `sb_bush.gd`, `sb_item.gd`, `sb_fire.gd`,
   `sb_raider.gd`, `sb_stockyard.gd`, `sb_well.gd`: the things in the world.
 - `sb_backdrop.gd`: sky, mountains, the castle wall, the ground band and path.
 - `sb_hud.gd`: top bar, the bar of peasants, the panel for the selected, messages.
