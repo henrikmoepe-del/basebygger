@@ -11,3 +11,11 @@ out=$(timeout 600 godot --headless --fixed-fps 60 --path . -s sandbox/tests/test
 echo "$out"
 # Exit 0 only when every check passed.
 echo "$out" | grep -q "ALL PASSED"
+status=$?
+# The input test needs a window: with xvfb (the cloud) run it too.
+if [ $status -eq 0 ] && command -v xvfb-run >/dev/null 2>&1; then
+	inp=$(timeout 180 xvfb-run -a -s "-screen 0 1280x720x24" godot --rendering-driver opengl3 --path . -s sandbox/tests/test_input.gd 2>&1 | grep -E "PASS|FAIL|ALL|SCRIPT ERROR")
+	echo "$inp"
+	echo "$inp" | grep -q "ALL PASSED" || status=1
+fi
+exit $status
