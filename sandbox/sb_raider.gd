@@ -8,6 +8,7 @@ const REACH := 9.0
 const HIT_EVERY := 1.1
 const DAMAGE := 2.0
 const NOTICE := 60.0
+const Sprites := preload("res://sandbox/sb_sprites.gd")
 ## Each raider may set one building alight as they pass it.
 const TORCH_CHANCE := 0.4
 const TORCH_REACH := 20.0
@@ -77,6 +78,9 @@ func _process(delta: float) -> void:
 		return
 	_cool = maxf(_cool - delta, 0.0)
 	_hurt = maxf(_hurt - delta, 0.0)
+	if _light != null:
+		# Light only shows in the dark.
+		_light.energy = (0.9 if wolf else 0.8) * world.darkness()
 	_walking = false
 	if wolf and not world.is_night():
 		# Dawn: back into the wood.
@@ -149,23 +153,17 @@ func _draw() -> void:
 	if wolf:
 		_draw_wolf(step)
 		return
-	draw_rect(Rect2(-2, -3, 2, 2 if step == 0 else 3), SbData.INK)
-	draw_rect(Rect2(1, -3, 2, 2 if step == 1 else 3), SbData.INK)
-	var body := SbData.WHITE if _hurt > 0.0 else SbData.RED1
-	draw_rect(Rect2(-3, -13, 6, 10), body)
-	draw_rect(Rect2(-2, -17, 4, 4), SbData.SKIN0)
-	draw_rect(Rect2(-3, -18, 6, 2), SbData.STONE1)
-	# An axe, and a torch while it still has one to throw.
-	draw_rect(Rect2(3, -14, 1, 9), SbData.WOOD1)
-	draw_rect(Rect2(4, -14, 2, 3), SbData.STONE3)
+	# The raider from the art direction's people sheet (helmet and axe).
+	var tint := Color(1.0, 0.55, 0.5) if _hurt > 0.0 else Color.WHITE
+	draw_texture(Sprites.texture("raider", step + 1 if step >= 0 else 0), Sprites.offset("raider"), tint)
 	if _torch:
 		draw_rect(Rect2(-5, -14, 1, 6), SbData.WOOD1)
 		var flick := 1.0 if int(Time.get_ticks_msec() / 90) % 2 == 0 else 0.0
 		draw_rect(Rect2(-6, -17 - flick, 3, 3), SbData.FIRE)
 		draw_rect(Rect2(-5, -16 - flick, 1, 1), SbData.LIGHT)
 	if loot != "" and loot != "none":
-		draw_rect(Rect2(-6, -16, 5, 6), SbData.DIRT)
-	_draw_health(-22.0)
+		draw_rect(Rect2(-6, -15, 5, 6), SbData.DIRT)
+	_draw_health(-21.0)
 
 
 func _draw_health(y: float) -> void:

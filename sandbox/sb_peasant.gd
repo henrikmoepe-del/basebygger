@@ -8,6 +8,8 @@ extends "res://sandbox/sb_thing.gd"
 ## "kind" (a work type, or "goto", "flee", "idle"), "target" (a node or null),
 ## "pos" (for "goto") and "forced" (true when it is the player's order).
 
+const Sprites := preload("res://sandbox/sb_sprites.gd")
+
 const SPEED := 32.0
 const PLACE_TIME := 1.2
 const FILL_TIME := 0.8
@@ -1265,73 +1267,56 @@ func _go(p: Vector2, delta: float, pace := 1.0) -> bool:
 
 
 func _draw() -> void:
-	var tunic: Color = SbData.JOBS[job].tunic
-	if _hurt > 0.0:
-		tunic = SbData.WHITE
+	var sprite := "child" if child else job
+	# A hit shows as a flash of danger red (art direction: red is for danger).
+	var tint := Color(1.0, 0.55, 0.5) if _hurt > 0.0 else Color.WHITE
 	if downed or _asleep:
 		if bed != null or _sleep_bed != null:
-			# In bed: a straw mattress and a blanket.
-			draw_rect(Rect2(-8, -2, 16, 2), SbData.THATCH)
-		draw_rect(Rect2(-6, -4, 10, 4), tunic)
-		draw_rect(Rect2(4, -4, 4, 4), SbData.SKIN1)
-		draw_rect(Rect2(-9, -3, 3, 2), SbData.INK)
+			# In bed: a straw mattress under them.
+			draw_rect(Rect2(-9, -3, 18, 3), SbData.THATCH)
+		# Lying down: the same figure turned on its side, head to the left.
+		var lift := float(Sprites.SPRITES[sprite].anchor) + 1.0
+		draw_set_transform(Vector2(float(Sprites.height(sprite)) / 2.0, -lift), -PI / 2.0)
+		draw_texture(Sprites.texture(sprite), Sprites.offset(sprite), tint)
+		draw_set_transform(Vector2.ZERO)
 		if bed != null or _sleep_bed != null:
-			draw_rect(Rect2(-7, -4, 10, 3), SbData.TEAL)
+			# And a blanket over them.
+			draw_rect(Rect2(-3, -lift - 3.0, 11, 5), SbData.TEAL)
+			draw_rect(Rect2(-3, -lift - 3.0, 11, 1), SbData.TEAL.lightened(0.2))
 		if _asleep:
 			# Little z's drifting up.
 			var zt := fmod(Time.get_ticks_msec() / 1000.0, 2.0)
-			draw_rect(Rect2(6 + zt * 2.0, -9 - zt * 4.0, 3, 1), SbData.WHITE)
-			draw_rect(Rect2(7 + zt * 2.0, -8 - zt * 4.0, 1, 1), SbData.WHITE)
-			draw_rect(Rect2(6 + zt * 2.0, -7 - zt * 4.0, 3, 1), SbData.WHITE)
-		_draw_marks(-8.0)
+			draw_rect(Rect2(6 + zt * 2.0, -12 - zt * 4.0, 3, 1), SbData.WHITE)
+			draw_rect(Rect2(7 + zt * 2.0, -11 - zt * 4.0, 1, 1), SbData.WHITE)
+			draw_rect(Rect2(6 + zt * 2.0, -10 - zt * 4.0, 3, 1), SbData.WHITE)
+		_draw_marks(-16.0)
 		return
 	var t := Time.get_ticks_msec() / 1000.0
 	var step := int(t / 0.14 + position.x) % 2 if _walking else -1
-	if child:
-		_draw_child(step, tunic)
-		return
-	draw_rect(Rect2(-2, -3, 2, 2 if step == 0 else 3), SbData.INK)
-	draw_rect(Rect2(1, -3, 2, 2 if step == 1 else 3), SbData.INK)
 	var bob := 0.0
 	if _anim != "" and _anim != "fill":
 		bob = -1.0 if int(t * 4.0) % 2 == 0 else 0.0
-	draw_rect(Rect2(-3, bob - 13, 6, 10), tunic)
-	# The head droops while dozing.
-	draw_rect(Rect2(-2 + (1 if dozing > 0.0 else 0), bob - 17 + (2 if dozing > 0.0 else 0), 4, 4), SbData.SKIN1)
-	# Read the job from the silhouette: what they wear and hold.
+	# The figure, from the art direction's people sheet: walking lifts a foot.
+	var droop := Vector2(0, 1) if dozing > 0.0 else Vector2.ZERO
+	draw_texture(Sprites.texture(sprite, step + 1 if step >= 0 else 0), Sprites.offset(sprite) + Vector2(0, bob) + droop, tint)
+	if child:
+		_draw_child_load()
+		return
+	# Tools in hand (the figures for builder, woodcutter and miner hold none).
 	match job:
-		"guard":
-			draw_rect(Rect2(-3, bob - 18, 6, 2), SbData.STONE3)
-			draw_rect(Rect2(4, bob - 22, 1, 19), SbData.WOOD1)
-			draw_rect(Rect2(4, bob - 24, 1, 2), SbData.STONE4)
 		"woodcutter":
 			if carrying == "":
 				_draw_tool(bob, SbData.STONE3)
 		"miner":
-			draw_rect(Rect2(-3, bob - 18, 6, 1), SbData.WOOD2)
 			if carrying == "":
 				_draw_tool(bob, SbData.STONE2)
 		"builder":
-			draw_rect(Rect2(-3, bob - 7, 6, 1), SbData.WOOD3)
 			if carrying == "":
 				_draw_tool(bob, SbData.WOOD3)
-		"forager":
-			draw_rect(Rect2(-3, bob - 18, 6, 1), SbData.GRASS2)
-		"crafter":
-			draw_rect(Rect2(-3, bob - 9, 6, 3), SbData.WOOD3)
 		"hunter":
-			# A hood and a bow.
-			draw_rect(Rect2(-3, bob - 18, 6, 2), SbData.GRASS1)
-			if carrying == "":
-				var bow_x := 4.0
-				draw_rect(Rect2(bow_x, bob - 15, 1, 10), SbData.WOOD1)
-				draw_rect(Rect2(bow_x + 1, bob - 16, 1, 1), SbData.WOOD1)
-				draw_rect(Rect2(bow_x + 1, bob - 5, 1, 1), SbData.WOOD1)
-				if _anim == "aim":
-					draw_rect(Rect2(bow_x - 3, bob - 11, 6, 1), SbData.WOOD3)
-		"hauler":
-			draw_rect(Rect2(-4, bob - 18, 8, 1), SbData.THATCH)
-			draw_rect(Rect2(-2, bob - 19, 4, 1), SbData.THATCH)
+			if _anim == "aim":
+				# An arrow on the string.
+				draw_rect(Rect2(1, bob - 9, 6, 1), SbData.WOOD3)
 	if drafted and job != "guard":
 		# A cudgel in hand.
 		draw_rect(Rect2(4, bob - 15, 1, 9), SbData.WOOD0)
@@ -1355,9 +1340,11 @@ func _draw() -> void:
 			draw_rect(Rect2(4, bob - 10, 3, 1), SbData.RED1)
 		"person":
 			if _patient != null and is_instance_valid(_patient):
-				draw_rect(Rect2(-6, bob - 17, 10, 3), SbData.JOBS[_patient.job].tunic)
-				draw_rect(Rect2(4, bob - 18, 3, 3), SbData.SKIN1)
-				draw_rect(Rect2(-8, bob - 16, 2, 2), SbData.INK)
+				# The hurt one's own figure, lying across the shoulders.
+				var ps: String = "child" if _patient.child else _patient.job
+				draw_set_transform(Vector2(float(Sprites.height(ps)) / 2.0, bob - 12.0), -PI / 2.0)
+				draw_texture(Sprites.texture(ps), Sprites.offset(ps))
+				draw_set_transform(Vector2.ZERO)
 		"water":
 			draw_rect(Rect2(3, bob - 9, 4, 4), SbData.WOOD1)
 			draw_rect(Rect2(3, bob - 9, 4, 1), SbData.SKY2)
@@ -1386,12 +1373,8 @@ func _draw() -> void:
 		draw_line(at, at - (to - Vector2(4, -12)).normalized() * 5.0, SbData.WOOD3, 1.0)
 
 
-## A child: 10 high (art direction), drawn as its own small figure.
-func _draw_child(step: int, tunic: Color) -> void:
-	draw_rect(Rect2(-2, -2, 1, 2 if step != 0 else 1), SbData.INK)
-	draw_rect(Rect2(1, -2, 1, 2 if step != 1 else 1), SbData.INK)
-	draw_rect(Rect2(-2, -7, 4, 5), SbData.DAUB if not world.child_labour else tunic)
-	draw_rect(Rect2(-1, -10, 3, 3), SbData.SKIN1)
+## What a child carries (with Child labour), and their marks.
+func _draw_child_load() -> void:
 	match carrying:
 		"wood", "stone", "food", "planks":
 			draw_rect(Rect2(2, -6, 3, 3), SbData.WOOD3 if carrying != "stone" else SbData.STONE3)

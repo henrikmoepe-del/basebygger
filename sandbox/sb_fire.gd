@@ -63,7 +63,8 @@ func _process(delta: float) -> void:
 	else:
 		strength = minf(strength + GROW * delta, 1.0)
 	if _light != null:
-		_light.energy = (0.6 + strength) * (0.9 + 0.1 * sin(Time.get_ticks_msec() / 70.0))
+		# Bright in the dark, only a faint glow by day.
+		_light.energy = (0.6 + strength) * (0.9 + 0.1 * sin(Time.get_ticks_msec() / 70.0)) * maxf(world.darkness(), 0.15)
 	_burn_timer += delta * strength
 	if _burn_timer >= 2.0:
 		_burn_timer = 0.0

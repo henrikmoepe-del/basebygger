@@ -196,6 +196,18 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
 The gold `!` over a peasant means they have an order. Selected peasants show a
 dotted line to what they are working on (gold for an order, white for free will).
 
+## The look
+
+The people are the figures from the Game_1 Art Direction page's people sheet,
+read pixel for pixel from its 8x picture (`tools/people_native.png`,
+`tools/gen_sprites.py` makes `sb_sprites.gd`). Builder: the grey builder without
+the block on the head. Woodcutter and Miner: the plain peasant in green and slate.
+Forager: the straw hat. Crafter: the cook. Hunter: the archer. Guard: the
+spearman. Hauler: the plain peasant. Raiders: the raider. Children: the child.
+Walking lifts a foot; the hurt and sleeping lie as the same figure on its side;
+someone carried lies across the carrier's shoulders. What they carry and their
+tools are drawn on top.
+
 ## Files
 
 - `sandbox.gd`: the world (map, finding work, selection and orders, test events).
@@ -205,6 +217,7 @@ dotted line to what they are working on (gold for an order, white for free will)
 - `sb_site.gd`, `sb_tree.gd`, `sb_rock.gd`, `sb_bush.gd`, `sb_deer.gd`, `sb_item.gd`, `sb_fire.gd`,
   `sb_raider.gd`, `sb_stockyard.gd`, `sb_well.gd`: the things in the world.
 - `sb_stranger.gd`: the hooded man (looks only).
+- `sb_sprites.gd`: the people's pixels (made by `tools/gen_sprites.py`).
 - `sb_light.gd`: warm lights for the night.
 - `sb_backdrop.gd`: sky, mountains, the castle wall, the ground band and path.
 - `sb_hud.gd`: top bar, the bar of peasants, the panel for the selected, messages.

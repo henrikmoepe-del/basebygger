@@ -20,21 +20,21 @@ const WORK_NAMES := {
 ## Each job: its name, tunic colour, and its preset of work priorities.
 ## Anything missing from "work" is 0 (never).
 const JOBS := {
-	"builder": {"name": "Builder", "tunic": Color("#8a5a34"),
+	"builder": {"name": "Builder", "tunic": Color("#7c7680"),
 		"work": {"firefight": 1, "rescue": 1, "build": 1, "haul": 3}},
-	"woodcutter": {"name": "Woodcutter", "tunic": Color("#3f7a78"),
+	"woodcutter": {"name": "Woodcutter", "tunic": Color("#4a7a38"),
 		"work": {"firefight": 1, "rescue": 1, "chop": 1, "haul": 3}},
-	"miner": {"name": "Miner", "tunic": Color("#575160"),
+	"miner": {"name": "Miner", "tunic": Color("#45558a"),
 		"work": {"firefight": 1, "rescue": 1, "mine": 1, "haul": 3}},
-	"forager": {"name": "Forager", "tunic": Color("#78a444"),
+	"forager": {"name": "Forager", "tunic": Color("#3f7a78"),
 		"work": {"firefight": 1, "rescue": 1, "forage": 1, "haul": 3}},
 	"hunter": {"name": "Hunter", "tunic": Color("#2e5230"),
 		"work": {"firefight": 1, "rescue": 1, "hunt": 1, "haul": 3}},
-	"crafter": {"name": "Crafter", "tunic": Color("#6a3a6a"),
+	"crafter": {"name": "Crafter", "tunic": Color("#e2d4b0"),
 		"work": {"firefight": 1, "rescue": 1, "craft": 1, "haul": 3}},
-	"hauler": {"name": "Hauler", "tunic": Color("#b88a54"),
+	"hauler": {"name": "Hauler", "tunic": Color("#8a5a34"),
 		"work": {"firefight": 1, "rescue": 1, "haul": 1, "build": 3}},
-	"guard": {"name": "Guard", "tunic": Color("#45558a"),
+	"guard": {"name": "Guard", "tunic": Color("#9a3028"),
 		"work": {"fight": 1, "firefight": 2, "rescue": 1}},
 }
 
