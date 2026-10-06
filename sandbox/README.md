@@ -217,6 +217,9 @@ dotted line to what they are working on (gold for an order, white for free will)
 - `tests/soak.gd`: runs the map for days with no player (raids and fires now and
   then) and reports what everyone does and anything that looks stuck:
   `godot --headless --fixed-fps 60 --path . -s sandbox/tests/soak.gd -- --days=3`
+- `tests/perf.gd`: times a frame with more peasants (`-- --peasants=80`). On
+  2026-10-06: 10 peasants 0.6 ms, 40 peasants 1.3 ms, 80 peasants 2.1 ms a frame
+  (headless, without drawing), so the job system has room to grow.
 - `tests/shots.gd`: screenshots in a real window:
   `godot --path . -s sandbox/tests/shots.gd -- --plan=orders --out=<folder>`
   (plans: start, orders, raid, fire, box).
