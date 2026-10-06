@@ -231,7 +231,7 @@ func _run() -> void:
 	await _wait(25.0)
 	var working: int = free_ones.filter(func(p): return p.task.get("kind", "") != "sleep" or p.tired >= SbData.TIRED_NEED).size()
 	_check(working == free_ones.size(), "with Night work on they get up and work (%d of %d)" % [working, free_ones.size()])
-	w.set_night_work(false)
+	# Night work stays on for the tests after this one (as it was before).
 
 	# 12. The alarm bell: all but the guard go inside the gate.
 	w.set_alarm(true)
@@ -310,6 +310,22 @@ func _run() -> void:
 	_check(over_sulk and glum.memories.has("sulked"), "after sulking they let off steam (a good thought)")
 	glum.mood = 90.0
 	_check(glum.skill_mult("chop") > 0.0, "high mood keeps work going")
+
+	# 19. A traveller asks to join; taken in, they work; another is sent away.
+	var before_n: int = w.peasants.size()
+	w.arrive_traveller()
+	var guest: Node2D = w.traveller
+	await _wait(30.0)
+	_check(guest.position.distance_to(w.stockyard.position) < 60.0 and guest.task.get("kind", "") == "goto", "a traveller walks to the stockyard and waits")
+	w.answer_traveller(true)
+	await _wait(10.0)
+	_check(w.peasants.size() == before_n + 1 and not guest.guest, "taken in, they join the village")
+	_check(guest.task.get("kind", "") != "goto", "and get to work by themselves")
+	w.arrive_traveller()
+	var other_id: int = w.traveller.get_instance_id()
+	w.answer_traveller(false)
+	var gone := await _wait(60.0, func(): return not is_instance_id_valid(other_id))
+	_check(gone and w.peasants.size() == before_n + 1, "sent away, they leave")
 
 	_check(_off_band == 0, "nobody leaves the ground band (%d frames off it)" % _off_band)
 	print("ALL PASSED" if _fails == 0 else "%d FAILED" % _fails)

@@ -25,6 +25,8 @@ var _grid: HBoxContainer
 var _log: VBoxContainer
 var _work: PanelContainer
 var _draft_button: Button
+var _ask: PanelContainer
+var _ask_label: Label
 var _card: PanelContainer
 var _card_body: Control
 var _build: PanelContainer
@@ -51,6 +53,8 @@ func _ready() -> void:
 	_make_build()
 	_make_site_panel()
 	_make_card()
+	_make_ask()
+	world.traveller_changed.connect(_on_traveller)
 	var help := Label.new()
 	help.text = "Left-click: select (Shift adds)  Drag: box  Right-click: order  R: release  1-8: job  G: draft  X: forbid  L: bell"
 	help.add_theme_font_size_override("font_size", 8)
@@ -116,12 +120,7 @@ func _make_bar() -> void:
 	_bar.position = Vector2(4, 22)
 	_bar.add_theme_constant_override("separation", 2)
 	_root.add_child(_bar)
-	for p in world.peasants:
-		var b := _button(p.person_name, _bar_click.bind(p))
-		UiTheme.make_compact(b)
-		b.add_theme_font_size_override("font_size", 9)
-		b.custom_minimum_size = Vector2(44, 0)
-		_bar.add_child(b)
+	rebuild_bar()
 
 
 func _make_panel() -> void:
@@ -307,6 +306,47 @@ func _draw_card() -> void:
 		if lvl < SbData.SKILL_MAX:
 			c.draw_rect(Rect2(40 + lvl * 7, y + 7, 6.0 * p.practice[w] / need, 1), UiTheme.GOLD)
 		y += 9.0
+
+
+## The question when a traveller asks to join.
+func _make_ask() -> void:
+	_ask = PanelContainer.new()
+	_ask.visible = false
+	_ask.position = Vector2(200, 60)
+	_root.add_child(_ask)
+	var box := VBoxContainer.new()
+	_ask.add_child(box)
+	_ask_label = Label.new()
+	_ask_label.add_theme_font_size_override("font_size", 10)
+	box.add_child(_ask_label)
+	var row := HBoxContainer.new()
+	box.add_child(row)
+	for spec in [["Take them in", true], ["Send them away", false]]:
+		var b := _button(spec[0], func(): world.answer_traveller(spec[1]))
+		_compact(b)
+		row.add_child(b)
+
+
+func _on_traveller() -> void:
+	var t: Node2D = world.traveller
+	_ask.visible = t != null
+	if t != null:
+		_ask_label.text = "%s (%s: %s) asks to join." % [t.person_name, t.trait_name(), SbData.TRAITS[t.trait_key].text]
+	rebuild_bar()
+
+
+## The bar of names, rebuilt when someone joins. Buttons shrink to fit.
+func rebuild_bar() -> void:
+	for c in _bar.get_children():
+		c.queue_free()
+	var width := minf(44.0, 460.0 / float(maxi(world.peasants.size(), 1)) - 2.0)
+	for p in world.peasants:
+		var b := _button(p.person_name, _bar_click.bind(p))
+		UiTheme.make_compact(b)
+		b.add_theme_font_size_override("font_size", 9 if width >= 40.0 else 8)
+		b.custom_minimum_size = Vector2(width, 0)
+		b.clip_text = true
+		_bar.add_child(b)
 
 
 func _toggle_urgent() -> void:

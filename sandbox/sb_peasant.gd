@@ -63,6 +63,9 @@ var _safe := false
 ## The hurt peasant this one is carrying.
 var _patient: Node2D = null
 var selected := false
+## A traveller not yet taken in (does no work), and one sent on their way.
+var guest := false
+var leaving := false
 ## The player's order, or empty. Same shape as a task.
 var order := {}
 ## Orders queued after this one (Shift + right-click), done in turn.
@@ -407,6 +410,13 @@ func damage(n: float) -> void:
 
 
 func _process(delta: float) -> void:
+	if guest:
+		# A traveller only walks: to the stockyard to ask, or off east if sent away.
+		_walking = false
+		if _go(task.pos, delta) and leaving:
+			queue_free()
+		queue_redraw()
+		return
 	_cool = maxf(_cool - delta, 0.0)
 	_hurt = maxf(_hurt - delta, 0.0)
 	_arrow = maxf(_arrow - delta, 0.0)
@@ -466,7 +476,7 @@ func _process(delta: float) -> void:
 	if dozing > 0.0:
 		# Nodding off on the job: nothing gets done until it passes or a click wakes them.
 		dozing -= delta
-		if order.is_empty() and not drafted and not world.alarm and world.nearest_raider(position, FLEE_FROM) == null:
+		if order.is_empty() and not drafted and not world.alarm and world.nearest_raider(position, FLEE_FROM) == null and tired < SbData.TIRED_NEED:
 			queue_redraw()
 			return
 		dozing = 0.0
@@ -546,7 +556,8 @@ func _check_needs() -> void:
 
 ## Working by day while tired, one may nod off (lazy ones more often).
 func _may_doze(delta: float) -> bool:
-	if not order.is_empty() or drafted or world.is_night() or tired < SbData.DOZE_TIRED or sulking > 0.0:
+	# Only while somewhat tired: past TIRED_NEED they go to bed instead.
+	if not order.is_empty() or drafted or world.is_night() or tired < SbData.DOZE_TIRED or tired >= SbData.TIRED_NEED or sulking > 0.0:
 		return false
 	var k: String = task.get("kind", "")
 	if not (k in ["build", "chop", "mine", "forage", "craft"]) or carrying == "person":

@@ -38,6 +38,8 @@ const Sfx := preload("res://scripts/sfx.gd")
 const ZOOMS := [0.5, 1.0, 2.0, 3.0]
 
 signal selection_changed
+## A traveller waits at the stockyard to be taken in or sent away (null when gone).
+signal traveller_changed
 signal announced(text: String)
 
 var peasants: Array = []
@@ -73,6 +75,9 @@ var raids := 0
 ## Raids on a timetable (tests turn it off), and when the next one comes.
 var auto_raids := true
 var next_raid := 0.0
+## The traveller asking to join, if any, and when the next one comes.
+var traveller: Node2D = null
+var next_traveller := 0.0
 
 var camera: Camera2D
 var things: Node2D
@@ -104,6 +109,7 @@ func _ready() -> void:
 	add_child(camera)
 	camera.make_current()
 	next_raid = time_at(SbData.FIRST_RAID_DAY, SbData.RAID_HOUR)
+	next_traveller = time_at(SbData.FIRST_TRAVELLER_DAY, SbData.TRAVELLER_HOUR)
 	_build_map()
 	add_child(Sfx.new())
 	hud = CanvasLayer.new()
@@ -232,6 +238,39 @@ func _add_deer(at: Vector2) -> void:
 	var d: Node2D = _add(Deer, at)
 	d.setup()
 	deer.append(d)
+
+
+## A traveller walks in from the east and waits at the stockyard.
+func arrive_traveller() -> void:
+	var used := peasants.map(func(p): return p.person_name)
+	var free: Array = SbData.NAMES.filter(func(n): return not used.has(n))
+	var name_: String = free.pick_random() if not free.is_empty() else "Stranger %d" % (peasants.size() + 1)
+	var t: Node2D = _add(Peasant, Vector2(SbData.EAST_EDGE - 10, 40))
+	t.setup(name_, "hauler")
+	t.guest = true
+	t.task = {"kind": "goto", "pos": stockyard.position + Vector2(30, 24), "forced": true}
+	t.order = t.task
+	traveller = t
+	announce("A traveller, %s (%s), asks to join the village." % [name_, t.trait_name()])
+	traveller_changed.emit()
+
+
+## Takes the traveller in (a Hauler to start with) or sends them away.
+func answer_traveller(take: bool) -> void:
+	if traveller == null:
+		return
+	var t := traveller
+	traveller = null
+	if take:
+		t.guest = false
+		t.release_order()
+		peasants.append(t)
+		announce("%s joins the village." % t.person_name)
+	else:
+		t.leaving = true
+		t.set_order({"kind": "goto", "pos": Vector2(SbData.EAST_EDGE + 30, 40)})
+		announce("%s goes on their way." % t.person_name)
+	traveller_changed.emit()
 
 
 func spawn_item(res: String, at: Vector2) -> Node2D:
@@ -706,6 +745,10 @@ func darkness() -> float:
 
 func _process(delta: float) -> void:
 	time += delta
+	if auto_raids and time >= next_traveller:
+		next_traveller += SbData.TRAVELLER_EVERY * SbData.DAY_LENGTH
+		if traveller == null:
+			arrive_traveller()
 	if auto_raids and time >= next_raid:
 		next_raid += SbData.RAID_EVERY * SbData.DAY_LENGTH
 		start_raid(SbData.RAID_BASE + raids)

@@ -149,6 +149,12 @@ const MEMORIES := {
 	"sulked": {"text": "Let off steam", "value": 15.0, "time": 120.0},
 }
 
+## Travellers who ask to join: the first on FIRST_TRAVELLER_DAY at
+## TRAVELLER_HOUR, then every TRAVELLER_EVERY days (it can be a fraction).
+const FIRST_TRAVELLER_DAY := 1
+const TRAVELLER_HOUR := 14.0
+const TRAVELLER_EVERY := 1.5
+
 ## Beds in a finished Hut; the hurt get better faster in one.
 const HUT_BEDS := 2
 const HEAL := 0.15

@@ -69,6 +69,11 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
      stockyard to steal (dropped loot can be hauled back). Each carries a torch and
      may set one building alight as they pass it: fires knock blocks off until put
      out (a fire with nothing left to burn dies down).
+   - **Travellers:** from day 1 at 14:00 and then every day and a half, a
+     traveller walks in from the east and asks to join (a small dialog shows
+     their trait). Taken in, they start as a Hauler and get a place in the bar of
+     names; sent away, they walk off. (From Henrik's next steps: "a traveller asks
+     to join".)
    - **Mood:** each peasant's mood drifts towards 55 plus their thoughts: needs
      (hungry, tired), states (in pain, drafted, Night work) and memories that
      fade (ate a meal, slept in a bed or on the ground, was hurt, saw someone go
@@ -80,7 +85,7 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
    - **Traits** (as in the main game): Quick and Slow walk faster or slower,
      Hard-working and Lazy work faster or slower. Shown on the card.
    - **Dozing** (one of the "small things to click"): by day, someone working while
-     tired may nod off where they stand (Lazy ones often, Hard-working ones rarely):
+     somewhat tired (not tired enough to go to bed) may nod off where they stand (Lazy ones often, Hard-working ones rarely):
      a drooping head and z's, and nothing gets done. Click them to wake them: they
      work 25% faster for a while.
    - **Orders:** select peasants and right-click something. The order comes before
