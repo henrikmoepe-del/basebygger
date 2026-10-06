@@ -285,6 +285,21 @@ func _run() -> void:
 	_check(napper.dozing <= 0.0 and napper._boost > 0.0, "a click wakes them, with a burst of effort")
 	_check(napper.skill_mult("build") > 0.0, "traits and boosts keep work going")
 
+	# 17. A rescuer given another order puts the hurt one down, not in the stockyard.
+	var patient: Node2D = w.peasants.filter(func(p): return p.job == "miner")[0]
+	var rescuer: Node2D = w.peasants.filter(func(p): return p.job == "hauler")[0]
+	rescuer.release_order()
+	patient.damage(100.0)
+	w.select([rescuer])
+	w.give_order(patient.position + Vector2(0, -2))
+	var picked := await _wait(60.0, func(): return rescuer.carrying == "person")
+	_check(picked, "an ordered rescuer picks up the hurt peasant")
+	var site2: Node2D = w.sites.filter(func(s): return not s.done())[0]
+	w.give_order(site2.position + Vector2(0, -6))
+	await _wait(30.0)
+	_check(not w.stockyard.stock.has("person") and patient.carried_by == null, "given another order, they put the hurt one down (not in the stockyard)")
+	w.release_selected()
+
 	_check(_off_band == 0, "nobody leaves the ground band (%d frames off it)" % _off_band)
 	print("ALL PASSED" if _fails == 0 else "%d FAILED" % _fails)
 	quit(1 if _fails > 0 else 0)

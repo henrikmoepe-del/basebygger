@@ -1,7 +1,8 @@
 extends "res://sandbox/sb_thing.gd"
 ## A peasant in the sandbox. Has a job (a preset of work priorities, see
 ## sb_data.gd), may have an ORDER from the player, and otherwise chooses
-## work by itself: the lowest priority number first, then nearest.
+## work by itself (`_choose`): the lowest priority number first, then the
+## Work grid's column order, then the nearest target.
 ##
 ## What the peasant is doing right now is its TASK: a Dictionary with
 ## "kind" (a work type, or "goto", "flee", "idle"), "target" (a node or null),
@@ -212,6 +213,9 @@ func set_order(o: Dictionary, add := false) -> void:
 		return
 	queue.clear()
 	_end_task()
+	if carrying == "person" and o.get("kind", "") != "rescue":
+		# Put the hurt one down here before doing something else.
+		_drop()
 	order = o
 	order.forced = true
 	task = order
@@ -335,6 +339,7 @@ func damage(n: float) -> void:
 		hp = 0.0
 		downed = true
 		drafted = false
+		dozing = 0.0
 		_drop()
 		queue.clear()
 		order = {}
@@ -508,6 +513,11 @@ func _task_valid() -> bool:
 ## within one kind of work, the best target (mostly the nearest).
 func _choose() -> void:
 	_end_task()
+	if carrying == "person" and _patient != null and is_instance_valid(_patient):
+		# Still carrying someone hurt (after fleeing, say): finish that first.
+		task = {"kind": "rescue", "target": _patient, "forced": false}
+		_claim_task()
+		return
 	for p in [1, 2, 3]:
 		for w in SbData.WORK:
 			if prio[w] != p:
@@ -635,9 +645,7 @@ func _do_build(site: Node2D, delta: float) -> void:
 	if carrying != need:
 		var yard: Node2D = world.stockyard
 		if _go(yard.work_spot(self), delta):
-			if carrying != "" and carrying != "water":
-				yard.put(carrying, carry_n)
-			carrying = ""
+			_put_away(yard)
 			if yard.take(need):
 				carrying = need
 				_short = ""
@@ -817,7 +825,8 @@ func _do_haul(item: Node2D, delta: float) -> void:
 		_drop()
 	if _go(item.work_spot(self), delta):
 		var res: String = item.res
-		var n := 1
+		# Already carrying some of the same: they come along too.
+		var n := carry_n + 1 if carrying == res else 1
 		# Take along others of the same kind lying close by that nobody has claimed.
 		for other in world.items.duplicate():
 			if n >= MAX_LOAD:
@@ -869,14 +878,14 @@ func _do_fight(raider: Node2D, delta: float) -> void:
 
 
 func _do_idle(delta: float) -> void:
-	if carrying != "" and carrying != "water":
+	if carrying == "person" or carrying == "water":
+		_drop()
+	if _goods():
 		# Put away what one carries before resting.
 		var yard: Node2D = world.stockyard
 		if _go(yard.work_spot(self), delta):
-			yard.put(carrying, carry_n)
-			carrying = ""
+			_put_away(yard)
 		return
-	carrying = ""
 	if job == "guard":
 		_go(world.guard_post + Vector2(float(hash(name) % 24) - 12.0, float(hash(name) % 14)), delta)
 		return
@@ -888,21 +897,23 @@ func _do_idle(delta: float) -> void:
 
 
 func _process_deliver(delta: float) -> void:
+	if not _goods():
+		_drop()
+		_end_task()
+		return
 	var yard: Node2D = world.stockyard
 	if _go(yard.work_spot(self), delta):
-		yard.put(carrying, carry_n)
-		carrying = ""
+		_put_away(yard)
 		_end_task()
 
 
 func _do_eat(delta: float) -> void:
 	var yard: Node2D = world.stockyard
-	if carrying == "water":
-		carrying = ""
-	if carrying != "":
+	if carrying == "water" or carrying == "person":
+		_drop()
+	if _goods():
 		if _go(yard.work_spot(self), delta):
-			yard.put(carrying, carry_n)
-			carrying = ""
+			_put_away(yard)
 		return
 	if _go(yard.position + Vector2(46 + float(hash(name) % 10), 8), delta):
 		_anim = "eat"
@@ -934,6 +945,21 @@ func _do_sleep(delta: float) -> void:
 	tired = maxf(tired - 100.0 / time * delta, 0.0)
 	if tired <= 0.0 and not _bedtime():
 		_end_task()
+
+
+## True if what one carries is goods that belong in the stockyard.
+func _goods() -> bool:
+	return carrying in ["wood", "stone", "food", "planks"]
+
+
+## Puts what one carries into the stockyard if it is goods there; anything
+## else (water, a hurt person) is put down instead.
+func _put_away(yard: Node2D) -> void:
+	if _goods():
+		yard.put(carrying, carry_n)
+		carrying = ""
+	else:
+		_drop()
 
 
 ## Puts what one carries down on the ground, for someone to haul later.
