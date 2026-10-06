@@ -48,6 +48,8 @@ const PLANS := {
 	"child": {"steps": [[0.5, "child"], [6.0, "shot"], [0.1, "labour"], [8.0, "shot"]]},
 	# The hooded man offering his gift.
 	"stranger": {"steps": [[0.5, "stranger"], [1.0, "shot"]]},
+	# A cave-in at a rock, with others coming to dig.
+	"cavein": {"steps": [[3.0, "cavein"], [7.0, "shot"]]},
 	# The hunter in the wood, aiming at a deer.
 	"hunt": {"steps": [[0.5, "hunt"], [5.5, "shot"], [3.0, "shot"]]},
 	"box": {"steps": [[2.0, "box"], [0.1, "goto"], [0.4, "shot"]]},
@@ -207,6 +209,14 @@ func _do(what: String) -> void:
 		"stranger":
 			w.arrive_stranger()
 			w.camera.position = Vector2(330, -20)
+		"cavein":
+			var r: Node2D = w.rocks[0]
+			var m: Node2D = w.peasants.filter(func(p): return p.job == "miner")[0]
+			m.position = r.position + Vector2(-8, 4)
+			r.claim(m)
+			r._cave_in()
+			w.camera.position = Vector2(r.position.x, -10)
+			w.camera.zoom = Vector2(2, 2)
 		"hunt":
 			w.camera.position = Vector2(480, -20)
 			w.camera.zoom = Vector2(2, 2)

@@ -68,6 +68,8 @@ var selected := false
 var child := false
 var born := 0.0
 var parents: Array = []
+## Trapped under the rubble of a cave-in at this rock (or null).
+var trapped_at: Node2D = null
 ## A traveller not yet taken in (does no work), and one sent on their way.
 var guest := false
 var leaving := false
@@ -251,7 +253,7 @@ func is_open() -> bool:
 
 
 func hit(p: Vector2) -> bool:
-	if not visible:
+	if not visible or trapped_at != null:
 		return false
 	if child and not downed:
 		return Rect2(position + Vector2(-4, -11), Vector2(8, 12)).has_point(p)
@@ -266,6 +268,24 @@ func label() -> String:
 
 func job_name() -> String:
 	return "Child" if child else SbData.JOBS[job].name
+
+
+## Buried by a cave-in: out of sight and out of action until dug out.
+func trap(rock: Node2D) -> void:
+	_drop()
+	queue.clear()
+	order = {}
+	drafted = false
+	_end_task()
+	trapped_at = rock
+	visible = false
+	remember("trapped")
+
+
+func untrap() -> void:
+	trapped_at = null
+	visible = true
+	position = position + Vector2(0, 6)
 
 
 ## Makes this peasant a newborn child of the two parents.
@@ -297,6 +317,8 @@ func grow_up() -> void:
 ## Give an order from the player. It comes before anything else. With
 ## `add`, it is queued after the orders already given instead.
 func set_order(o: Dictionary, add := false) -> void:
+	if trapped_at != null:
+		return
 	var t = o.get("target")
 	if t != null and is_instance_valid(t) and t.forbidden:
 		# Ordering someone to a forbidden thing allows it again.
@@ -373,6 +395,8 @@ func forget(t: Node2D) -> void:
 
 ## What the peasant is doing, in a few words, for the HUD.
 func activity() -> String:
+	if trapped_at != null:
+		return "Trapped in a cave-in!"
 	if downed:
 		return "Down, hurt"
 	if dozing > 0.0:
@@ -393,6 +417,8 @@ func activity() -> String:
 				return prefix + "waiting for %s at %s" % [_short, t.label()]
 			return prefix + "%s at %s" % [t.recipe().bill.to_lower(), t.label()]
 		"rescue":
+			if t.kind == "rock":
+				return prefix + "digging out %s" % (t.trapped.person_name if t.trapped != null else "someone")
 			return prefix + ("carrying %s to safety" % t.label() if _patient == t else "going to help %s" % t.label())
 		"build":
 			if _short != "":
@@ -450,6 +476,10 @@ func damage(n: float) -> void:
 
 
 func _process(delta: float) -> void:
+	if trapped_at != null:
+		# Buried: nothing to do but wait (the rock hurts them now and then).
+		visible = false
+		return
 	if guest:
 		# A traveller only walks: to the stockyard to ask, or off east if sent away.
 		_walking = false
@@ -712,7 +742,10 @@ func _do_task(delta: float) -> void:
 		return
 	match task.get("kind", ""):
 		"rescue":
-			_do_rescue(t, delta)
+			if t.kind == "rock":
+				_do_dig(t, delta)
+			else:
+				_do_rescue(t, delta)
 		"build":
 			_do_build(t, delta)
 		"supply":
@@ -795,6 +828,25 @@ func _do_build(site: Node2D, delta: float) -> void:
 			site.add_block(carrying)
 			carrying = ""
 			_finish_unit()
+
+
+## Digs at the rubble of a cave-in until the trapped one is free.
+func _do_dig(rock: Node2D, delta: float) -> void:
+	if carrying != "":
+		_drop()
+	if rock.trapped == null:
+		if task.get("forced", false):
+			_order_done()
+		else:
+			_end_task()
+		return
+	if _go(rock.work_spot(self), delta):
+		_anim = "mine"
+		if rock.dig(delta):
+			if task.get("forced", false):
+				_order_done()
+			else:
+				_end_task()
 
 
 ## Picks up a hurt peasant and carries them to a free bed in a Hut, or to

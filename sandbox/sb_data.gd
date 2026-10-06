@@ -149,6 +149,7 @@ const MEMORIES := {
 	"sulked": {"text": "Let off steam", "value": 15.0, "time": 120.0},
 	"new_child": {"text": "A child was born", "value": 6.0, "time": 240.0},
 	"dreams": {"text": "Dark dreams", "value": -10.0, "time": 200.0},
+	"trapped": {"text": "Was trapped in a cave-in", "value": -10.0, "time": 240.0},
 }
 
 ## Travellers who ask to join: the first on FIRST_TRAVELLER_DAY at
@@ -183,6 +184,14 @@ const PRICES := {
 	"fire": "A cold blue fire starts at %s.",
 	"dreams": "Everyone dreams of the hooded man.",
 }
+
+## Cave-ins: each stone mined has CAVE_IN_CHANCE of trapping the miner under
+## rubble. Rescuers dig (DIG_TIME seconds of work in all) to free them; every
+## TRAPPED_HURT_EVERY seconds trapped costs the miner TRAPPED_HURT health.
+const CAVE_IN_CHANCE := 0.04
+const DIG_TIME := 12.0
+const TRAPPED_HURT_EVERY := 20.0
+const TRAPPED_HURT := 2.0
 
 ## Beds in a finished Hut; the hurt get better faster in one.
 const HUT_BEDS := 2

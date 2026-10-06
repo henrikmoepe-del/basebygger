@@ -74,6 +74,11 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
      their trait). Taken in, they start as a Hauler and get a place in the bar of
      names; sent away, they walk off. (From Henrik's next steps: "a traveller asks
      to join".)
+   - **Cave-ins** (Henrik's "people stuck in the mines"): each stone mined has a
+     small chance of a cave-in that buries the miner. Anyone with Rescue work
+     comes to dig (up to 3 at once; a bar shows how far). Trapped, the miner
+     loses health now and then; dug out, they remember it (a bad thought).
+     Right-click the rubble to send someone to dig.
    - **The hooded man** (Henrik's "mystical man with dark gifts"): from day 3,
      every 3 days, a hooded stranger waits at the edge of the wood and offers a
      gift: strange fruit (+25 food), black planks (+15), or making someone far

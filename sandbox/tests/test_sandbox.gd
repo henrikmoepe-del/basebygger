@@ -352,6 +352,17 @@ func _run() -> void:
 	await _wait(SbData.STRANGER_PRICE_AFTER + 5.0)
 	_check(w._price_at < 0.0, "the price comes due later")
 
+	# 22. A cave-in: the miner is trapped; others dig them out by themselves.
+	var digger_rock: Node2D = w.rocks[0]
+	digger_rock.stone = maxi(digger_rock.stone, 3)
+	var trapped_miner: Node2D = w.peasants.filter(func(p): return p.job == "miner")[0]
+	trapped_miner.release_order()
+	digger_rock.claim(trapped_miner)
+	digger_rock._cave_in()
+	_check(trapped_miner.trapped_at == digger_rock and not trapped_miner.visible, "a cave-in traps the miner")
+	var freed := await _wait(90.0, func(): return trapped_miner.trapped_at == null)
+	_check(freed and trapped_miner.visible, "the others dig them out by themselves")
+
 	_check(_off_band == 0, "nobody leaves the ground band (%d frames off it)" % _off_band)
 	print("ALL PASSED" if _fails == 0 else "%d FAILED" % _fails)
 	quit(1 if _fails > 0 else 0)

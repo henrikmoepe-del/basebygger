@@ -444,10 +444,19 @@ func find_work(p: Node2D, work: String) -> Dictionary:
 		"haul":
 			list = items
 		"rescue":
-			# The hurt, not yet carried and with no raider standing over them.
+			# The hurt, not yet carried and with no raider standing over them,
+			# and anyone trapped in a cave-in (several can dig at once).
 			list = peasants.filter(func(o): return o != p and o.is_open() and o.carried_by == null and nearest_raider(o.position, 50.0) == null)
+			for r in rocks:
+				if r.trapped != null and r.trapped != p:
+					list.append(r)
 	for t in list:
-		if t.forbidden or not t.is_open() or t.workers.size() >= t.capacity():
+		var digging: bool = work == "rescue" and t.kind == "rock"
+		if not digging and (t.forbidden or not t.is_open() or t.workers.size() >= t.capacity()):
+			continue
+		if digging and t.workers.size() >= 3:
+			continue
+		if work == "mine" and (t.trapped != null or t.stone <= 0):
 			continue
 		if (work == "chop" or work == "mine" or work == "forage") and loose_near(t.position) >= LOOSE_LIMIT:
 			# Enough lies here already: haul it first.
@@ -623,6 +632,9 @@ func order_at(at: Vector2) -> Dictionary:
 	for p in peasants:
 		if p.is_open() and p.hit(at):
 			return {"kind": "rescue", "target": p}
+	for r in rocks:
+		if r.trapped != null and r.hit(at):
+			return {"kind": "rescue", "target": r}
 	for s in sites:
 		if s.is_workshop() and s.hit(at):
 			return {"kind": "craft", "target": s}
