@@ -22,7 +22,9 @@ API = "https://api.pixellab.ai/v2"
 STYLE = {"outline": "selective outline", "shading": "medium shading", "detail": "highly detailed"}
 LOOK = "pixel art like a cozy 16-bit castle valley, cream stone, blue slate roofs, bright daylight"
 
-# The style samples are cut from castle-valley-loop-1080p60.mp4 (see README.md).
+# style_castle.png and style_village.png are cut from castle-valley-loop-1080p60.mp4.
+# Asked for but dropped: a wall piece, a stone block and a stone pile (PixelLab drew
+# little castles and houses); prep.py cuts the wall and the block out of the keep.
 ASSETS = {
     "tower": {
         "endpoint": "/create-image-pixflux",
@@ -47,14 +49,6 @@ ASSETS = {
             "description": "one single square stone gatehouse tower, centered, from the ground up: cream stone bricks, battlements on top, "
                            "a big arched gate with a wooden door at the bottom, one narrow window. " + LOOK,
             "image_size": {"width": 80, "height": 128}, "no_background": True, "view": "side", **STYLE,
-        },
-    },
-    "wall": {
-        "endpoint": "/create-image-pixflux",
-        "body": {
-            "description": "a straight piece of castle curtain wall seen from the side, cream stone bricks, a row of battlements along the top, "
-                           "filling the whole width. " + LOOK,
-            "image_size": {"width": 128, "height": 64}, "no_background": True, "view": "side", **STYLE,
         },
     },
     "house": {
@@ -94,20 +88,6 @@ ASSETS = {
             "image_size": {"width": 64, "height": 64}, "no_background": True, "view": "side", **STYLE,
         },
     },
-    "block": {
-        "endpoint": "/create-image-pixflux",
-        "body": {
-            "description": "one single cut rectangular cream limestone building block, wide and low, side view. " + LOOK,
-            "image_size": {"width": 32, "height": 32}, "no_background": True, "view": "side", **STYLE,
-        },
-    },
-    "stone_pile": {
-        "endpoint": "/create-image-pixflux",
-        "body": {
-            "description": "a neat stacked pile of cut cream limestone building blocks, side view. " + LOOK,
-            "image_size": {"width": 64, "height": 48}, "no_background": True, "view": "side", **STYLE,
-        },
-    },
     "log_pile": {
         "endpoint": "/create-image-pixflux",
         "body": {
@@ -125,9 +105,9 @@ ASSETS = {
     "backdrop": {
         "endpoint": "/create-image-pixflux",
         "body": {
-            "description": "wide landscape background for a side-scrolling game, no buildings: bright blue sky with big fluffy white clouds, "
+            "description": "empty wild nature landscape, a backdrop for a side-scrolling game, with no houses, no castle, no people and nothing built: bright blue sky with big fluffy white clouds, "
                            "a sun on the left, snowy purple-blue mountains in the distance, a blue lake, rolling green hills with small trees, "
-                           "flat green meadow with tiny flowers in the foreground. " + LOOK,
+                           "a flat green meadow along the bottom. " + LOOK,
             "image_size": {"width": 320, "height": 180}, "view": "side", **STYLE,
         },
     },
@@ -140,6 +120,32 @@ ASSETS = {
         },
     },
 }
+
+def _anim(action, frames=8):
+    """An animation of the peasant (animate-with-text-v3: a job that is polled,
+    so a long wait cannot drop the connection and lose the result)."""
+    return {
+        "endpoint": "/animate-with-text-v3",
+        "images": {"first_frame": "peasant64.png"},
+        "body": {"action": action, "frame_count": frames, "no_background": True, "drift_threshold": 0.0},
+    }
+
+
+ASSETS.update({
+    "peasant64": {
+        "endpoint": "/create-image-pixflux",
+        "body": {
+            "description": "full body medieval peasant builder, a grown man with normal proportions, standing, side view facing right, "
+                           "short brown hair, blue tunic with a leather belt, brown trousers, leather boots, filling the picture from head to feet. " + LOOK,
+            "image_size": {"width": 64, "height": 64}, "no_background": True, "view": "side", "direction": "east", **STYLE,
+        },
+    },
+    "walk": _anim("walking"),
+    "carry": _anim("walking while carrying a pale stone block on his shoulder"),
+    "hammer": _anim("striking down with a hammer at a bench in front of him"),
+    "pull": _anim("pulling a rope down hand over hand"),
+    "climb": _anim("climbing up a ladder"),
+})
 
 
 def img_b64(path, size=None):
@@ -170,12 +176,23 @@ def call(path, body, key):
                 time.sleep(15)  # the free plan runs one job at a time
                 continue
             raise SystemExit("%s %s: %s" % (path, e.code, text))
+        except urllib.error.URLError as e:
+            if attempt == 9:
+                raise
+            print("connection trouble (%s), trying again" % e.reason)
+            time.sleep(2 ** min(attempt + 1, 5))
 
 
 def get(path, key):
     req = urllib.request.Request(API + path, headers={"Authorization": "Bearer " + key})
-    with urllib.request.urlopen(req, timeout=120) as r:
-        return json.load(r)
+    for attempt in range(10):
+        try:
+            with urllib.request.urlopen(req, timeout=120) as r:
+                return json.load(r)
+        except urllib.error.URLError:
+            if attempt == 9:
+                raise
+            time.sleep(4)
 
 
 def save(b64img, out):

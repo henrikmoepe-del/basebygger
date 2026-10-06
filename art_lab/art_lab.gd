@@ -2,11 +2,12 @@ extends Control
 ## The art lab: a test map with the castle and a few peasants building on
 ## it, drawn in several art styles to compare. It is not part of the game.
 ## Open art_lab/art_lab.tscn in Godot and press F6 (Run Current Scene).
-## Keys: Left/Right or 1-6 change style, Space pauses, Up/Down change speed,
+## Keys: Left/Right or 1-7 change style, Space pauses, Up/Down change speed,
 ## H hides the text.
 
 const Styles := preload("res://art_lab/styles.gd")
 const Painter := preload("res://art_lab/painter.gd")
+const SpritePainter := preload("res://art_lab/sprite_painter.gd")
 
 var styles: Array = Styles.all()
 var index := 0
@@ -30,8 +31,6 @@ func _ready() -> void:
 	vp = SubViewport.new()
 	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	add_child(vp)
-	painter = Painter.new()
-	vp.add_child(painter)
 	view = TextureRect.new()
 	view.texture = vp.get_texture()
 	view.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -69,9 +68,18 @@ func _ready() -> void:
 func set_style(i: int) -> void:
 	index = posmod(i, styles.size())
 	var st: Dictionary = styles[index]
+	var pixels: bool = st.family in ["pixel", "sprites"]
 	vp.size = st.res
-	vp.msaa_2d = Viewport.MSAA_DISABLED if st.family == "pixel" else Viewport.MSAA_4X
-	view.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST if st.family == "pixel" else CanvasItem.TEXTURE_FILTER_LINEAR
+	vp.msaa_2d = Viewport.MSAA_DISABLED if pixels else Viewport.MSAA_4X
+	view.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST if pixels else CanvasItem.TEXTURE_FILTER_LINEAR
+	# the PixelLab style draws pictures (sprite_painter.gd), the others draw shapes (painter.gd)
+	var kind: Script = SpritePainter if st.family == "sprites" else Painter
+	if painter == null or painter.get_script() != kind:
+		if painter:
+			painter.free()
+		painter = kind.new()
+		vp.add_child(painter)
+	painter.t = t
 	painter.setup(st)
 	var b: Vector2 = st.block
 	title.text = "%d/%d  %s" % [index + 1, styles.size(), st.name]

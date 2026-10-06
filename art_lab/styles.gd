@@ -41,6 +41,11 @@ static func all() -> Array:
 			"desc": "Clean shapes, no outlines or texture, bright colours. Easy to read, quick to make art for.",
 			"family": "flat", "res": Vector2i(2560, 1440), "block": Vector2(8, 4), "pal": _flat(),
 		},
+		{
+			"id": "pixellab", "name": "PixelLab",
+			"desc": "Pictures made by PixelLab (pixellab.ai) at the game's size, 640 x 360. The keep is laid out of its own picture, 14 x 8 pixels a piece.",
+			"family": "sprites", "res": Vector2i(640, 360), "block": Vector2(14, 8), "pal": {},
+		},
 	]
 
 
