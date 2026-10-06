@@ -185,6 +185,7 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
 | T / F | Start a raid / a fire (to test) |
 | A / D, middle-drag, wheel | Pan, zoom (whole steps: 0.5x, 1x, 2x, 3x) |
 | Point at something (nobody selected) | What it is: "A tree: 3 logs left", a site's progress, the stockyard's stock |
+| J (or Log) | The message log: the last 30 messages |
 | M | Mute (the main game's sounds, made in code; only what happens on screen is heard) |
 
 The gold `!` over a peasant means they have an order. Selected peasants show a

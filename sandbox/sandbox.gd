@@ -950,6 +950,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				toggle_pause()
 			KEY_L:
 				set_alarm(not alarm)
+			KEY_J:
+				hud.toggle_log()
 			KEY_X:
 				toggle_forbid(get_global_mouse_position())
 			KEY_A when (event as InputEventKey).ctrl_pressed:

@@ -11,7 +11,8 @@ func hit(p: Vector2) -> bool:
 
 
 func work_spot(peasant: Node2D) -> Vector2:
-	return position + Vector2(float(hash(peasant.name) % 16) - 8.0, 6.0)
+	var h := hash(peasant.name)
+	return position + Vector2(float(h % 16) - 8.0, 6.0 + float((h / 16) % 4) * 3.0)
 
 
 func label() -> String:

@@ -1167,7 +1167,7 @@ func _do_eat(delta: float) -> void:
 		if _go(yard.work_spot(self), delta):
 			_put_away(yard)
 		return
-	if _go(yard.position + Vector2(46 + float(hash(name) % 10), 8), delta):
+	if _go(yard.position + Vector2(46 + float(hash(name) % 10), 8.0 + float((hash(name) / 10) % 4) * 3.0), delta):
 		_anim = "eat"
 		_timer += delta
 		if _timer >= SbData.EAT_TIME:

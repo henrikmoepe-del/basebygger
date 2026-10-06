@@ -26,6 +26,8 @@ var _grid: HBoxContainer
 var _log: VBoxContainer
 var _work: PanelContainer
 var _draft_button: Button
+var _log_panel: PanelContainer
+var _log_text: Label
 var _ask: PanelContainer
 var _ask_label: Label
 var _card: PanelContainer
@@ -56,6 +58,7 @@ func _ready() -> void:
 	_make_site_panel()
 	_make_card()
 	_make_ask()
+	_make_log_panel()
 	world.traveller_changed.connect(rebuild_bar)
 	world.question_changed.connect(_on_question)
 	var help := Label.new()
@@ -66,7 +69,9 @@ func _ready() -> void:
 	help.position = Vector2(4, 348)
 	_root.add_child(help)
 	world.selection_changed.connect(_rebuild_panel)
-	world.announced.connect(func(_t): _show_log())
+	world.announced.connect(func(_t):
+		_show_log()
+		_fill_log())
 	_rebuild_panel()
 
 
@@ -96,7 +101,7 @@ func _make_top() -> void:
 	_raid_label.add_theme_color_override("font_color", UiTheme.BAD)
 	_raid_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(_raid_label)
-	for spec in [["Build", toggle_build], ["Work", toggle_work]]:
+	for spec in [["Build", toggle_build], ["Work", toggle_work], ["Log", toggle_log]]:
 		var b := _button(spec[0], spec[1])
 		_compact(b)
 		row.add_child(b)
@@ -373,6 +378,30 @@ func _toggle_urgent() -> void:
 	if site != null:
 		site.urgent = not site.urgent
 		site.queue_redraw()
+
+
+## The message log: the last 30 messages, newest at the bottom.
+func _make_log_panel() -> void:
+	_log_panel = PanelContainer.new()
+	_log_panel.visible = false
+	_log_panel.position = Vector2(150, 48)
+	_root.add_child(_log_panel)
+	_log_text = Label.new()
+	_log_text.add_theme_font_size_override("font_size", 9)
+	_log_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_log_text.custom_minimum_size = Vector2(340, 0)
+	_log_panel.add_child(_log_text)
+
+
+func toggle_log() -> void:
+	_log_panel.visible = not _log_panel.visible
+	_fill_log()
+
+
+func _fill_log() -> void:
+	if _log_panel.visible:
+		_log_text.text = "\n".join(world.messages)
+		_log_panel.reset_size()
 
 
 func toggle_work() -> void:

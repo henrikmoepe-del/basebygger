@@ -39,8 +39,13 @@ func hit(p: Vector2) -> bool:
 	return Rect2(position + Vector2(-34, -30), Vector2(92, 34)).has_point(p)
 
 
+## Each peasant has a spot of their own in front of the yard, spread in depth
+## too, so a crowd stands side by side rather than on top of each other.
 func work_spot(peasant: Node2D) -> Vector2:
-	return position + Vector2(randf_range(-20, 20) if peasant == null else float(hash(peasant.name) % 30) - 15.0, 7.0)
+	if peasant == null:
+		return position + Vector2(randf_range(-20, 20), 7.0)
+	var h := hash(peasant.name)
+	return position + Vector2(float(h % 30) - 15.0, 6.0 + float((h / 30) % 5) * 3.0)
 
 
 func label() -> String:
