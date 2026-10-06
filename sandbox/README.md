@@ -1,0 +1,77 @@
+# Sandbox: a test map for the new job system
+
+A separate test map, kept apart from the main game: nothing in `scripts/` or
+`scenes/` is changed by it (it only borrows the UI look from `scripts/ui_theme.gd`).
+Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
+
+## What it tries out
+
+1. **A ground with depth** (after the Game_1 Art Direction page). The ground is a
+   band 80 pixels deep in front of the castle wall, with a dirt path along it.
+   Peasants walk along it *and* towards or away from the viewer, so they can pass
+   each other and work side by side. Nothing is scaled: further forward only means
+   lower on the screen and drawn in front (a y-sorted node).
+2. **Several building sites at once.** The Hut, the Wall and the Tower are each
+   their own job. A planned building shows as a faint outline (a blueprint) and
+   fills in block by block. Builders spread out over the sites by themselves.
+3. **The new job system** (think RimWorld, with assigned jobs):
+   - Every peasant has a **priority for each kind of work**: Fires, Fight, Build,
+     Chop, Mine, Haul. 1 = first, 2, 3 = last, - = never.
+   - A **job is a preset** of those priorities. Builder: Fires 1, Build 1, Haul 3.
+     Woodcutter: Fires 1, Chop 1, Haul 3. Miner: Fires 1, Mine 1, Haul 3.
+     Hauler: Fires 1, Haul 1, Build 3. Guard: Fight 1, Fires 2. You can change
+     single priorities per person in the panel (click a priority to cycle it).
+   - **Free will:** left alone, a peasant does the most important work there is for
+     them, nearest first (builders also prefer a site with fewer builders on it).
+     After each piece of work (a block set, a log chopped) they look around again.
+   - **Emergencies come by themselves:** a fire gets up to 3 peasants per fire
+     running buckets from the well; guards fight raiders; anyone with Fight "-"
+     runs away from raiders that come near.
+   - **Orders:** select peasants and right-click something. The order comes before
+     everything else (even fleeing) until it is done, then they go back to free will.
+     **R** (or Release) ends the order early.
+
+## Controls
+
+| Input | What it does |
+|---|---|
+| Left-click a peasant | Select (Shift adds or removes) |
+| Drag with the left button | Select everyone in the box |
+| Click a name in the bar at the top | Select that peasant |
+| Right-click a site | Build there |
+| Right-click a tree / rock | Chop it / mine it, until it is used up |
+| Right-click a log or stone on the ground | Haul it to the stockyard (several selected take one each) |
+| Right-click a fire | Put it out (buckets from the well) |
+| Right-click a raider | Fight it (guards hit 3, others 1.5) |
+| Right-click the ground | Go there and hold |
+| R | Release the selected: back to free will |
+| 1-5 | Make the selected Builders, Woodcutters, Miners, Haulers or Guards |
+| Esc | Deselect |
+| T / F | Start a raid / a fire (to test) |
+| A / D, middle-drag, wheel | Pan, zoom (whole steps: 0.5x, 1x, 2x, 3x) |
+
+The gold `!` over a peasant means they have an order. Selected peasants show a
+dotted line to what they are working on (gold for an order, white for free will).
+
+## Files
+
+- `sandbox.gd`: the world (map, finding work, selection and orders, test events).
+- `sb_data.gd`: work types, jobs (priority presets), palette, ground size.
+- `sb_peasant.gd`: a peasant: priorities, order, choosing work, doing it, drawing.
+- `sb_thing.gd`: the base for anything that can be worked on or ordered to.
+- `sb_site.gd`, `sb_tree.gd`, `sb_rock.gd`, `sb_item.gd`, `sb_fire.gd`,
+  `sb_raider.gd`, `sb_stockyard.gd`, `sb_well.gd`: the things in the world.
+- `sb_backdrop.gd`: sky, mountains, the castle wall, the ground band and path.
+- `sb_hud.gd`: top bar, the bar of peasants, the panel for the selected, messages.
+- `tests/test_sandbox.gd`: logic test (headless):
+  `godot --headless --fixed-fps 60 --path . -s sandbox/tests/test_sandbox.gd`
+- `tests/shots.gd`: screenshots in a real window:
+  `godot --path . -s sandbox/tests/shots.gd -- --plan=orders --out=<folder>`
+  (plans: start, orders, raid, fire, box).
+- `HOOKUP.md`: what it would take to bring this into the main game.
+
+## Kept simple on purpose
+
+Building here is "carry a block, set it": no scaffolds, ladders, hoists or decks.
+That system stays in the main game; this map is about *who works where* and
+*how the player steers them*. Nothing is balanced.

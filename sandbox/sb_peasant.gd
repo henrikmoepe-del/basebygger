@@ -1,0 +1,517 @@
+extends "res://sandbox/sb_thing.gd"
+## A peasant in the sandbox. Has a job (a preset of work priorities, see
+## sb_data.gd), may have an ORDER from the player, and otherwise chooses
+## work by itself: the lowest priority number first, then nearest.
+##
+## What the peasant is doing right now is its TASK: a Dictionary with
+## "kind" (a work type, or "goto", "flee", "idle"), "target" (a node or null),
+## "pos" (for "goto") and "forced" (true when it is the player's order).
+
+const SPEED := 32.0
+const PLACE_TIME := 1.2
+const FILL_TIME := 0.8
+const THROW_TIME := 0.5
+const HIT_EVERY := 1.0
+const REACH := 9.0
+const FLEE_FROM := 70.0
+
+var person_name := ""
+var job := "builder"
+## Work type -> priority (1 first, 3 last, 0 never).
+var prio := {}
+var hp := 10.0
+var max_hp := 10.0
+var downed := false
+var selected := false
+## The player's order, or empty. Same shape as a task.
+var order := {}
+var task := {}
+## What is on the shoulder: "", "wood", "stone" or "water".
+var carrying := ""
+
+var _timer := 0.0
+var _cool := 0.0
+var _walking := false
+var _anim := ""
+var _wander_to := Vector2.INF
+var _idle_think := 0.0
+var _hurt := 0.0
+var _short := ""
+
+
+func setup(name_: String, job_: String) -> void:
+	kind = "peasant"
+	person_name = name_
+	name = name_
+	set_job(job_)
+	hp = max_hp
+
+
+func set_job(job_: String) -> void:
+	job = job_
+	prio.clear()
+	for w in SbData.WORK:
+		prio[w] = SbData.JOBS[job].work.get(w, 0)
+	max_hp = 16.0 if job == "guard" else 10.0
+	hp = minf(hp, max_hp)
+	rethink()
+	queue_redraw()
+
+
+## Changes one priority: 1 -> 2 -> 3 -> 0 -> 1.
+func cycle_prio(work: String) -> void:
+	prio[work] = (prio[work] + 1) % 4
+	rethink()
+
+
+func capacity() -> int:
+	return 99
+
+
+func hit(p: Vector2) -> bool:
+	if downed:
+		return Rect2(position + Vector2(-9, -6), Vector2(18, 8)).has_point(p)
+	return Rect2(position + Vector2(-5, -18), Vector2(10, 20)).has_point(p)
+
+
+func label() -> String:
+	return person_name
+
+
+func job_name() -> String:
+	return SbData.JOBS[job].name
+
+
+## Give an order from the player. It comes before anything else.
+func set_order(o: Dictionary) -> void:
+	_end_task()
+	order = o
+	order.forced = true
+	task = order
+	_claim_task()
+	queue_redraw()
+
+
+## Drop the order and go back to choosing work by oneself.
+func release_order() -> void:
+	if order.is_empty():
+		return
+	order = {}
+	_end_task()
+
+
+## Stop what one is doing now and choose again (an emergency, a new job).
+func rethink() -> void:
+	if order.is_empty():
+		_end_task()
+
+
+## The thing is leaving the world: stop pointing at it.
+func forget(t: Node2D) -> void:
+	if order.get("target") == t:
+		order = {}
+	if task.get("target") == t:
+		task = {}
+		_timer = 0.0
+		_short = ""
+
+
+## What the peasant is doing, in a few words, for the HUD.
+func activity() -> String:
+	if downed:
+		return "Down, hurt"
+	var prefix := "Ordered: " if task.get("forced", false) else ""
+	var t: Node2D = task.get("target")
+	match task.get("kind", ""):
+		"build":
+			if _short != "":
+				return prefix + "waiting for %s for %s" % [_short, t.label()]
+			return prefix + "building " + t.label()
+		"chop":
+			return prefix + "chopping " + t.label()
+		"mine":
+			return prefix + "mining " + t.label()
+		"haul":
+			return prefix + "hauling " + t.label()
+		"firefight":
+			return prefix + "putting out " + t.label()
+		"fight":
+			return prefix + "fighting " + t.label()
+		"deliver":
+			return prefix + "taking %s to the stockyard" % carrying
+		"goto":
+			return prefix + ("holding here" if _at(task.pos) else "going there")
+		"flee":
+			return "Fleeing from raiders!"
+	return "Idle"
+
+
+func damage(n: float) -> void:
+	if downed:
+		return
+	hp -= n
+	_hurt = 0.2
+	if hp <= 0.0:
+		hp = 0.0
+		downed = true
+		_drop()
+		order = {}
+		_end_task()
+		world.announce("%s is down!" % person_name)
+	queue_redraw()
+
+
+func _process(delta: float) -> void:
+	_cool = maxf(_cool - delta, 0.0)
+	_hurt = maxf(_hurt - delta, 0.0)
+	_walking = false
+	_anim = ""
+	if downed:
+		# Lying hurt; gets up again once no raider is near.
+		if world.nearest_raider(position, 80.0) == null:
+			hp += 0.6 * delta
+			if hp >= max_hp * 0.5:
+				downed = false
+				world.announce("%s is back on their feet." % person_name)
+		queue_redraw()
+		return
+	if not order.is_empty():
+		task = order
+	else:
+		_check_flee()
+		if not _task_valid():
+			_choose()
+	_do_task(delta)
+	position.y = clampf(position.y, SbData.WALK_TOP, SbData.WALK_BOTTOM)
+	queue_redraw()
+
+
+func _check_flee() -> void:
+	if prio.get("fight", 0) > 0 or task.get("kind", "") == "flee":
+		return
+	if world.nearest_raider(position, FLEE_FROM) != null:
+		_end_task()
+		task = {"kind": "flee"}
+
+
+func _task_valid() -> bool:
+	if task.is_empty():
+		return false
+	var k: String = task.kind
+	if k == "idle":
+		_idle_think -= get_process_delta_time()
+		return _idle_think > 0.0
+	if k == "flee":
+		return world.nearest_raider(position, FLEE_FROM * 1.6) != null
+	var t = task.get("target")
+	if t != null and (not is_instance_valid(t) or not t.is_open()):
+		return false
+	return true
+
+
+## Free will: the most important work there is, nearest first.
+func _choose() -> void:
+	_end_task()
+	for p in [1, 2, 3]:
+		var best := {}
+		var best_score := INF
+		for w in SbData.WORK:
+			if prio[w] != p:
+				continue
+			var cand: Dictionary = world.find_work(self, w)
+			if cand.is_empty():
+				continue
+			if cand.score < best_score:
+				best_score = cand.score
+				best = cand
+		if not best.is_empty():
+			task = {"kind": best.kind, "target": best.target, "forced": false}
+			_claim_task()
+			return
+	task = {"kind": "idle"}
+	_idle_think = 1.0
+
+
+func _claim_task() -> void:
+	var t = task.get("target")
+	if t != null and is_instance_valid(t):
+		t.claim(self)
+		if t.kind == "item":
+			t.carried_by = self
+
+
+func _end_task() -> void:
+	var t = task.get("target")
+	if t != null and is_instance_valid(t):
+		t.release(self)
+		if t.kind == "item" and t.carried_by == self:
+			t.carried_by = null
+	task = {}
+	_timer = 0.0
+	_short = ""
+
+
+## The order is done: back to free will.
+func _order_done(note := "") -> void:
+	if note != "" and selected:
+		world.announce(note)
+	order = {}
+	_end_task()
+
+
+func _finish_unit() -> void:
+	# Choosing for oneself: look around again after each piece of work.
+	if not task.get("forced", false):
+		_end_task()
+
+
+func _do_task(delta: float) -> void:
+	var forced: bool = task.get("forced", false)
+	var t = task.get("target")
+	if t != null and (not is_instance_valid(t) or not t.is_open()):
+		if forced:
+			_order_done("%s has finished the order." % person_name)
+		else:
+			_end_task()
+		return
+	match task.get("kind", ""):
+		"build":
+			_do_build(t, delta)
+		"chop":
+			_do_gather(t, delta, "chop")
+		"mine":
+			_do_gather(t, delta, "mine")
+		"haul":
+			_do_haul(t, delta)
+		"firefight":
+			_do_firefight(t, delta)
+		"fight":
+			_do_fight(t, delta)
+		"goto":
+			_go(task.pos, delta)
+		"deliver":
+			_process_deliver(delta)
+		"flee":
+			var from: Node2D = world.nearest_raider(position, FLEE_FROM * 2.0)
+			var away := 1.0 if from == null or from.position.x < position.x else -1.0
+			_go(Vector2(clampf(position.x + away * 60.0, SbData.WEST_EDGE + 10, SbData.EAST_EDGE - 10), position.y), delta, 1.25)
+		"idle":
+			_do_idle(delta)
+
+
+func _do_build(site: Node2D, delta: float) -> void:
+	var need: String = site.next_material()
+	if carrying != need:
+		var yard: Node2D = world.stockyard
+		if _go(yard.work_spot(self), delta):
+			if carrying != "" and carrying != "water":
+				yard.put(carrying)
+			carrying = ""
+			if yard.take(need):
+				carrying = need
+				_short = ""
+			else:
+				_short = need
+				if not task.get("forced", false):
+					_end_task()
+		return
+	if _go(site.work_spot(self), delta):
+		_anim = "build"
+		_timer += delta
+		if _timer >= PLACE_TIME:
+			_timer = 0.0
+			site.add_block(carrying)
+			carrying = ""
+			_finish_unit()
+
+
+func _do_gather(thing: Node2D, delta: float, how: String) -> void:
+	if carrying != "":
+		_drop()
+	if _go(thing.work_spot(self), delta):
+		_anim = how
+		var fell: bool = thing.chop(delta) if how == "chop" else thing.mine(delta)
+		if fell:
+			_finish_unit()
+
+
+func _do_haul(item: Node2D, delta: float) -> void:
+	if carrying != "" and carrying != item.res:
+		_drop()
+	if _go(item.work_spot(self), delta):
+		carrying = item.res
+		world.remove_thing(item)
+		task = {"kind": "deliver", "forced": task.get("forced", false)}
+		if not order.is_empty():
+			order = {}
+	return
+
+
+func _do_firefight(fire: Node2D, delta: float) -> void:
+	if carrying != "water":
+		if carrying != "":
+			_drop()
+		if _go(world.well.work_spot(self), delta):
+			_anim = "fill"
+			_timer += delta
+			if _timer >= FILL_TIME:
+				_timer = 0.0
+				carrying = "water"
+		return
+	if _go(fire.work_spot(self), delta):
+		_anim = "throw"
+		_timer += delta
+		if _timer >= THROW_TIME:
+			_timer = 0.0
+			carrying = ""
+			fire.douse()
+
+
+func _do_fight(raider: Node2D, delta: float) -> void:
+	if carrying != "":
+		_drop()
+	if position.distance_to(raider.position) > REACH:
+		_go(raider.work_spot(self), delta, 1.1)
+		return
+	_anim = "fight"
+	if _cool <= 0.0:
+		_cool = HIT_EVERY
+		raider.damage(3.0 if job == "guard" else 1.5)
+
+
+func _do_idle(delta: float) -> void:
+	if carrying != "" and carrying != "water":
+		# Put away what one carries before resting.
+		var yard: Node2D = world.stockyard
+		if _go(yard.work_spot(self), delta):
+			yard.put(carrying)
+			carrying = ""
+		return
+	carrying = ""
+	if job == "guard":
+		_go(world.guard_post + Vector2(float(hash(name) % 24) - 12.0, float(hash(name) % 14)), delta)
+		return
+	if _wander_to == Vector2.INF or _go(_wander_to, delta, 0.5):
+		if _wander_to != Vector2.INF and randf() < 0.98:
+			return
+		var home: Vector2 = world.stockyard.position
+		_wander_to = Vector2(home.x + randf_range(-90, 90), randf_range(SbData.WALK_TOP + 8, SbData.WALK_BOTTOM))
+
+
+func _process_deliver(delta: float) -> void:
+	var yard: Node2D = world.stockyard
+	if _go(yard.work_spot(self), delta):
+		yard.put(carrying)
+		carrying = ""
+		_end_task()
+
+
+## Puts what one carries down on the ground, for someone to haul later.
+func _drop() -> void:
+	if carrying == "wood" or carrying == "stone":
+		world.spawn_item(carrying, position + Vector2(4, 1))
+	carrying = ""
+
+
+func _at(p: Vector2) -> bool:
+	return position.distance_to(p) < 1.0
+
+
+## Walks towards p across the ground band. Returns true once there.
+func _go(p: Vector2, delta: float, pace := 1.0) -> bool:
+	p.y = clampf(p.y, SbData.WALK_TOP, SbData.WALK_BOTTOM)
+	if _at(p):
+		return true
+	_walking = true
+	position = position.move_toward(p, SPEED * pace * delta)
+	if absf(p.x - position.x) > 0.5:
+		scale.x = 1.0 if p.x > position.x else -1.0
+	return _at(p)
+
+
+func _draw() -> void:
+	var tunic: Color = SbData.JOBS[job].tunic
+	if _hurt > 0.0:
+		tunic = SbData.WHITE
+	if downed:
+		draw_rect(Rect2(-6, -4, 10, 4), tunic)
+		draw_rect(Rect2(4, -4, 4, 4), SbData.SKIN1)
+		draw_rect(Rect2(-9, -3, 3, 2), SbData.INK)
+		_draw_marks(-8.0)
+		return
+	var t := Time.get_ticks_msec() / 1000.0
+	var step := int(t / 0.14 + position.x) % 2 if _walking else -1
+	draw_rect(Rect2(-2, -3, 2, 2 if step == 0 else 3), SbData.INK)
+	draw_rect(Rect2(1, -3, 2, 2 if step == 1 else 3), SbData.INK)
+	var bob := 0.0
+	if _anim != "" and _anim != "fill":
+		bob = -1.0 if int(t * 4.0) % 2 == 0 else 0.0
+	draw_rect(Rect2(-3, bob - 13, 6, 10), tunic)
+	draw_rect(Rect2(-2, bob - 17, 4, 4), SbData.SKIN1)
+	# Read the job from the silhouette: what they wear and hold.
+	match job:
+		"guard":
+			draw_rect(Rect2(-3, bob - 18, 6, 2), SbData.STONE3)
+			draw_rect(Rect2(4, bob - 22, 1, 19), SbData.WOOD1)
+			draw_rect(Rect2(4, bob - 24, 1, 2), SbData.STONE4)
+		"woodcutter":
+			if carrying == "":
+				_draw_tool(bob, SbData.STONE3)
+		"miner":
+			draw_rect(Rect2(-3, bob - 18, 6, 1), SbData.WOOD2)
+			if carrying == "":
+				_draw_tool(bob, SbData.STONE2)
+		"builder":
+			draw_rect(Rect2(-3, bob - 7, 6, 1), SbData.WOOD3)
+			if carrying == "":
+				_draw_tool(bob, SbData.WOOD3)
+		"hauler":
+			draw_rect(Rect2(-4, bob - 18, 8, 1), SbData.THATCH)
+			draw_rect(Rect2(-2, bob - 19, 4, 1), SbData.THATCH)
+	# What is carried, on the shoulder.
+	match carrying:
+		"wood":
+			draw_rect(Rect2(-7, bob - 16, 13, 3), SbData.WOOD2)
+			draw_rect(Rect2(-7, bob - 16, 13, 1), SbData.WOOD3)
+		"stone":
+			draw_rect(Rect2(-4, bob - 21, 8, 5), SbData.STONE3)
+			draw_rect(Rect2(-4, bob - 21, 8, 1), SbData.STONE4)
+		"water":
+			draw_rect(Rect2(3, bob - 9, 4, 4), SbData.WOOD1)
+			draw_rect(Rect2(3, bob - 9, 4, 1), SbData.SKY2)
+	if _anim == "throw":
+		draw_rect(Rect2(6, bob - 14, 3, 2), SbData.SKY3)
+		draw_rect(Rect2(9, bob - 12, 2, 2), SbData.SKY2)
+	_draw_marks(bob - 24.0)
+
+
+## A tool raised or swung while working.
+func _draw_tool(bob: float, head: Color) -> void:
+	var up := _anim != "" and int(Time.get_ticks_msec() / 250) % 2 == 0
+	if up:
+		draw_rect(Rect2(3, bob - 17, 1, 7), SbData.WOOD1)
+		draw_rect(Rect2(3, bob - 18, 3, 2), head)
+	else:
+		draw_rect(Rect2(3, bob - 10, 6, 1), SbData.WOOD1)
+		draw_rect(Rect2(8, bob - 11, 2, 3), head)
+
+
+## Selection brackets, the order mark, and a health bar when hurt.
+func _draw_marks(top: float) -> void:
+	if selected:
+		var c := SbData.GOLD
+		var l := -7.0
+		var r := 6.0
+		var b := 1.0
+		for corner in [Vector2(l, top + 4), Vector2(r, top + 4), Vector2(l, b), Vector2(r, b)]:
+			draw_rect(Rect2(corner, Vector2(2, 1)), c)
+		draw_rect(Rect2(l, top + 4, 1, 2), c)
+		draw_rect(Rect2(r + 1, top + 4, 1, 2), c)
+		draw_rect(Rect2(l, b - 1, 1, 2), c)
+		draw_rect(Rect2(r + 1, b - 1, 1, 2), c)
+	if not order.is_empty():
+		draw_rect(Rect2(-1, top - 4, 2, 4), SbData.GOLD)
+		draw_rect(Rect2(-1, top + 1, 2, 1), SbData.GOLD)
+	if hp < max_hp:
+		draw_rect(Rect2(-5, top + 2, 10, 1), SbData.RED0)
+		draw_rect(Rect2(-5, top + 2, 10.0 * hp / max_hp, 1), SbData.GRASS3)
