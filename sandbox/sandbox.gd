@@ -266,7 +266,7 @@ func find_work(p: Node2D, work: String) -> Dictionary:
 			# The hurt, not yet carried and with no raider standing over them.
 			list = peasants.filter(func(o): return o != p and o.is_open() and o.carried_by == null and nearest_raider(o.position, 50.0) == null)
 	for t in list:
-		if not t.is_open() or t.workers.size() >= t.capacity():
+		if t.forbidden or not t.is_open() or t.workers.size() >= t.capacity():
 			continue
 		if (work == "chop" or work == "mine" or work == "forage") and loose_near(t.position) >= LOOSE_LIMIT:
 			# Enough lies here already: haul it first.
@@ -290,6 +290,8 @@ func find_work(p: Node2D, work: String) -> Dictionary:
 		# Hauling also means bringing building material to the sites.
 		for site in sites:
 			if site.done():
+				continue
+			if site.forbidden:
 				continue
 			for res in ["stone", "wood", "planks"]:
 				if site.wanted(res) <= 0 or stockyard.stock[res] <= 0:
@@ -448,6 +450,16 @@ func order_at(at: Vector2) -> Dictionary:
 	return {"kind": "goto", "target": null, "pos": at}
 
 
+## Forbids or allows the thing under the mouse (X).
+func toggle_forbid(at: Vector2) -> void:
+	var o := order_at(at)
+	var t = o.get("target")
+	if t == null or t.kind == "raider" or t.kind == "fire" or t.kind == "peasant":
+		return
+	t.forbidden = not t.forbidden
+	announce("%s is %s." % [t.label().capitalize(), "forbidden" if t.forbidden else "allowed again"])
+
+
 func give_order(at: Vector2, add := false) -> void:
 	if selected.is_empty():
 		return
@@ -565,6 +577,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				toggle_draft_selected()
 			KEY_L:
 				set_alarm(not alarm)
+			KEY_X:
+				toggle_forbid(get_global_mouse_position())
 			KEY_ESCAPE:
 				placing = ""
 				select([])
@@ -669,6 +683,13 @@ func _draw_overlay() -> void:
 			overlay.draw_string(ThemeDB.fallback_font, qto + Vector2(2, -2), str(n), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, SbData.GOLD)
 			from = qto
 			n += 1
+	# Forbidden things: a red cross over them.
+	for list in [trees, rocks, bushes, items, sites]:
+		for t in list:
+			if t.forbidden:
+				var c: Vector2 = t.position + Vector2(0, -14)
+				overlay.draw_line(c + Vector2(-3, -3), c + Vector2(3, 3), SbData.RED1, 2.0)
+				overlay.draw_line(c + Vector2(-3, 3), c + Vector2(3, -3), SbData.RED1, 2.0)
 	if placing != "":
 		_draw_ghost(get_global_mouse_position())
 	else:

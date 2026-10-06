@@ -175,6 +175,10 @@ func job_name() -> String:
 ## Give an order from the player. It comes before anything else. With
 ## `add`, it is queued after the orders already given instead.
 func set_order(o: Dictionary, add := false) -> void:
+	var t = o.get("target")
+	if t != null and is_instance_valid(t) and t.forbidden:
+		# Ordering someone to a forbidden thing allows it again.
+		t.forbidden = false
 	if add and not order.is_empty():
 		queue.append(o)
 		return

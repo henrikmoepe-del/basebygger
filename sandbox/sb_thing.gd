@@ -11,6 +11,8 @@ var kind := ""
 var world: Node2D
 ## The peasants working on this right now.
 var workers: Array = []
+## Forbidden (X): nobody works on it by themselves; orders still can.
+var forbidden := false
 
 
 ## How many peasants may pick this by themselves at once.

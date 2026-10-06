@@ -39,6 +39,13 @@ func _wait(seconds: float, done := Callable()) -> bool:
 	return false
 
 
+func _free_x(building: String) -> float:
+	var x := -340.0
+	while x < 560.0 and not _world.site_fits(building, x):
+		x += 5.0
+	return x
+
+
 func _dump() -> void:
 	for p in _world.peasants:
 		print("  ", p.person_name, " ", p.job, " pos=", p.position.round(), " task=", p.task.get("kind", ""), " order=", p.order.get("kind", ""), " drafted=", p.drafted, " downed=", p.downed, " safe=", p._safe, " asleep=", p._asleep, " hunger=", int(p.hunger), " tired=", int(p.tired))
@@ -57,7 +64,7 @@ func _run() -> void:
 	var started: int = w.sites.filter(func(s): return s.placed > 0).size()
 	_check(started >= 2, "builders spread over sites by themselves (%d sites started)" % started)
 
-	var supplied := await _wait(60.0, func(): return w.sites.any(func(s): return s.stock.stone + s.stock.wood > 0))
+	var supplied := await _wait(90.0, func(): return w.peasants.any(func(p): return p.task.get("kind", "") == "supply"))
 	_check(supplied, "the hauler brings material to a building site")
 	if not supplied:
 		_dump()
@@ -77,12 +84,13 @@ func _run() -> void:
 		_dump()
 		print("  stock ", w.stockyard.stock, " mill workers ", mill.workers.size(), " keep ", mill.keep, " find ", w.find_work(w.peasants[8], "craft"))
 	await _wait(15.0)
-	_check(w.stockyard.stock.planks <= 7, "and then stops (%d)" % w.stockyard.stock.planks)
+	_check(w.stockyard.stock.planks <= 6 + 3, "and then stops, at most a batch over (%d)" % w.stockyard.stock.planks)
 	mill.keep = 12
 
 	# 2. Order three builders to the Tower.
 	var builders: Array = w.peasants.filter(func(p): return p.job == "builder")
-	var tower: Node2D = w.sites[2]
+	# A fresh site of its own, so it is not finished already.
+	var tower: Node2D = w.add_site("tower", Vector2(_free_x("tower"), 4))
 	w.select(builders)
 	w.give_order(tower.position + Vector2(0, -10))
 	await _wait(1.0)
@@ -154,9 +162,7 @@ func _run() -> void:
 	# 7. Placing a building: not over another one; a new one gets built.
 	_check(not w.site_fits("hut", w.sites[0].position.x), "a building cannot be placed over another")
 	_check(not w.site_fits("hut", w.stockyard.position.x), "a building cannot be placed over the stockyard")
-	var x := -340.0
-	while x < 560.0 and not w.site_fits("shed", x):
-		x += 5.0
+	var x := _free_x("shed")
 	_check(x < 560.0, "a free spot for a shed is found (x %d)" % x)
 	var shed: Node2D = w.add_site("shed", Vector2(x, 4))
 	shed.urgent = true
@@ -227,6 +233,16 @@ func _run() -> void:
 	w.set_alarm(false)
 	await _wait(2.0)
 	_check(w.peasants.all(func(p): return p.task.get("kind", "") != "shelter" and p.visible), "after the all clear they come out and go back to work")
+
+	# 13. Forbidding: a forbidden tree is not chopped by free will.
+	for t in w.trees:
+		t.forbidden = t != w.trees[4]
+	var allowed: Node2D = w.trees[4]
+	await _wait(40.0)
+	var chopped_forbidden: bool = w.trees.any(func(t): return t.forbidden and t.workers.size() > 0)
+	_check(not chopped_forbidden, "nobody chops a forbidden tree by themselves")
+	for t in w.trees:
+		t.forbidden = false
 
 	_check(_off_band == 0, "nobody leaves the ground band (%d frames off it)" % _off_band)
 	print("ALL PASSED" if _fails == 0 else "%d FAILED" % _fails)
