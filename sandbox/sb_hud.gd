@@ -16,6 +16,7 @@ var _raid_label: Label
 var _speed_button: Button
 var _clock: Label
 var _night_button: Button
+var _alarm_button: Button
 var _bar: HBoxContainer
 var _panel: PanelContainer
 var _rows: VBoxContainer
@@ -87,12 +88,15 @@ func _make_top() -> void:
 	_raid_label.add_theme_color_override("font_color", UiTheme.BAD)
 	_raid_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(_raid_label)
-	for spec in [["Build (B)", toggle_build], ["Work (W)", toggle_work]]:
+	for spec in [["Build", toggle_build], ["Work", toggle_work]]:
 		var b := _button(spec[0], spec[1])
 		row.add_child(b)
-	_night_button = _button("Night work: no", func(): world.set_night_work(not world.night_work))
+	_night_button = _button("Night: sleep", func(): world.set_night_work(not world.night_work))
 	_night_button.tooltip_text = "A policy. Off: everyone sleeps at night. On: they work through the night, 15% slower in the dark, and tire faster."
 	row.add_child(_night_button)
+	_alarm_button = _button("Bell (L)", func(): world.set_alarm(not world.alarm))
+	_alarm_button.tooltip_text = "The alarm bell: everyone who is not a guard, drafted or under orders shelters inside the castle gate until you ring it off."
+	row.add_child(_alarm_button)
 	# Test tools, small, on the right under the top bar.
 	var tools := HBoxContainer.new()
 	tools.add_theme_constant_override("separation", 2)
@@ -410,7 +414,9 @@ func _process(delta: float) -> void:
 	_refresh = 0.2
 	var h: float = world.hour()
 	_clock.text = "Day %d %02d:%02d%s" % [world.day(), int(h), int(fmod(h, 1.0) * 60.0), " night" if world.is_night() else ""]
-	_night_button.text = "Night work: " + ("yes" if world.night_work else "no")
+	_night_button.text = "Night: work" if world.night_work else "Night: sleep"
+	_alarm_button.add_theme_color_override("font_color", UiTheme.BAD if world.alarm else UiTheme.PARCHMENT)
+	_alarm_button.text = "Bell: ringing" if world.alarm else "Bell (L)"
 	_res_label.text = "Wood %d   Stone %d   Food %d" % [world.stockyard.stock.wood, world.stockyard.stock.stone, world.stockyard.stock.food]
 	_raid_label.text = "RAID! %d raiders" % world.raiders.size() if world.raid_on else ""
 	if world.fires.size() > 0:

@@ -34,6 +34,8 @@ const PLANS := {
 	"card": {"steps": [[2.0, "card"], [0.5, "shot"]]},
 	# The sawmill picked: its bill (keep N planks), the crafter at work.
 	"mill": {"steps": [[20.0, "mill"], [0.3, "shot"]]},
+	# The alarm bell during a raid: the guard at the post, the rest inside.
+	"bell": {"steps": [[2.0, "bell"], [8.0, "shot"]]},
 	"box": {"steps": [[2.0, "box"], [0.1, "goto"], [0.4, "shot"]]},
 }
 
@@ -153,6 +155,10 @@ func _do(what: String) -> void:
 			var mill: Node2D = w.sites.filter(func(s): return s.is_workshop())[0]
 			w.pick_site(mill)
 			w.camera.position = Vector2(250, -20)
+		"bell":
+			w.set_alarm(true)
+			w.start_raid(3)
+			w.camera.position = Vector2(-60, -20)
 		"work":
 			w.peasants[3].cycle_prio("haul")
 			w.hud.toggle_work()

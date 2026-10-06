@@ -281,6 +281,8 @@ func activity() -> String:
 			return prefix + ("holding here" if _at(task.pos) else "going there")
 		"flee":
 			return "Fleeing from raiders!"
+		"shelter":
+			return "Sheltering in the castle (alarm)"
 		"eat":
 			return "Eating"
 		"sleep":
@@ -342,6 +344,8 @@ func _process(delta: float) -> void:
 		task = order
 	elif drafted:
 		_drafted_think()
+	elif world.alarm and not downed:
+		_shelter()
 	else:
 		_check_flee()
 		_check_needs()
@@ -349,6 +353,8 @@ func _process(delta: float) -> void:
 			_choose()
 	_do_task(delta)
 	position.y = clampf(position.y, SbData.WALK_TOP, SbData.WALK_BOTTOM)
+	# Sheltering inside the castle: out of sight (and out of reach).
+	visible = not (task.get("kind", "") == "shelter" and _at(task.pos))
 	queue_redraw()
 
 
@@ -366,6 +372,29 @@ func _drafted_think() -> void:
 		_claim_task()
 	else:
 		task = {"kind": "goto", "pos": _hold, "forced": false}
+
+
+## The alarm bell: guards fight or go to their post; everyone else goes
+## inside the gate and waits there (still putting out fires inside).
+func _shelter() -> void:
+	if task.get("kind", "") == "fight" and is_instance_valid(task.get("target")) and task.target.is_open():
+		return
+	if prio.get("fight", 0) > 0:
+		var r: Node2D = world.nearest_raider(position, 120.0)
+		if r != null:
+			_end_task()
+			task = {"kind": "fight", "target": r, "forced": false}
+			_claim_task()
+			return
+		if task.get("kind", "") != "goto":
+			_end_task()
+			task = {"kind": "goto", "pos": world.guard_post + Vector2(float(hash(name) % 20) - 10.0, 0), "forced": false}
+		return
+	if task.get("kind", "") != "shelter":
+		_end_task()
+		if carrying == "person":
+			_drop()
+		task = {"kind": "shelter", "pos": world.shelter}
 
 
 ## Hungry or tired: stop working to eat or sleep (but not while fleeing).
@@ -502,6 +531,8 @@ func _do_task(delta: float) -> void:
 			_do_firefight(t, delta)
 		"fight":
 			_do_fight(t, delta)
+		"shelter":
+			_go(task.pos, delta, 1.2)
 		"goto":
 			if _go(task.pos, delta) and forced and (drafted or not queue.is_empty()):
 				# Holding a spot ends when there is more to do after it. A

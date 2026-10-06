@@ -106,6 +106,8 @@ func _draw_castle() -> void:
 		draw_colored_polygon(PackedVector2Array([Vector2(tx - 3.0, top - 30.0), Vector2(tx + 14.0, top - 52.0), Vector2(tx + 31.0, top - 30.0)]), SbData.SLATE1)
 		draw_line(Vector2(tx + 14.0, top - 52.0), Vector2(tx + 14.0, top - 60.0), SbData.WOOD0, 1.0)
 		draw_colored_polygon(PackedVector2Array([Vector2(tx + 14.0, top - 60.0), Vector2(tx + 20.0, top - 58.0), Vector2(tx + 14.0, top - 56.0)]), SbData.RED1)
-	# The gate, shut, at the east end where the yard opens to the village.
-	draw_rect(Rect2(right - 52.0, -26.0, 22, 26), SbData.WOOD0)
+	# The gate at the east end, where peasants shelter when the bell rings.
+	draw_rect(Rect2(right - 52.0, -26.0, 22, 26), SbData.INK)
+	draw_rect(Rect2(right - 52.0, -26.0, 4, 26), SbData.WOOD0)
+	draw_rect(Rect2(right - 34.0, -26.0, 4, 26), SbData.WOOD0)
 	draw_rect(Rect2(right - 52.0, -26.0, 22, 2), SbData.STONE3)

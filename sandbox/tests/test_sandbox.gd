@@ -218,6 +218,16 @@ func _run() -> void:
 	_check(working == free_ones.size(), "with Night work on they get up and work (%d of %d)" % [working, free_ones.size()])
 	w.set_night_work(false)
 
+	# 12. The alarm bell: all but the guard go inside the gate.
+	w.set_alarm(true)
+	await _wait(30.0)
+	var inside: Array = w.peasants.filter(func(p): return not p.downed and p.job != "guard" and p.order.is_empty() and not p.drafted)
+	var sheltered: int = inside.filter(func(p): return p.task.get("kind", "") == "shelter" and not p.visible).size()
+	_check(sheltered == inside.size(), "with the bell rung everyone shelters inside the gate (%d of %d)" % [sheltered, inside.size()])
+	w.set_alarm(false)
+	await _wait(2.0)
+	_check(w.peasants.all(func(p): return p.task.get("kind", "") != "shelter" and p.visible), "after the all clear they come out and go back to work")
+
 	_check(_off_band == 0, "nobody leaves the ground band (%d frames off it)" % _off_band)
 	print("ALL PASSED" if _fails == 0 else "%d FAILED" % _fails)
 	quit(1 if _fails > 0 else 0)

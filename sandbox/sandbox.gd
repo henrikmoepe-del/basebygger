@@ -54,6 +54,10 @@ var raid_on := false
 ## Seconds since the first morning, and the Night work policy.
 var time := 0.0
 var night_work := false
+## The alarm bell: while rung, everyone left to themselves shelters inside
+## the castle (guards go to their post).
+var alarm := false
+var shelter := Vector2(89, 6)
 var _tint: CanvasModulate
 var raids := 0
 
@@ -346,7 +350,7 @@ func nearest_peasant(at: Vector2, within: float) -> Node2D:
 	var best: Node2D = null
 	var d := within
 	for p in peasants:
-		if p.downed:
+		if p.downed or not p.visible:
 			continue
 		var pd := at.distance_to(p.position)
 		if pd < d:
@@ -559,6 +563,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				release_selected()
 			KEY_G:
 				toggle_draft_selected()
+			KEY_L:
+				set_alarm(not alarm)
 			KEY_ESCAPE:
 				placing = ""
 				select([])
@@ -587,6 +593,13 @@ func day() -> int:
 func is_night() -> bool:
 	var h := hour()
 	return h >= SbData.NIGHT_FROM or h < SbData.NIGHT_TO
+
+
+func set_alarm(on: bool) -> void:
+	alarm = on
+	announce("The alarm bell rings: everyone into the castle!" if on else "All clear: back to work.")
+	for p in peasants:
+		p.rethink()
 
 
 func set_night_work(on: bool) -> void:
