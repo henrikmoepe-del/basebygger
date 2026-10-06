@@ -1,8 +1,8 @@
 ## About the game
 - Name: Game_1
-- Genre: Incremental Builder Wave Defence
-- Core idea in one sentence: Incremental 2DCastle Builder that turns into 3D for wave defence
-- Main mechanic:Incremental Builder/wave defence
+- Genre: Colony sim / castle builder with wave defence
+- Core idea in one sentence: A 2D colony sim where your peasants build and live in a castle, which turns into 3D for wave defence
+- Main mechanic: Colony sim (peasants with jobs, needs and lives) / wave defence
 - Target platform: PC (Windows)
 
 ## Tech
