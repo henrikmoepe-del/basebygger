@@ -51,6 +51,10 @@ var picked_site: Node2D = null
 var placing := ""
 var messages: Array = []
 var raid_on := false
+## Seconds since the first morning, and the Night work policy.
+var time := 0.0
+var night_work := false
+var _tint: CanvasModulate
 var raids := 0
 
 var camera: Camera2D
@@ -69,6 +73,8 @@ func _ready() -> void:
 	back.set_script(Backdrop)
 	back.z_index = -10
 	add_child(back)
+	_tint = CanvasModulate.new()
+	add_child(_tint)
 	things = Node2D.new()
 	things.y_sort_enabled = true
 	add_child(things)
@@ -521,7 +527,42 @@ func _unhandled_input(event: InputEvent) -> void:
 				set_job_selected(SbData.JOB_ORDER[(event as InputEventKey).keycode - KEY_1])
 
 
+## The hour of the day, 0-24 (the first day starts at 08:00).
+func hour() -> float:
+	return fmod(time / SbData.DAY_LENGTH * 24.0 + 8.0, 24.0)
+
+
+func day() -> int:
+	return int((time / SbData.DAY_LENGTH * 24.0 + 8.0) / 24.0) + 1
+
+
+func is_night() -> bool:
+	var h := hour()
+	return h >= SbData.NIGHT_FROM or h < SbData.NIGHT_TO
+
+
+func set_night_work(on: bool) -> void:
+	night_work = on
+	announce("Night work: " + ("everyone works through the night." if on else "everyone sleeps at night."))
+	for p in peasants:
+		p.rethink()
+
+
+## How dark it is: 0 by day, 1 deep in the night, with an hour of dusk and dawn.
+func darkness() -> float:
+	var h := hour()
+	if h >= SbData.NIGHT_FROM or h < SbData.NIGHT_TO:
+		return 1.0
+	if h >= SbData.NIGHT_FROM - 1.5:
+		return (h - (SbData.NIGHT_FROM - 1.5)) / 1.5
+	if h < SbData.NIGHT_TO + 1.5:
+		return 1.0 - (h - SbData.NIGHT_TO) / 1.5
+	return 0.0
+
+
 func _process(delta: float) -> void:
+	time += delta
+	_tint.color = Color.WHITE.lerp(SbData.NIGHT_TINT, darkness())
 	var pan := Input.get_axis("ui_left", "ui_right")
 	if Input.is_key_pressed(KEY_A):
 		pan -= 1.0

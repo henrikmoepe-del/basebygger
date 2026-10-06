@@ -78,6 +78,17 @@ const SLEEP_TIME := 22.0
 const SLEEP_TIME_BED := 12.0
 const STARVED_PACE := 0.6
 
+## Day and night: a day lasts DAY_LENGTH seconds and starts at 08:00.
+## Night is from NIGHT_FROM to NIGHT_TO (hours). With the Night work policy
+## off, peasants left to themselves sleep at night; with it on they work on,
+## at NIGHT_PACE and tiring NIGHT_TIRING times as fast.
+const DAY_LENGTH := 240.0
+const NIGHT_FROM := 21.0
+const NIGHT_TO := 6.0
+const NIGHT_PACE := 0.85
+const NIGHT_TIRING := 1.5
+const NIGHT_TINT := Color(0.42, 0.46, 0.72)
+
 ## Beds in a finished Hut; the hurt get better faster in one.
 const HUT_BEDS := 2
 const HEAL := 0.15

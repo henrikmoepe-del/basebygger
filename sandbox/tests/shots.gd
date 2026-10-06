@@ -28,6 +28,8 @@ const PLANS := {
 	"needs": {"steps": [[1.0, "needs"], [12.0, "shot"]]},
 	# The hint under the mouse with builders selected, over a tree.
 	"hint": {"steps": [[1.0, "hint"], [0.5, "shot"]]},
+	# Night: the world darkens and the peasants sleep.
+	"night": {"steps": [[1.0, "night"], [10.0, "shot"]]},
 	"box": {"steps": [[2.0, "box"], [0.1, "goto"], [0.4, "shot"]]},
 }
 
@@ -132,6 +134,12 @@ func _do(what: String) -> void:
 			var t: Node2D = w.trees[3]
 			var screen: Vector2 = (t.position + Vector2(0, -20) - w.camera.position) * w.camera.zoom + Vector2(320, 180)
 			Input.warp_mouse(screen * 2.0)
+		"night":
+			var hut: Node2D = w.sites[0]
+			while not hut.done():
+				hut.add_block(hut.next_material())
+			w.time = (21.5 - 8.0) / 24.0 * 240.0
+			w.camera.position = Vector2(-20, -20)
 		"work":
 			w.peasants[3].cycle_prio("haul")
 			w.hud.toggle_work()

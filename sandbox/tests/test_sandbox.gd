@@ -39,11 +39,18 @@ func _wait(seconds: float, done := Callable()) -> bool:
 	return false
 
 
+func _dump() -> void:
+	for p in _world.peasants:
+		print("  ", p.person_name, " ", p.job, " pos=", p.position.round(), " task=", p.task.get("kind", ""), " order=", p.order.get("kind", ""), " drafted=", p.drafted, " downed=", p.downed, " safe=", p._safe, " asleep=", p._asleep, " hunger=", int(p.hunger), " tired=", int(p.tired))
+
+
 func _run() -> void:
 	Engine.time_scale = SPEED
 	var w := _world
 	w.stockyard.put("stone", 60)
 	w.stockyard.put("wood", 30)
+	# Nights are tested on their own (11); until then nobody goes to bed.
+	w.night_work = true
 
 	# 1. Free will: the builders spread over the sites.
 	await _wait(90.0)
@@ -124,7 +131,7 @@ func _run() -> void:
 	_check(fighting_auto == 0, "peasants who are not guards do not fight by themselves")
 	var over := await _wait(200.0, func(): return not w.raid_on)
 	_check(over, "the raid ends")
-	w.select(drafted.filter(func(p): return not p.downed))
+	w.select(drafted.filter(func(p): return p.drafted))
 	w.toggle_draft_selected()
 	await _wait(3.0)
 	_check(drafted.all(func(p): return not p.drafted), "undrafting gives them back to work")
@@ -158,6 +165,9 @@ func _run() -> void:
 	_check(hurt.downed, "a peasant can go down")
 	var safe := await _wait(60.0, func(): return hurt._safe)
 	_check(safe, "someone carries the hurt peasant to safety by themselves")
+	if not safe:
+		_dump()
+		print("  hurt ", hurt.person_name, " carried=", hurt.carried_by, " bed=", hurt.bed, " hut sleepers=", hut.sleepers)
 	_check(hut.sleepers.size() > 0, "the hurt lie in the Hut's beds (%d of 2)" % hut.sleepers.size())
 	var up := await _wait(120.0, func(): return not hurt.downed and hut.sleepers.is_empty())
 	_check(up, "they get better and get up again, and the beds are free")
@@ -176,6 +186,19 @@ func _run() -> void:
 	_check(rested, "and wakes up rested")
 	var foraged := await _wait(60.0, func(): return w.bushes.any(func(b): return b.berries < b._full))
 	_check(foraged, "the forager picks berries")
+
+	# 11. Night: with Night work off, peasants left to themselves sleep.
+	w.set_night_work(false)
+	w.time = (21.5 - 8.0) / 24.0 * SbData.DAY_LENGTH
+	await _wait(20.0)
+	var free_ones: Array = w.peasants.filter(func(p): return not p.downed and not p.drafted and p.order.is_empty())
+	var sleeping: int = free_ones.filter(func(p): return p.task.get("kind", "") == "sleep").size()
+	_check(sleeping == free_ones.size(), "at night everyone left to themselves goes to sleep (%d of %d)" % [sleeping, free_ones.size()])
+	w.set_night_work(true)
+	await _wait(25.0)
+	var working: int = free_ones.filter(func(p): return p.task.get("kind", "") != "sleep" or p.tired >= SbData.TIRED_NEED).size()
+	_check(working == free_ones.size(), "with Night work on they get up and work (%d of %d)" % [working, free_ones.size()])
+	w.set_night_work(false)
 
 	_check(_off_band == 0, "nobody leaves the ground band (%d frames off it)" % _off_band)
 	print("ALL PASSED" if _fails == 0 else "%d FAILED" % _fails)

@@ -14,6 +14,8 @@ var _root: Control
 var _res_label: Label
 var _raid_label: Label
 var _speed_button: Button
+var _clock: Label
+var _night_button: Button
 var _bar: HBoxContainer
 var _panel: PanelContainer
 var _rows: VBoxContainer
@@ -73,15 +75,31 @@ func _make_top() -> void:
 	row.add_child(title)
 	_res_label = Label.new()
 	row.add_child(_res_label)
+	_clock = Label.new()
+	_clock.add_theme_color_override("font_color", UiTheme.PARCHMENT_DIM)
+	row.add_child(_clock)
 	_raid_label = Label.new()
 	_raid_label.add_theme_color_override("font_color", UiTheme.BAD)
 	_raid_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(_raid_label)
-	for spec in [["Build (B)", toggle_build], ["Work (W)", toggle_work], ["Raid (T)", func(): world.start_raid()], ["Fire (F)", func(): world.start_fire()]]:
+	for spec in [["Build (B)", toggle_build], ["Work (W)", toggle_work]]:
 		var b := _button(spec[0], spec[1])
 		row.add_child(b)
+	_night_button = _button("Night work: no", func(): world.set_night_work(not world.night_work))
+	_night_button.tooltip_text = "A policy. Off: everyone sleeps at night. On: they work through the night, 15% slower in the dark, and tire faster."
+	row.add_child(_night_button)
+	# Test tools, small, on the right under the top bar.
+	var tools := HBoxContainer.new()
+	tools.add_theme_constant_override("separation", 2)
+	tools.position = Vector2(470, 22)
+	_root.add_child(tools)
+	for spec in [["Raid (T)", func(): world.start_raid()], ["Fire (F)", func(): world.start_fire()]]:
+		var b := _button(spec[0], spec[1])
+		_compact(b)
+		tools.add_child(b)
 	_speed_button = _button("Speed 1x", _cycle_speed)
-	row.add_child(_speed_button)
+	_compact(_speed_button)
+	tools.add_child(_speed_button)
 
 
 func _make_bar() -> void:
@@ -333,6 +351,9 @@ func _process(delta: float) -> void:
 	if _refresh > 0.0:
 		return
 	_refresh = 0.2
+	var h: float = world.hour()
+	_clock.text = "Day %d %02d:%02d%s" % [world.day(), int(h), int(fmod(h, 1.0) * 60.0), " night" if world.is_night() else ""]
+	_night_button.text = "Night work: " + ("yes" if world.night_work else "no")
 	_res_label.text = "Wood %d   Stone %d   Food %d" % [world.stockyard.stock.wood, world.stockyard.stock.stone, world.stockyard.stock.food]
 	_raid_label.text = "RAID! %d raiders" % world.raiders.size() if world.raid_on else ""
 	if world.fires.size() > 0:

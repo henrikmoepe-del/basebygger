@@ -85,6 +85,8 @@ func setup(name_: String, job_: String) -> void:
 ## and slower when starving or worn out.
 func skill_mult(work: String) -> float:
 	var pace := SbData.STARVED_PACE if hunger >= 100.0 or tired >= 100.0 else 1.0
+	if world.is_night():
+		pace *= SbData.NIGHT_PACE
 	return (0.6 + 0.08 * float(skill.get(work, 5))) * pace
 
 
@@ -293,7 +295,8 @@ func _process(delta: float) -> void:
 	_anim = ""
 	hunger = minf(hunger + 100.0 / SbData.HUNGER_TIME * delta, 100.0)
 	if not _asleep:
-		tired = minf(tired + 100.0 / SbData.TIRED_TIME * delta, 100.0)
+		var tiring := SbData.NIGHT_TIRING if world.is_night() else 1.0
+		tired = minf(tired + 100.0 / SbData.TIRED_TIME * tiring * delta, 100.0)
 	if downed:
 		if carried_by != null:
 			if not is_instance_valid(carried_by) or carried_by.downed:
@@ -356,9 +359,14 @@ func _check_needs() -> void:
 	if hunger >= SbData.HUNGER_NEED and world.stockyard.stock.food > 0:
 		_end_task()
 		task = {"kind": "eat"}
-	elif tired >= SbData.TIRED_NEED:
+	elif tired >= SbData.TIRED_NEED or (_bedtime() and k != "firefight" and k != "rescue" and k != "fight"):
 		_end_task()
 		task = {"kind": "sleep"}
+
+
+## Night, and the Night work policy is off: time to sleep.
+func _bedtime() -> bool:
+	return world.is_night() and not world.night_work
 
 
 func _check_flee() -> void:
@@ -381,29 +389,26 @@ func _task_valid() -> bool:
 	if k == "eat":
 		return hunger > 5.0 and (world.stockyard.stock.food > 0 or _timer > 0.0)
 	if k == "sleep":
-		return tired > 0.0
+		return tired > 0.0 or _bedtime()
 	var t = task.get("target")
 	if t != null and (not is_instance_valid(t) or not t.is_open()):
 		return false
 	return true
 
 
-## Free will: the most important work there is, nearest first.
+## Free will: the most important work there is. Lower priority numbers come
+## first; with the same number, the work further left in the Work grid
+## (SbData.WORK: fires, fight, rescue, build...) comes first, as in RimWorld;
+## within one kind of work, the best target (mostly the nearest).
 func _choose() -> void:
 	_end_task()
 	for p in [1, 2, 3]:
-		var best := {}
-		var best_score := INF
 		for w in SbData.WORK:
 			if prio[w] != p:
 				continue
-			var cand: Dictionary = world.find_work(self, w)
-			if cand.is_empty():
+			var best: Dictionary = world.find_work(self, w)
+			if best.is_empty():
 				continue
-			if cand.score < best_score:
-				best_score = cand.score
-				best = cand
-		if not best.is_empty():
 			task = {"kind": best.kind, "target": best.target, "forced": false, "res": best.get("res", "")}
 			_claim_task()
 			return
@@ -550,13 +555,17 @@ func _do_rescue(patient: Node2D, delta: float) -> void:
 		return
 	var hut: Node2D = world.free_bed()
 	var spot: Vector2 = hut.bed_spot(hut.sleepers.size()) if hut != null else world.well.position + Vector2(-16, 6)
+	if hut != null and patient.bed == null:
+		# Hold the bed while carrying them there.
+		hut.sleepers.append(patient)
+		patient.bed = hut
+	if patient.bed != null:
+		spot = patient.bed.bed_spot(patient.bed.sleepers.find(patient))
 	if _go(spot + Vector2(-6, 0), delta):
 		patient.carried_by = null
 		patient.position = spot
 		patient._safe = true
-		if hut != null:
-			patient.bed = hut
-			hut.sleepers.append(patient)
+		if patient.bed != null:
 			world.announce("%s brought %s to a bed." % [person_name, patient.person_name])
 		_patient = null
 		carrying = ""
@@ -695,18 +704,20 @@ func _do_sleep(delta: float) -> void:
 	if not _asleep:
 		if carrying != "":
 			_drop()
-		var hut: Node2D = world.free_bed()
-		if hut != null:
-			if _go(hut.bed_spot(hut.sleepers.size()), delta):
-				hut.sleepers.append(self)
-				_sleep_bed = hut
+		if _sleep_bed == null:
+			# Take a free bed in a Hut (it is ours from now on), or sleep here.
+			var hut: Node2D = world.free_bed()
+			if hut == null:
 				_asleep = true
-		else:
+				return
+			hut.sleepers.append(self)
+			_sleep_bed = hut
+		if _go(_sleep_bed.bed_spot(_sleep_bed.sleepers.find(self)), delta):
 			_asleep = true
 		return
 	var time := SbData.SLEEP_TIME_BED if _sleep_bed != null else SbData.SLEEP_TIME
 	tired = maxf(tired - 100.0 / time * delta, 0.0)
-	if tired <= 0.0:
+	if tired <= 0.0 and not _bedtime():
 		_end_task()
 
 
@@ -715,8 +726,12 @@ func _drop() -> void:
 	if carrying == "person" and _patient != null and is_instance_valid(_patient):
 		_patient.carried_by = null
 		_patient.position = position + Vector2(4, 1)
+		# The bed held for them is free again.
+		if _patient.bed != null and is_instance_valid(_patient.bed):
+			_patient.bed.sleepers.erase(_patient)
+		_patient.bed = null
 		_patient = null
-	if carrying == "wood" or carrying == "stone":
+	if carrying == "wood" or carrying == "stone" or carrying == "food":
 		world.spawn_item(carrying, position + Vector2(4, 1))
 	carrying = ""
 

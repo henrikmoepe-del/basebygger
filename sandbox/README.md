@@ -23,7 +23,9 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
      Rescue 1, Fires 2. You can change
      single priorities per person in the panel (click a priority to cycle it).
    - **Free will:** left alone, a peasant does the most important work there is for
-     them, nearest first (builders also prefer a site with fewer builders on it).
+     them: the lowest number first; with the same number, the work further left in
+     the Work grid first (Fires, Fight, Rescue, Build, ...), as in RimWorld; then the
+     nearest target (builders also prefer a site with fewer builders on it).
      After each piece of work (a block set, a log chopped) they look around again.
    - **Emergencies come by themselves:** a fire gets up to 3 peasants per fire
      running buckets from the well; guards fight raiders; anyone with Fight "-"
@@ -41,6 +43,10 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
      stockyard, or to sleep (in a free Hut bed, faster, else on the ground).
      Orders and drafting come first, as in RimWorld, but at 100 they work slower.
      Food comes from berry bushes, picked by the **Forager**.
+   - **Day and night:** a day lasts 4 minutes (the clock is in the top bar). At
+     night, peasants left to themselves go to bed. The **Night work** policy (top
+     bar) keeps them working through the night instead: 15% slower in the dark,
+     and they tire 1.5 times as fast. Beds are reserved by whoever heads for them.
    - **Orders:** select peasants and right-click something. The order comes before
      everything else (even fleeing) until it is done, then they go back to free will.
      **R** (or Release) ends the order early.
