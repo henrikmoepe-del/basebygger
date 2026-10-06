@@ -340,9 +340,12 @@ func _run() -> void:
 	_check(w.peasants.size() == before_n + 1 and not guest.guest, "taken in, they join the village")
 	_check(guest.task.get("kind", "") != "goto", "and get to work by themselves")
 	w.arrive_traveller()
-	var other_id: int = w.traveller.get_instance_id()
+	var other: Node2D = w.traveller
+	var other_id: int = other.get_instance_id()
 	w.answer_traveller(false)
 	var gone := await _wait(60.0, func(): return not is_instance_id_valid(other_id))
+	if not gone:
+		print("  leaving traveller at ", other.position.round(), " task ", other.task, " leaving ", other.leaving, " guest ", other.guest, " question ", w.question.get("text", ""))
 	_check(gone and w.peasants.size() == before_n + 1, "sent away, they leave")
 
 	# 20. Children: one is born, does no work, works with Child labour, grows up.
