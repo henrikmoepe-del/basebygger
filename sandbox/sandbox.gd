@@ -9,10 +9,9 @@ extends Node2D
 ##   priorities; peasants choose work by themselves; the player can select
 ##   them and give orders that come first.
 ##
-## Controls: left-click a peasant to select (Shift adds), drag a box to
-## select several; right-click something to order the selected peasants to
-## it; R releases their orders; Esc deselects. A/D or middle-drag pans, the
-## wheel zooms. T starts a raid, F a fire, 1-5 set the job of the selected.
+## The world also runs the colony around them: needs, mood, day and night,
+## and the events (raids, fires, storms, travellers, the hooded man...).
+## Controls and how everything works: sandbox/README.md.
 
 const SbData := preload("res://sandbox/sb_data.gd")
 const Peasant := preload("res://sandbox/sb_peasant.gd")
