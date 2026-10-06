@@ -62,11 +62,12 @@ func _ready() -> void:
 	world.traveller_changed.connect(rebuild_bar)
 	world.question_changed.connect(_on_question)
 	var help := Label.new()
-	help.text = "Left-click: select (Shift adds)  Drag: box  Right-click: order  R: release  1-8: job  Space: pause  G: draft  X: forbid  L: bell"
+	help.text = "Click: select  Drag: box  Right-click: order (Shift: queue)  R: release  Space: pause  G: draft  X: forbid  L: bell  J: log"
 	help.add_theme_font_size_override("font_size", 8)
-	help.add_theme_color_override("font_color", UiTheme.PARCHMENT_DIM)
-	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	help.position = Vector2(4, 348)
+	help.add_theme_color_override("font_color", UiTheme.PARCHMENT)
+	help.add_theme_color_override("font_outline_color", UiTheme.INK)
+	help.add_theme_constant_override("outline_size", 3)
+	help.position = Vector2(4, 347)
 	_root.add_child(help)
 	world.selection_changed.connect(_rebuild_panel)
 	world.announced.connect(func(_t):
