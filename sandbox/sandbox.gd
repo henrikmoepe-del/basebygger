@@ -870,6 +870,8 @@ func set_child_labour(on: bool) -> void:
 
 ## At dawn, maybe a child is born to a couple (while the Huts have room).
 func _maybe_birth() -> void:
+	if calm:
+		return
 	var huts := sites.filter(func(s): return s.has_beds()).size()
 	var kids := peasants.filter(func(p): return p.child).size()
 	if kids >= huts or randf() >= SbData.BIRTH_CHANCE:

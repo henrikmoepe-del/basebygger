@@ -192,6 +192,8 @@ dotted line to what they are working on (gold for an order, white for free will)
   the logic test (a parse error would otherwise make the test hang).
 - `tests/test_sandbox.gd`: logic test (headless):
   `godot --headless --fixed-fps 60 --path . -s sandbox/tests/test_sandbox.gd`
+- `tests/test_input.gd`: plays with real mouse and key events in a window
+  (click, Shift-click, double-click, box, right-click, keys); under xvfb in the cloud.
 - `tests/soak.gd`: runs the map for days with no player (raids and fires now and
   then) and reports what everyone does and anything that looks stuck:
   `godot --headless --fixed-fps 60 --path . -s sandbox/tests/soak.gd -- --days=3`

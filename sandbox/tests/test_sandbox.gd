@@ -242,7 +242,8 @@ func _run() -> void:
 	_check(sleeping == free_ones.size(), "at night everyone left to themselves goes to sleep (%d of %d)" % [sleeping, free_ones.size()])
 	w.set_night_work(true)
 	await _wait(25.0)
-	var working: int = free_ones.filter(func(p): return p.task.get("kind", "") != "sleep" or p.tired >= SbData.TIRED_NEED).size()
+	# In bed only because of the night = asleep with no tiredness left.
+	var working: int = free_ones.filter(func(p): return p.task.get("kind", "") != "sleep" or p.tired > 0.0).size()
 	_check(working == free_ones.size(), "with Night work on they get up and work (%d of %d)" % [working, free_ones.size()])
 	# Night work stays on for the tests after this one (as it was before).
 
