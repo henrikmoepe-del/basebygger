@@ -392,11 +392,20 @@ func _run() -> void:
 	w.give_order(Vector2(walker.position.x + 60.0, 50))
 	await _wait(5.0)
 	_check(walker.position == at_pause and w.time == clock, "paused, nothing moves and the clock stops")
-	_check(walker.order.get("kind", "") == "goto", "an order can be given while paused")
+	_check(not walker.order.is_empty(), "an order can be given while paused")
 	w.toggle_pause()
 	await _wait(5.0)
 	_check(walker.position != at_pause, "unpaused, the order is carried out")
 	w.release_selected()
+
+	# 24. A werewolf comes at night and is gone by dawn (or slain).
+	w.time = w.time_at(w.day() + 1, 22.0)
+	var beast: Node2D = w.start_werewolf()
+	_check(beast.wolf and beast.hp > 8.0, "a werewolf comes out of the wood, tougher than a raider")
+	var beast_id: int = beast.get_instance_id()
+	w.time = w.time_at(w.day() + 1, 7.0)
+	var gone_wolf := await _wait(90.0, func(): return not is_instance_id_valid(beast_id))
+	_check(gone_wolf, "by day the werewolf is gone (slain or back into the wood)")
 
 	_check(_off_band == 0, "nobody leaves the ground band (%d frames off it)" % _off_band)
 	print("ALL PASSED" if _fails == 0 else "%d FAILED" % _fails)

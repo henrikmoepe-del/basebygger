@@ -590,6 +590,19 @@ func start_raid(count := 4) -> void:
 		p.rethink()
 
 
+## A werewolf comes out of the wood (at night).
+func start_werewolf() -> Node2D:
+	var wolf: Node2D = _add(Raider, Vector2(SbData.EAST_EDGE - 5, 30))
+	wolf.setup(true)
+	raiders.append(wolf)
+	raid_on = true
+	sound("lost")
+	announce("A howl from the wood: a werewolf is coming!")
+	for p in peasants:
+		p.rethink()
+	return wolf
+
+
 func start_fire(host: Node2D = null, message := "") -> void:
 	if host == null:
 		var hosts: Array = [stockyard]
@@ -932,6 +945,8 @@ func _process(delta: float) -> void:
 	var h := hour()
 	if _last_hour < SbData.NIGHT_TO and h >= SbData.NIGHT_TO:
 		_maybe_birth()
+	if auto_raids and _last_hour < SbData.NIGHT_FROM + 1.0 and h >= SbData.NIGHT_FROM + 1.0 and day() >= SbData.WOLF_FIRST_DAY and randf() < SbData.WOLF_CHANCE:
+		start_werewolf()
 	_last_hour = h
 	for p in peasants:
 		if p.child and time - p.born >= SbData.CHILD_DAYS * SbData.DAY_LENGTH:

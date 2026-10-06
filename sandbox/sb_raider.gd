@@ -13,7 +13,10 @@ const TORCH_CHANCE := 0.4
 const TORCH_REACH := 20.0
 
 var hp := 8.0
+var max_hp := 8.0
 var loot := ""
+## A werewolf instead of a raider: no loot, no torch, gone at dawn.
+var wolf := false
 var _cool := 0.0
 var _hurt := 0.0
 var _walking := false
@@ -24,8 +27,17 @@ var _tried: Array = []
 var _light: PointLight2D
 
 
-func setup() -> void:
+func setup(as_wolf := false) -> void:
 	kind = "raider"
+	wolf = as_wolf
+	if wolf:
+		hp = SbData.WOLF_HP
+		max_hp = hp
+		_torch = false
+		# Deep shadow and red (art direction): a faint red glow around it.
+		_light = preload("res://sandbox/sb_light.gd").add(self, Vector2(2, -14), 46.0, 0.9)
+		_light.color = SbData.RED1
+		return
 	_light = preload("res://sandbox/sb_light.gd").add(self, Vector2(-5, -16), 40.0, 0.8)
 
 
@@ -42,16 +54,16 @@ func hit(p: Vector2) -> bool:
 
 
 func label() -> String:
-	return "a raider"
+	return "the werewolf" if wolf else "a raider"
 
 
 func damage(n: float) -> void:
 	hp -= n
 	_hurt = 0.2
 	if hp <= 0.0:
-		if loot != "":
+		if loot != "" and loot != "none":
 			world.spawn_item(loot, position + Vector2(0, 2))
-		world.announce("A raider is beaten.")
+		world.announce("The werewolf is slain!" if wolf else "A raider is beaten.")
 		world.remove_thing(self)
 
 
@@ -66,13 +78,23 @@ func _process(delta: float) -> void:
 	_cool = maxf(_cool - delta, 0.0)
 	_hurt = maxf(_hurt - delta, 0.0)
 	_walking = false
-	var foe: Node2D = world.nearest_peasant(position, NOTICE if loot == "" else 14.0)
+	if wolf and not world.is_night():
+		# Dawn: back into the wood.
+		if _step(Vector2(SbData.EAST_EDGE + 30.0, position.y), delta, 1.0):
+			world.announce("The werewolf slinks back into the wood.")
+			world.remove_thing(self)
+		queue_redraw()
+		return
+	var foe: Node2D = world.nearest_peasant(position, (NOTICE * 2.0 if wolf else NOTICE) if loot == "" else 14.0)
 	if foe != null:
 		if position.distance_to(foe.position) > REACH:
 			_step(foe.position, delta)
 		elif _cool <= 0.0:
 			_cool = HIT_EVERY
-			foe.damage(DAMAGE)
+			foe.damage(SbData.WOLF_DAMAGE if wolf else DAMAGE)
+	elif wolf:
+		# Prowling: towards the village, to find someone.
+		_step(Vector2(world.stockyard.position.x, 40.0), delta)
 	elif loot == "":
 		_try_torch()
 		var yard: Node2D = world.stockyard
@@ -111,15 +133,22 @@ func _try_torch() -> void:
 		return
 
 
-func _step(to: Vector2, delta: float) -> bool:
+func _step(to: Vector2, delta: float, pace := 1.0) -> bool:
 	_walking = true
-	position = position.move_toward(to, SPEED * delta)
+	var speed := SbData.WOLF_SPEED if wolf else SPEED
+	var before := position.x
+	position = position.move_toward(to, speed * pace * delta)
+	if absf(position.x - before) > 0.01:
+		scale.x = 1.0 if position.x > before else -1.0
 	position.y = clampf(position.y, SbData.WALK_TOP, SbData.WALK_BOTTOM)
 	return position.distance_to(to) < 1.0
 
 
 func _draw() -> void:
 	var step := int(Time.get_ticks_msec() / 130.0 + position.x) % 2 if _walking else -1
+	if wolf:
+		_draw_wolf(step)
+		return
 	draw_rect(Rect2(-2, -3, 2, 2 if step == 0 else 3), SbData.INK)
 	draw_rect(Rect2(1, -3, 2, 2 if step == 1 else 3), SbData.INK)
 	var body := SbData.WHITE if _hurt > 0.0 else SbData.RED1
@@ -136,11 +165,32 @@ func _draw() -> void:
 		draw_rect(Rect2(-5, -16 - flick, 1, 1), SbData.LIGHT)
 	if loot != "" and loot != "none":
 		draw_rect(Rect2(-6, -16, 5, 6), SbData.DIRT)
-	# Health bar while hurt.
-	if hp < 8.0:
-		draw_rect(Rect2(-5, -22, 10, 1), SbData.RED0)
-		draw_rect(Rect2(-5, -22, 10.0 * hp / 8.0, 1), SbData.GOLD)
+	_draw_health(-22.0)
+
+
+func _draw_health(y: float) -> void:
+	if hp < max_hp:
+		draw_rect(Rect2(-5, y, 10, 1), SbData.RED0)
+		draw_rect(Rect2(-5, y, 10.0 * hp / max_hp, 1), SbData.GOLD)
+
+
+## A hunched, shaggy beast on two legs, with glowing eyes.
+func _draw_wolf(step: int) -> void:
+	var fur := SbData.WHITE if _hurt > 0.0 else SbData.STONE0
+	draw_rect(Rect2(-3, -4, 2, 4 if step != 0 else 3), fur)
+	draw_rect(Rect2(1, -4, 2, 4 if step != 1 else 3), fur)
+	draw_rect(Rect2(-5, -15, 10, 11), fur)
+	draw_rect(Rect2(-6, -12, 2, 6), fur)
+	draw_rect(Rect2(1, -21, 7, 6), fur)
+	draw_rect(Rect2(7, -18, 3, 2), fur)
+	draw_rect(Rect2(2, -23, 2, 2), fur)
+	draw_rect(Rect2(5, -23, 2, 2), fur)
+	draw_rect(Rect2(4, -19, 2, 1), Color(1.0, 0.25, 0.2))
+	draw_rect(Rect2(4, -9, 4, 1), SbData.STONE3)
+	_draw_health(-27.0)
 
 
 func describe() -> String:
+	if wolf:
+		return "The werewolf: %d / %d health" % [ceili(hp), int(max_hp)]
 	return "A raider: %d / 8 health%s" % [ceili(hp), ", carrying %s" % loot if loot != "" and loot != "none" else ""]

@@ -193,6 +193,14 @@ const DIG_TIME := 12.0
 const TRAPPED_HURT_EVERY := 20.0
 const TRAPPED_HURT := 2.0
 
+## Werewolves: from WOLF_FIRST_DAY, each night has WOLF_CHANCE of one coming
+## out of the wood: much tougher and faster than a raider, and gone at dawn.
+const WOLF_FIRST_DAY := 4
+const WOLF_CHANCE := 0.25
+const WOLF_HP := 22.0
+const WOLF_SPEED := 40.0
+const WOLF_DAMAGE := 3.0
+
 ## Beds in a finished Hut; the hurt get better faster in one.
 const HUT_BEDS := 2
 const HEAL := 0.15

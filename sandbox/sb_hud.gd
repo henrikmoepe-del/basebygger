@@ -491,7 +491,9 @@ func _process(delta: float) -> void:
 	_alarm_button.text = "Bell: ringing" if world.alarm else "Bell"
 	_res_label.text = "Wood %d   Stone %d   Food %d" % [world.stockyard.stock.wood, world.stockyard.stock.stone, world.stockyard.stock.food]
 	if world.raid_on:
-		_raid_label.text = "RAID! %d raiders" % world.raiders.size()
+		var wolves: int = world.raiders.filter(func(r): return r.wolf).size()
+		var men: int = world.raiders.size() - wolves
+		_raid_label.text = ("RAID! %d raiders " % men if men > 0 else "") + ("WEREWOLF!" if wolves > 0 else "")
 	elif world.auto_raids:
 		var hours: float = (world.next_raid - world.time) / SbData.DAY_LENGTH * 24.0
 		_raid_label.text = ("Raid in %d h" % ceili(hours)) if hours < 24.0 else ""

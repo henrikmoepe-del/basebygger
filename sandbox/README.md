@@ -77,6 +77,11 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
      their trait). Taken in, they start as a Hauler and get a place in the bar of
      names; sent away, they walk off. (From Henrik's next steps: "a traveller asks
      to join".)
+   - **Werewolves** (from Henrik's list): from day 4, each night has a 25% chance
+     of a werewolf coming out of the wood: much tougher and faster than a raider,
+     after people, not goods. At dawn it slinks back into the wood. Drawn as deep
+     shadow and red, as the art direction asks. The bell, a drafted group or the
+     guard are the answers.
    - **Cave-ins** (Henrik's "people stuck in the mines"): each stone mined has a
      small chance of a cave-in that buries the miner. Anyone with Rescue work
      comes to dig (up to 3 at once; a bar shows how far). Trapped, the miner
