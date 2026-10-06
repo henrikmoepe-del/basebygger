@@ -21,6 +21,10 @@ var _jobs: HBoxContainer
 var _grid: HBoxContainer
 var _log: VBoxContainer
 var _work: PanelContainer
+var _build: PanelContainer
+var _site_panel: PanelContainer
+var _site_label: Label
+var _urgent_button: Button
 var _work_grid: GridContainer
 var _refresh := 0.0
 
@@ -36,8 +40,10 @@ func _ready() -> void:
 	_make_panel()
 	_make_log()
 	_make_work()
+	_make_build()
+	_make_site_panel()
 	var help := Label.new()
-	help.text = "Left-click: select (Shift adds)  Drag: box  Right-click: order  R: release  1-5: job  W: work  A/D: pan"
+	help.text = "Left-click: select (Shift adds)  Drag: box  Right-click: order  R: release  1-5: job  W: work  B: build  A/D: pan"
 	help.add_theme_font_size_override("font_size", 8)
 	help.add_theme_color_override("font_color", UiTheme.PARCHMENT_DIM)
 	help.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
@@ -70,7 +76,7 @@ func _make_top() -> void:
 	_raid_label.add_theme_color_override("font_color", UiTheme.BAD)
 	_raid_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(_raid_label)
-	for spec in [["Work (W)", toggle_work], ["Raid (T)", func(): world.start_raid()], ["Fire (F)", func(): world.start_fire()]]:
+	for spec in [["Build (B)", toggle_build], ["Work (W)", toggle_work], ["Raid (T)", func(): world.start_raid()], ["Fire (F)", func(): world.start_fire()]]:
 		var b := _button(spec[0], spec[1])
 		row.add_child(b)
 	_speed_button = _button("Speed 1x", _cycle_speed)
@@ -154,6 +160,68 @@ func _make_work() -> void:
 	_work_grid.add_theme_constant_override("h_separation", 2)
 	_work_grid.add_theme_constant_override("v_separation", 1)
 	box.add_child(_work_grid)
+
+
+## The Build menu: pick a building, then left-click where it goes along the
+## back of the ground (Shift-click to place several, right-click to stop).
+func _make_build() -> void:
+	_build = PanelContainer.new()
+	_build.visible = false
+	_build.position = Vector2(300, 48)
+	_root.add_child(_build)
+	var box := VBoxContainer.new()
+	_build.add_child(box)
+	for key in SbData.BUILD_ORDER:
+		var b: Dictionary = SbData.BUILDINGS[key]
+		var count := {}
+		for m in b.courses:
+			count[m] = count.get(m, 0) + b.cols
+		var parts: Array = []
+		for m in count:
+			parts.append("%d %s" % [count[m], m])
+		var button := _button("%s (%s)" % [b.title, ", ".join(parts)], _start_placing.bind(key))
+		_compact(button)
+		box.add_child(button)
+
+
+func toggle_build() -> void:
+	_build.visible = not _build.visible
+
+
+func _start_placing(key: String) -> void:
+	world.placing = key
+	_build.visible = false
+
+
+## What a picked building site shows: progress, and buttons to make it
+## urgent (builders go there first) or cancel it.
+func _make_site_panel() -> void:
+	_site_panel = PanelContainer.new()
+	_site_panel.visible = false
+	_site_panel.position = Vector2(4, 300)
+	_root.add_child(_site_panel)
+	var box := VBoxContainer.new()
+	_site_panel.add_child(box)
+	_site_label = Label.new()
+	_site_label.add_theme_font_size_override("font_size", 9)
+	box.add_child(_site_label)
+	var row := HBoxContainer.new()
+	box.add_child(row)
+	_urgent_button = _button("Urgent", _toggle_urgent)
+	_compact(_urgent_button)
+	_urgent_button.tooltip_text = "Builders choosing for themselves go to an urgent site first."
+	row.add_child(_urgent_button)
+	var cancel := _button("Cancel", func(): world.cancel_site(world.picked_site))
+	_compact(cancel)
+	cancel.tooltip_text = "Remove the site. What was laid falls down to be hauled back."
+	row.add_child(cancel)
+
+
+func _toggle_urgent() -> void:
+	var site: Node2D = world.picked_site
+	if site != null:
+		site.urgent = not site.urgent
+		site.queue_redraw()
 
 
 func toggle_work() -> void:
@@ -269,9 +337,21 @@ func _process(delta: float) -> void:
 		b.add_theme_color_override("font_color", c)
 		b.tooltip_text = "%s, %s: %s" % [p.person_name, p.job_name(), p.activity()]
 	_update_rows()
+	_update_site()
+
+
+func _update_site() -> void:
+	var site: Node2D = world.picked_site
+	_site_panel.visible = site != null and is_instance_valid(site)
+	if not _site_panel.visible:
+		return
+	_site_label.text = site.progress_text()
+	_urgent_button.text = "Urgent: yes" if site.urgent else "Urgent: no"
+	_urgent_button.add_theme_color_override("font_color", UiTheme.GOLD if site.urgent else UiTheme.PARCHMENT)
 
 
 func _rebuild_panel() -> void:
+	_update_site()
 	if _work != null and _work.visible:
 		_rebuild_work.call_deferred()
 	_panel.visible = not world.selected.is_empty()

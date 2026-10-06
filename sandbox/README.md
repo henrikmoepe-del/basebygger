@@ -44,6 +44,9 @@ Open `sandbox/sandbox.tscn` in Godot and press **F6** (Run Current Scene).
 | Right-click a fire | Put it out (buckets from the well) |
 | Right-click a raider | Fight it (guards hit 3, others 1.5) |
 | Right-click the ground | Go there and hold |
+| B (or Build) | Build menu: pick a building, left-click where it goes (Shift-click: several; right-click: stop). Red outline = does not fit |
+| Left-click a building site | Its progress; make it **Urgent** (builders go there first, red pennant) or **Cancel** it |
+| W (or Work) | The Work overview: every peasant's job and priorities, click to change |
 | R | Release the selected: back to free will |
 | 1-5 | Make the selected Builders, Woodcutters, Miners, Haulers or Guards |
 | Esc | Deselect |

@@ -13,6 +13,9 @@ var cols := 5
 ## One material per block, bottom course first, left to right.
 var mats: Array = []
 var placed := 0
+## Builders choosing for themselves prefer a site marked urgent.
+var urgent := false
+var selected := false
 ## The material actually laid in each place so far (a builder may bring the
 ## material of the course below when two arrive at once).
 var laid: Array = []
@@ -103,7 +106,9 @@ func label() -> String:
 
 
 func progress_text() -> String:
-	return "%s: %d / %d blocks" % [title, placed, mats.size()]
+	if done():
+		return "%s: finished" % title
+	return "%s: %d / %d blocks, next: %s, %d working" % [title, placed, mats.size(), next_material(), workers.size()]
 
 
 func _process(delta: float) -> void:
@@ -139,6 +144,12 @@ func _draw() -> void:
 		_draw_finish(left, w)
 	if _flash > 0.0:
 		draw_rect(Rect2(left, -height(), w, height()), Color(SbData.LIGHT, _flash * 0.6))
+	if selected:
+		draw_rect(Rect2(left - 3.0, -height() - 3.0, w + 6.0, height() + 6.0), SbData.GOLD, false, 1.0)
+	if urgent and not done():
+		# A red pennant on the name board: build this first.
+		draw_rect(Rect2(left - 3.0, -16.0, 1, 12), SbData.WOOD0)
+		draw_colored_polygon(PackedVector2Array([Vector2(left - 2.0, -16.0), Vector2(left + 5.0, -14.0), Vector2(left - 2.0, -12.0)]), SbData.RED1)
 	# Name board while it is still a site.
 	if not done():
 		draw_rect(Rect2(left - 3.0, -4.0, 1, 4), SbData.WOOD1)

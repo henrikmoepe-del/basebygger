@@ -43,6 +43,10 @@ var stockyard: Node2D
 var well: Node2D
 var guard_post := Vector2(-250, 30)
 var selected: Array = []
+## A building site picked with a left-click (its info shows in the HUD).
+var picked_site: Node2D = null
+## The building being placed from the Build menu, or "".
+var placing := ""
 var messages: Array = []
 var raid_on := false
 var raids := 0
@@ -90,13 +94,8 @@ func _build_map() -> void:
 	well = _add(Well, Vector2(255, 8))
 	well.setup()
 	# Three building sites side by side, each its own job.
-	var hut: Node2D = _add(Site, Vector2(-170, 4))
-	hut.setup("Hut", "thatch", 5, ["stone", "wood", "wood", "wood"])
-	var wall: Node2D = _add(Site, Vector2(-60, 4))
-	wall.setup("Wall", "battlements", 7, ["stone", "stone", "stone", "stone", "stone"])
-	var tower: Node2D = _add(Site, Vector2(60, 4))
-	tower.setup("Tower", "spire", 4, ["stone", "stone", "stone", "stone", "stone", "wood", "wood"])
-	sites = [hut, wall, tower]
+	for pair in [["hut", -170.0], ["wall", -60.0], ["tower", 60.0]]:
+		add_site(pair[0], Vector2(pair[1], 4))
 	# Rocks and a wood to the east, at different depths.
 	for spot in [Vector2(320, 14), Vector2(352, 46), Vector2(300, 66)]:
 		var r: Node2D = _add(Rock, spot)
@@ -129,6 +128,54 @@ func _add(script: Script, at: Vector2) -> Node2D:
 	node.position = at
 	things.add_child(node)
 	return node
+
+
+func add_site(building: String, at: Vector2) -> Node2D:
+	var b: Dictionary = SbData.BUILDINGS[building]
+	var site: Node2D = _add(Site, at)
+	site.setup(b.title, b.style, b.cols, b.courses)
+	sites.append(site)
+	return site
+
+
+## True if a building of this kind fits with its middle at x: not over
+## another building, the stockyard or the well, and inside the map.
+func site_fits(building: String, x: float) -> bool:
+	var half: float = SbData.BUILDINGS[building].cols * 5.0 + 4.0
+	if x - half < SbData.WEST_EDGE + 10.0 or x + half > SbData.EAST_EDGE - 10.0:
+		return false
+	for s in sites:
+		if absf(s.position.x - x) < half + s.width() / 2.0 + 4.0:
+			return false
+	for t in [stockyard, well]:
+		if absf(t.position.x - x) < half + 36.0:
+			return false
+	# Not over trees or rocks standing at the back of the ground.
+	for t in trees + rocks:
+		if t.is_open() and t.position.y < 24.0 and absf(t.position.x - x) < half + 6.0:
+			return false
+	return true
+
+
+## Cancels a site: what was laid falls down as loose blocks to haul back.
+func cancel_site(site: Node2D) -> void:
+	for i in mini(site.placed, 8):
+		spawn_item(site.laid[i], site.position + Vector2(randf_range(-site.width() / 2.0, site.width() / 2.0), randf_range(6, 14)))
+	announce("The %s is cancelled." % site.title)
+	if picked_site == site:
+		pick_site(null)
+	remove_thing(site)
+
+
+func pick_site(site: Node2D) -> void:
+	if picked_site != null and is_instance_valid(picked_site):
+		picked_site.selected = false
+		picked_site.queue_redraw()
+	picked_site = site
+	if site != null:
+		site.selected = true
+		site.queue_redraw()
+	selection_changed.emit()
 
 
 func spawn_item(res: String, at: Vector2) -> Node2D:
@@ -189,8 +236,11 @@ func find_work(p: Node2D, work: String) -> Dictionary:
 			var need: String = t.next_material()
 			if p.carrying != need and stockyard.stock.get(need, 0) <= 0:
 				continue
-			# Spread out: a site with fewer builders on it is better.
+			# Spread out: a site with fewer builders on it is better; an
+			# urgent one comes first.
 			score += 80.0 * t.workers.size()
+			if t.urgent:
+				score -= 1000.0
 		if work == "haul" and t.carried_by != null:
 			continue
 		if score < best_score:
@@ -266,7 +316,16 @@ func select(list: Array, add := false) -> void:
 		if not selected.has(p):
 			selected.append(p)
 			p.selected = true
+	if not list.is_empty() and picked_site != null:
+		pick_site(null)
 	selection_changed.emit()
+
+
+func _site_at(at: Vector2) -> Node2D:
+	for s in sites:
+		if s.hit(at):
+			return s
+	return null
 
 
 func peasant_at(at: Vector2) -> Node2D:
@@ -346,6 +405,15 @@ func _unhandled_input(event: InputEvent) -> void:
 	var at := get_global_mouse_position()
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
+		if placing != "" and mb.pressed:
+			if mb.button_index == MOUSE_BUTTON_LEFT and site_fits(placing, roundf(at.x)):
+				add_site(placing, Vector2(roundf(at.x), 4))
+				announce("A %s is planned." % SbData.BUILDINGS[placing].title)
+				if not mb.shift_pressed:
+					placing = ""
+			elif mb.button_index == MOUSE_BUTTON_RIGHT:
+				placing = ""
+			return
 		if mb.button_index == MOUSE_BUTTON_LEFT:
 			if mb.pressed:
 				_drag_from = at
@@ -359,6 +427,8 @@ func _unhandled_input(event: InputEvent) -> void:
 						selection_changed.emit()
 					else:
 						select([p] if p != null else [], mb.shift_pressed)
+						if p == null:
+							pick_site(_site_at(at))
 				else:
 					var inside: Array = []
 					for p in peasants:
@@ -382,7 +452,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_R:
 				release_selected()
 			KEY_ESCAPE:
+				placing = ""
 				select([])
+				pick_site(null)
+			KEY_B:
+				hud.toggle_build()
 			KEY_T:
 				start_raid()
 			KEY_F:
@@ -427,9 +501,24 @@ func _draw_overlay() -> void:
 			var c := SbData.GOLD if p.task.get("forced", false) else Color(SbData.WHITE, 0.5)
 			_dotted(p.position + Vector2(0, -6), to, c)
 			overlay.draw_rect(Rect2(to - Vector2(1, 1), Vector2(3, 3)), c)
+	if placing != "":
+		_draw_ghost(get_global_mouse_position())
 	for ping in _pings:
 		var r: float = 3.0 + (0.6 - ping.t) * 14.0
 		overlay.draw_arc(ping.pos, r, 0, TAU, 12, Color(SbData.GOLD, ping.t / 0.6), 1.0)
+
+
+## The building being placed, as a see-through outline under the mouse:
+## gold where it fits, red where it does not.
+func _draw_ghost(at: Vector2) -> void:
+	var b: Dictionary = SbData.BUILDINGS[placing]
+	var x := roundf(at.x)
+	var w: float = b.cols * 10.0
+	var h: float = b.courses.size() * 6.0
+	var c := SbData.GOLD if site_fits(placing, x) else SbData.RED1
+	overlay.draw_rect(Rect2(x - w / 2.0, 4.0 - h, w, h), Color(c, 0.25))
+	overlay.draw_rect(Rect2(x - w / 2.0, 4.0 - h, w, h), c, false, 1.0)
+	overlay.draw_string(ThemeDB.fallback_font, Vector2(x - w / 2.0, 4.0 - h - 3.0), b.title, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, c)
 
 
 func _dotted(a: Vector2, b: Vector2, c: Color) -> void:

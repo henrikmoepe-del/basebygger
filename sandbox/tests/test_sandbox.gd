@@ -98,6 +98,19 @@ func _run() -> void:
 	var over := await _wait(200.0, func(): return not w.raid_on)
 	_check(over, "the raid ends")
 
+	# 7. Placing a building: not over another one; a new one gets built.
+	_check(not w.site_fits("hut", w.sites[0].position.x), "a building cannot be placed over another")
+	_check(not w.site_fits("hut", w.stockyard.position.x), "a building cannot be placed over the stockyard")
+	var x := -260.0
+	_check(w.site_fits("shed", x), "a shed fits west of the Hut")
+	var shed: Node2D = w.add_site("shed", Vector2(x, 4))
+	shed.urgent = true
+	var built := await _wait(200.0, func(): return shed.done())
+	_check(built, "a newly placed urgent shed is built by the builders on their own")
+	w.cancel_site(w.sites[1])
+	await _wait(1.0)
+	_check(w.sites.size() == 3, "a site can be cancelled")
+
 	_check(_off_band == 0, "nobody leaves the ground band (%d frames off it)" % _off_band)
 	print("ALL PASSED" if _fails == 0 else "%d FAILED" % _fails)
 	quit(1 if _fails > 0 else 0)

@@ -46,6 +46,17 @@ const WALK_BOTTOM := 78.0
 const WEST_EDGE := -360.0
 const EAST_EDGE := 620.0
 
+## Buildings the player can place: title, look, blocks per course, and the
+## material of each course from the bottom.
+const BUILDINGS := {
+	"hut": {"title": "Hut", "style": "thatch", "cols": 5, "courses": ["stone", "wood", "wood", "wood"]},
+	"wall": {"title": "Wall", "style": "battlements", "cols": 7, "courses": ["stone", "stone", "stone", "stone", "stone"]},
+	"tower": {"title": "Tower", "style": "spire", "cols": 4, "courses": ["stone", "stone", "stone", "stone", "stone", "wood", "wood"]},
+	"shed": {"title": "Shed", "style": "thatch", "cols": 4, "courses": ["wood", "wood"]},
+}
+
+const BUILD_ORDER := ["hut", "wall", "tower", "shed"]
+
 ## How many peasants work one thing at a time when choosing for themselves.
 ## Orders from the player ignore these.
 const CAPACITY := {"tree": 1, "rock": 2, "item": 1, "site": 4, "fire": 3}

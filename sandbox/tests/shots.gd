@@ -16,6 +16,8 @@ const PLANS := {
 	# Box selection and a hold-here order.
 	# The Work overview.
 	"work": {"steps": [[1.0, "work"], [0.3, "shot"]]},
+	# Placing a new building, and a picked site marked urgent.
+	"build": {"steps": [[1.0, "place"], [0.2, "shot"], [0.1, "placed"], [15.0, "shot"]]},
 	"box": {"steps": [[2.0, "box"], [0.1, "goto"], [0.4, "shot"]]},
 }
 
@@ -79,6 +81,15 @@ func _do(what: String) -> void:
 			w.select(inside)
 		"goto":
 			w.give_order(Vector2(0, 40))
+		"place":
+			w.placing = "hut"
+			w.camera.position = Vector2(330, -20)
+			Input.warp_mouse(Vector2(520, 190) * 2.0)
+		"placed":
+			var site: Node2D = w.add_site("hut", Vector2(380, 4))
+			w.placing = ""
+			w.pick_site(site)
+			site.urgent = true
 		"work":
 			w.peasants[3].cycle_prio("haul")
 			w.hud.toggle_work()
